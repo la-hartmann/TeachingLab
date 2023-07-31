@@ -9,8 +9,8 @@ Description: Provides templates, palettes, and useful data analysis for Teaching
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
-URL: https://github.com/duncangates/teachinglab-duncan
-BugReports: https://github.com/duncangates/teachinglab-duncan/issues
+URL: https://github.com/teachinglabhq/teachinglab
+BugReports: https://github.com/teachinglabhq/teachinglab/issues
 Imports:
   assertthat,
   bookdown,

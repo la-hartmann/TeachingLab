@@ -72,7 +72,7 @@ To get a local copy up and running follow these simple example steps.
 ### Installation
 
 ``` r
-devtools::install_github("https://github.com/duncangates/TeachingLab")
+devtools::install_github("https://github.com/TeachingLabHQ/TeachingLab")
 ```
 
 ## Organization
@@ -90,7 +90,7 @@ devtools::install_github("https://github.com/duncangates/TeachingLab")
 <!-- ROADMAP -->
 ## Roadmap
 
-See the [open issues](https://github.com/duncangates/TeachingLab/issues) for a list of proposed features (and known issues).
+See the [open issues](https://github.com/TeachingLabHQ/TeachingLab/issues) for a list of proposed features (and known issues).
 
 
 
@@ -117,9 +117,9 @@ Distributed under the MIT License. See `LICENSE` for more information.
 <!-- CONTACT -->
 ## Contact
 
-Your Name - [@teachinglabHQ](https://twitter.com/teachinglabHQ) - duncan.gates@teachinglab.org
+Your Name - [@teachinglabHQ](https://twitter.com/teachinglabHQ) - contact@teachinglab.org
 
-Project Link: [https://github.com/duncangates/TeachingLab](Github)
+Project Link: [https://github.com/TeachingLabHQ/TeachingLab](Github)
 
 
 
