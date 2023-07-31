@@ -1,0 +1,222 @@
+---
+title: "list_sites_know_assess"
+author: "Duncan Gates"
+date: "1/11/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(googlesheets4)
+
+surveys <- surveymonkey::browse_surveys() %>%
+  dplyr::mutate(responses = map(id, ~ surveymonkey::fetch_survey_obj(id = .x)$`response_count`))
+
+surveys_final <- surveys %>%
+  dplyr::mutate(responses = as.numeric(responses)) %>%
+  dplyr::filter(responses > 0 & str_detect(title, "ELA|Math")) %>%
+  dplyr::arrange(title)
+
+all_sites <- read_sheet("https://docs.google.com/spreadsheets/d/11jlo9UeWxZGwunhDb24hZBwAKc5b8ZKM9AYNWZaUyZY/edit#gid=0",
+                        sheet = 1,
+                        range = "C3:C",
+                        col_names = "Site")
+##### Not necessary right now at least #####
+# sites <- all_sites$Site %>%
+#   purrr::keep( ~ !str_detect(.x, "Rochester")) %>%
+#   append("Rochester City School District, NY") %>%
+#   sort()
+# 
+# sites %>% 
+#   clipr::write_clip()
+####################################################
+
+get_sites_to_clip <- function(id) {
+  
+  survey <- surveymonkey::fetch_survey_obj(id) %>%
+    surveymonkey::parse_survey()
+  
+  school_pull <- colnames(survey) %>%
+    purrr::keep( ~ stringr::str_detect(.x, "your site|Your site") & !stringr::str_detect(.x, "Other"))
+  
+  survey_sites <- survey %>%
+    dplyr::pull(school_pull) %>%
+    levels()
+  
+  sites <- all_sites$Site
+  
+  if (length(setdiff(sites, survey_sites)) == 0) {
+    print("All sites in master list are in this survey")
+  } else {
+    print("Sites copied to clipboard")
+    setdiff(sites, survey_sites) %>%
+      clipr::write_clip()
+  }
+  # Print extra sites in survey to console
+  if (length(setdiff(survey_sites, sites)) > 0) {
+    print("Whoops! Extra sites listed below")
+    print(tibble::as_tibble(setdiff(survey_sites, sites)))
+  }
+  
+}
+```
+
+## Educator Survey
+
+```{r}
+get_sites_to_clip(306944493)
+```
+
+
+## Course Survey
+
+```{r}
+get_sites_to_clip(308116695)
+```
+
+## Session Survey
+
+```{r}
+get_sites_to_clip(308115193)
+```
+
+##  ELA EL: Bootcamp - ALL Block (3-5)
+
+```{r}
+get_sites_to_clip(317612750)
+```
+
+## ELA Foundational Skills: Cycle of Inquiry 2: Using Data to Inform Foundational Skills Instruction
+
+```{r}
+get_sites_to_clip(317871223)
+```
+
+## ELA General: Cycle of Inquiry - Complex Text
+
+```{r}
+get_sites_to_clip(311404498)
+```
+
+## ELA General: Cycle of Inquiry - Speaking & Listening
+
+```{r}
+get_sites_to_clip(315708558)
+```
+
+## ELA: Bootcamp - Foundational Skills Bootcamp Skills (K-2)
+
+```{r}
+get_sites_to_clip(309842602)
+```
+
+## ELA: Bootcamp - General
+
+```{r}
+get_sites_to_clip(309800566)
+```
+
+##  ELA: CRSE PLC
+
+```{r}
+get_sites_to_clip(312484554)
+```
+
+## ELA: Cycle of Inquiry - Curriculum Flex Foundational Skills
+
+```{r}
+get_sites_to_clip(314564825)
+```
+
+##  ELA: Guidebooks Diverse Learners Bootcamp - Leader
+
+```{r}
+get_sites_to_clip(311069987)
+```
+
+##  ELA: Guidebooks Diverse Learners Bootcamp - Teacher
+
+```{r}
+get_sites_to_clip(310008951)
+```
+
+##  ELA: Guidebooks Diverse Learners Bootcamp Writing
+
+```{r}
+get_sites_to_clip(310775522)
+```
+
+##  ELA: Guidebooks Diverse Learners Cycle of Inquiry - Fluency
+
+```{r}
+get_sites_to_clip(310776199)
+```
+
+##  ELA: Guidebooks Diverse Learners Cycle of Inquiry - Vocabulary
+
+```{r}
+get_sites_to_clip(310776879)
+```
+
+##  ELA: HQIM & Enrichment
+
+```{r}
+get_sites_to_clip(310009771)
+```
+
+## ELA: School Leader Coaching Series
+
+Not sure what's going on here, doesn't seem to be done yet. Doesn't need to be done.
+
+```{r eval = F}
+# get_sites_to_clip(316752660)
+```
+
+##  School Leaders: ELA
+
+```{r}
+get_sites_to_clip(312485414)
+```
+
+##  Math: Accelerating Learning
+
+```{r}
+get_sites_to_clip(310768681)
+```
+
+##  Math: Accelerating Learning - EIC
+
+```{r}
+get_sites_to_clip(313784149)
+```
+
+##  Math: Bootcamp
+
+```{r}
+get_sites_to_clip(309842333)
+```
+
+
+##  Math: Bootcamp - EIC
+
+Nothing to be done here, just EIC and District 11.
+
+##  Math: Cycle of Inquiry I - Eliciting Student Thinking
+
+```{r}
+get_sites_to_clip(311433379)
+```
+
+## Math: Cycle of Inquiry II - Making Math Visible
+
+```{r}
+get_sites_to_clip(316733968)
+```
+
+##  Math: Cycle of Inquiry V- Sequencing and Connecting Representations
+
+```{r}
+get_sites_to_clip(311404789)
+```

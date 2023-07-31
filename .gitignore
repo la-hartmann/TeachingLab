@@ -15,6 +15,5 @@ tokens/
 MondayR.httr-oauth
 .httr-oauth
 .secrets
-data/
+data/*
 !data/*.rda
-data_scripts/

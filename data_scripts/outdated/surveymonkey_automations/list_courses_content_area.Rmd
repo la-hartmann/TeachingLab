@@ -1,0 +1,143 @@
+
+```{r setup}
+library(googlesheets4)
+library(tidyverse)
+googlesheets4::gs4_auth()
+
+df <- read_sheet("https://docs.google.com/spreadsheets/d/1cELGsuEjXsb1e5oRdtdYof-Ul7jfdBXMOTYbIYd7nS4/edit#gid=0",
+           sheet = 1,
+           range = "A:B")
+
+session_survey <- surveymonkey::fetch_survey_obj(308115193) %>%
+  surveymonkey::parse_survey()
+
+course_survey <- surveymonkey::fetch_survey_obj(308116695) %>%
+  surveymonkey::parse_survey()
+```
+
+```{r}
+ela_courses_in_session_survey <- session_survey %>%
+  pull(`Select your course.`) %>%
+  levels() #%>% 
+  # magrittr::extract(1:84)
+ela_courses_in_course_survey <- course_survey %>%
+  pull(`Select your course.`) %>%
+  levels() #%>%
+  # magrittr::extract(1:47)
+ela_courses_in_sheet <- df %>%
+  dplyr::filter(`Content area` == "ELA") %>%
+  pull(`Course Title (originally from PM-facing Course Catalog, updated for new naming conventions)`)
+
+### Courses in Google Sheet that are not in the options of the Course Survey ###
+setdiff(ela_courses_in_sheet, ela_courses_in_course_survey) %>%
+  clipr::write_clip() -> ela_course_diff
+### Courses in Google Sheet that are not in the options of the Session Survey ###
+setdiff(ela_courses_in_sheet, ela_courses_in_session_survey) %>%
+  clipr::write_clip() -> ela_session_diff
+```
+
+```{r}
+math_courses_in_session_survey <- session_survey %>%
+  pull(`Select your course._2`) %>%
+  levels()
+math_courses_in_course_survey <- course_survey %>%
+  pull(`Select your course._2`) %>%
+  levels()
+math_courses_in_sheet <- df %>%
+  dplyr::filter(`Content area` == "Math") %>%
+  pull(`Course Title (originally from PM-facing Course Catalog, updated for new naming conventions)`)
+
+setdiff(math_courses_in_sheet, math_courses_in_course_survey) %>%
+  clipr::write_clip() -> math_course_diff
+setdiff(math_courses_in_sheet, math_courses_in_session_survey) %>%
+  clipr::write_clip() -> math_session_diff
+```
+
+```{r}
+school_leaders_courses_in_session_survey <- session_survey %>%
+  pull(`Select your course._6`) %>%
+  levels()
+school_leaders_courses_in_course_survey <- course_survey %>%
+  pull(`Select your course._6`) %>%
+  levels()
+school_leaders_courses_in_sheet <- df %>%
+  dplyr::filter(`Content area` == "School Leaders") %>%
+  pull(`Course Title (originally from PM-facing Course Catalog, updated for new naming conventions)`)
+
+setdiff(school_leaders_courses_in_sheet, school_leaders_courses_in_course_survey) %>%
+  clipr::write_clip() -> school_leaders_course_diff
+setdiff(school_leaders_courses_in_sheet, school_leaders_courses_in_session_survey) %>%
+  clipr::write_clip() -> school_leaders_session_diff
+```
+
+
+```{r}
+hqim_fellowship_courses_in_session_survey <- session_survey %>%
+  pull(`Select your course._4`) %>%
+  levels()
+hqim_fellowship_courses_in_course_survey <- course_survey %>%
+  pull(`Select your course._4`) %>%
+  levels()
+hqim_fellowship_courses_in_sheet <- df %>%
+  dplyr::filter(`Content area` == "HQIM Fellowship") %>%
+  pull(`Course Title (originally from PM-facing Course Catalog, updated for new naming conventions)`)
+
+setdiff(hqim_fellowship_courses_in_sheet, hqim_fellowship_courses_in_course_survey) %>%
+  clipr::write_clip() -> hqim_fellowship_course_diff
+setdiff(hqim_fellowship_courses_in_sheet, hqim_fellowship_courses_in_session_survey) %>%
+  clipr::write_clip() -> hqim_fellowship_session_diff
+```
+
+```{r}
+hqpl_fellowship_courses_in_session_survey <- session_survey %>%
+  pull(`Select your course._3`) %>%
+  levels()
+hqpl_fellowship_courses_in_course_survey <- course_survey %>%
+  pull(`Select your course._3`) %>%
+  levels()
+hqpl_fellowship_courses_in_sheet <- df %>%
+  dplyr::filter(`Content area` == "HQPL Fellowship") %>%
+  pull(`Course Title (originally from PM-facing Course Catalog, updated for new naming conventions)`)
+
+setdiff(hqpl_fellowship_courses_in_sheet, hqpl_fellowship_courses_in_course_survey) %>%
+  clipr::write_clip() -> hqpl_fellowship_course_diff
+setdiff(hqpl_fellowship_courses_in_sheet, hqpl_fellowship_courses_in_session_survey) %>%
+  clipr::write_clip() -> hqpl_fellowship_session_diff
+```
+
+```{r}
+lab_leaders_courses_in_session_survey <- session_survey %>%
+  pull(`Select your course._5`) %>%
+  levels()
+lab_leaders_courses_in_course_survey <- course_survey %>%
+  pull(`Select your course._5`) %>%
+  levels()
+lab_leaders_courses_in_sheet <- df %>%
+  dplyr::filter(`Content area` == "Lab Leaders") %>%
+  pull(`Course Title (originally from PM-facing Course Catalog, updated for new naming conventions)`)
+
+setdiff(lab_leaders_courses_in_sheet, lab_leaders_courses_in_course_survey) %>%
+  clipr::write_clip() -> lab_leaders_course_diff
+setdiff(lab_leaders_courses_in_sheet, lab_leaders_courses_in_session_survey) %>%
+  clipr::write_clip() -> lab_leaders_session_diff
+```
+
+Note to self, what even is state-level, this isn't in the survey???
+
+```{r}
+state_level_courses_in_session_survey <- session_survey %>%
+  pull(`Select your course._6`) %>%
+  levels()
+state_level_courses_in_course_survey <- course_survey %>%
+  pull(`Select your course._6`) %>%
+  levels()
+state_level_courses_in_sheet <- df %>%
+  dplyr::filter(`Content area` == "State-Level") %>%
+  pull(`Course Title (originally from PM-facing Course Catalog, updated for new naming conventions)`)
+
+setdiff(state_level_courses_in_sheet, state_level_courses_in_course_survey) %>%
+  clipr::write_clip() -> state_level_course_diff
+setdiff(state_level_courses_in_sheet, state_level_courses_in_session_survey) %>%
+  clipr::write_clip() -> state_level_session_diff
+```
+
