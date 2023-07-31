@@ -1,0 +1,204 @@
+---
+title: "Test code"
+author: "Duncan Gates"
+date: "3/24/2021"
+output: html_document
+---
+
+```{r}
+teaching_df <- read_rds(here("Data/dashboard_data.rds"))
+```
+
+
+##### TESTING
+For all time
+```{r}
+test <- teaching_df %>%
+      select(`Date for the session`, `% Satisfied With The Overall Quality Of Today's Professional Learning Session`, 
+             `% Who Say Today's Topic Was Relevant For My Role`, 
+             `% Who Say Activities Of Today's Session Were Well-Designed To Help Me Learn`, 
+             `How Likely Are You To Apply This Learning To Your Practice In The Next 4-6 Weeks?`, 
+             `S/He Facilitated The Content Clearly`, 
+             `S/He Effectively Built A Community Of Learners`) %>%
+      pivot_longer(!`Date for the session`, names_to = "question", values_to = "answer") %>%
+      dplyr::filter(answer != "No Response") %>% # Filter out non-responses
+      dplyr::group_by(answer, question) %>% # Group by input variable
+      dplyr::summarise(n = n()) %>% # Get count of variable
+      dplyr::group_by(answer) %>%
+      dplyr::mutate(percent = round(100 * (n / sum(n)), 2)) %>% # Make a percent column without non-responses
+      dplyr::mutate(answer = factor(answer, levels = c("Strongly agree", "Agree", "Neither agree nor disagree", "Disagree", "Strongly disagree"))) %>%
+      dplyr::relocate(percent, .before = n) %>%
+          group_by(question) %>%
+          # mutate(percent = factor(percent, levels = unique(percent))) %>%
+          arrange(desc(max(percent)))
+
+```
+
+For column chart
+
+```{r}
+test %>%
+  drop_na(question) %>%
+          mutate(answer = str_replace_all(answer, "Neither agree nor disagree", "Neither")) %>%
+          # group_by(as.factor(question)) %>%
+          mutate(question = factor(question, levels = unique(question))) %>%
+          # arrange(desc(percent)) %>%
+          # ungroup() %>%
+          ggplot2::ggplot(aes(x = question, y = n, fill = reorder(n, answer))) + # Pie chart input, ordered by n
+          labs(
+            fill = "Type", x = NULL, y = NULL
+          ) +
+          geom_bar(stat = "identity", width = 0.5, color = "gray10", position = position_fill()) +
+          # geom_text(aes(x = 0.125, label = "some text that won't show up"), color = "transparent", position = "fill") + # This adjusts the column size
+          # geom_text(aes(x = -0.125, label = "some text that won't show up"), color = "transparent", position = "fill") + # This adjusts the column size
+          geom_text(aes(
+            label = ifelse(percent > 10,
+                           paste0(percent, "%\n", answer),
+                           paste("")
+            ),
+            # x = if_else(percent > 10,
+            #             0.085,
+            #             -0.085), # Distance outwards from pie chart
+            # color = reorder(percent, n)
+          ),
+          position = position_fill(vjust = 0.5), # position stack normally stacks bars, but here it keeps the text in the right place once put in polar
+          size = 2.3,
+          fontface = "bold",
+          color = "black",
+          family = "Open Sans"
+          ) + # Add bold text with percentage and variable label
+          # facet_wrap( ~ question) +
+          coord_flip() +
+          # scale_x_continuous() + # Change x so expand is not default and adds no padding so the bars will produce a circle
+          # scale_fill_manual(values = c(rev(col(length(unique(test$question)))))) + # custom colors
+          theme_bw() +
+          theme(
+            legend.position = "none",
+            text = element_text(face = "bold", family = "Open Sans"),
+            axis.text.y = element_blank(),
+            panel.border = element_blank(),
+            axis.text.x = element_blank(),
+            axis.ticks.x = element_blank(),
+            axis.ticks.length.y = unit(0.45, "cm"),
+            panel.grid.major.x = element_blank(),
+            panel.grid.minor.x = element_blank(),
+            panel.grid.major.y = element_blank()
+          )
+```
+
+
+Time series
+```{r}
+test <- teaching_df %>%
+      select(`Date for the session`, `% Satisfied With The Overall Quality Of Today's Professional Learning Session`, 
+             `% Who Say Today's Topic Was Relevant For My Role`, 
+             `% Who Say Activities Of Today's Session Were Well-Designed To Help Me Learn`, 
+             `How Likely Are You To Apply This Learning To Your Practice In The Next 4-6 Weeks?`, 
+             `S/He Facilitated The Content Clearly`, 
+             `S/He Effectively Built A Community Of Learners`,
+             `The independent online work activities were well-designed to help me meet the learning targets.`, 
+             `The Zoom meeting activities were well-designed to help me meet the learning targets.`, 
+             `I felt a sense of community with the other participants in this course even though we were meeting virtually.`, 
+             `This course helped me navigate remote and/or hybrid learning during COVID-19.`) %>%
+      # Rename with line breaks every 24 characters
+      rename_with( ~ gsub("(.{25,}?)\\s", "\\1\n", .x)) %>%
+      pivot_longer(!`Date for the session`, names_to = "question", values_to = "answer") %>%
+      dplyr::filter(`answer` != "No Response") %>% # Filter out non-responses
+      dplyr::group_by(question, `Date for the session`) %>% # Group by input variable
+      mutate(`Number Agree/Disagree` = n()) %>%
+      mutate(Rating = case_when(answer %in% c("Agree", "Strongly agree") ~ "Agree/Strongly Agree",
+                                answer %in% c("Neither agree nor disagree", "Disagree", "Strongly disagree") ~ "Neither/Disagree/Strongly Disagree"),
+             `Date for the session` = paste0(lubridate::month(`Date for the session`, label = T, abbr = F), ", ", year(`Date for the session`))) %>%
+      ungroup() %>%
+      group_by(`Date for the session`, question) %>%
+      mutate(Percent = `Number Agree/Disagree`/sum(`Number Agree/Disagree`)*100) %>%
+      filter(Rating == "Agree/Strongly Agree") %>%
+      group_by(`Date for the session`, Rating, question) %>%
+      summarise(Percent = round(sum(Percent), 2))
+
+test_step <- bind_rows(old = test, 
+                         new = test %>% group_by(question) %>% mutate(Percent = lag(Percent)) %>% ungroup(),
+                         .id = "source") %>%
+  mutate(`Date for the session` = myd(paste0(`Date for the session`, ", 01"))) %>%
+               arrange(`Date for the session`, source)
+
+test %>%
+  mutate(`Date for the session` = paste0(`Date for the session`, ", 01")) %>%
+  ggplot(aes(x = myd(`Date for the session`), y = Percent)) +
+  geom_step() +
+  # geom_area(color = "gray50", aes(fill = Rating), alpha = 0.6) +
+  geom_ribbon(data = test_step,
+            color = "gray50", aes(x = `Date for the session`, ymin = 0, ymax = Percent, fill = Rating), alpha = 0.6) +
+  # geom_col() +
+  geom_ribbon(color = "transparent", aes(ymin = Percent, ymax = 100,
+                                                 fill = "Neither Agree nor Disagree/Disagree/Strongly Disagree"), alpha = 0.85) +
+  facet_wrap( ~ question) +
+  coord_cartesian() +
+  theme_bw() + # BW Panel panel elements
+  theme(
+            legend.position = "bottom",
+            legend.title = element_blank(),
+            legend.text = element_text(family = "Open Sans"),
+            text = element_text(family = "Open Sans", face = "bold"),
+            # panel.grid.major.x = element_blank(),
+            panel.grid.minor.x = element_blank(),
+            axis.text.x = element_text(size = 6),
+            axis.title.x = element_blank(),
+            axis.title.y = element_blank(),
+            # axis.title.y = element_text(margin = margin(l = -10)),
+            plot.title = element_text(hjust = 0.5, family = "Open Sans"),
+            axis.line = element_line(size = 1.5))
+```
+
+Joining first and second facilitators
+
+```{r}
+one_content_clear <- teaching_df %>%
+  select(`S/He Effectively Built A Community Of Learners (First Facilitator)`, `S/He Facilitated The Content Clearly (Second Facilitator)`) %>%
+  pivot_longer(cols = everything()) %>%
+  select(value) %>%
+  rename(`S/He Effectively Built A Community Of Learners` = value)
+
+one_community_learners <- teaching_df %>%
+  select(`S/He Facilitated The Content Clearly (First Facilitator)`, `S/He Effectively Built A Community Of Learners (Second Facilitator)`) %>%
+  pivot_longer(cols = everything()) %>%
+  select(value) %>%
+  rename(`S/He Effectively Built A Community Of Learners` = value)
+```
+
+
+
+
+
+
+
+# Just some fake data for AWS Pricing
+
+```{r}
+fake_data <- tibble(hours = 1:100, price = 3.97*hours)
+
+ggplot(fake_data, aes(x = hours, y = price)) + 
+  geom_line() +
+  geom_vline(linetype = "dashed", color = "magenta4", xintercept = 60) +
+  geom_text(color = "magenta4", aes(x = 50, y = 300, label = "My Estimate:")) +
+  labs(x = "Server Hours", y = "Price") +
+  scale_y_continuous(labels = scales::dollar) +
+  theme_bw()
+```
+
+
+
+
+# Text Error with grid.call
+
+```{r}
+ggplot(data = tibble(x = runif(100), y = runif(100), color = rep(1:10, 10), label = "something"), aes(x = x, y = y, color = color)) + geom_point() + geom_text(aes(label = label), fontface = "bold", family = "Open Sans ExtraBold") + scale_color_identity() + labs(title = "dafsa") + theme_void() + theme(plot.title = element_text(hjust = 0.5, family = "Open Sans", face = "bold"), text = element_text(family = "Open Sans", face = "bold"))
+```
+
+# Automated Data Import
+
+```{r}
+test <- read_csv("https://learning.teachinglab.org/blocks/questionreport/adminreport.php?action=view&sid=1&cid=0&partner=&portfolio=&start_date=&end_date=&teacher=&question=10")
+```
+
+

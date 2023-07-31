@@ -1,0 +1,855 @@
+---
+title: "2020-2021"
+author: "Duncan Gates"
+date: "5/13/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, message = F, warning = F)
+
+devtools::load_all()
+library(TeachingLab)
+library(tidyverse)
+library(here)
+library(gt)
+```
+
+# Read in Data
+
+```{r}
+full_2021 <- read_rds(here("Analysis/2020-2021/Data/full_2021.rds"))
+matched_2021 <- read_rds(here("Analysis/2020-2021/Data/matched_2021.rds"))
+```
+
+# Coding
+
+```{r}
+positive_vector <- c("4", "5")
+negative_vector <- c("1", "2")
+```
+
+
+# Full Numbers
+
+### Mindsets and Expectations Quiz Scoring
+
+#### Percent Correct by Score Pre
+
+```{r}
+index <- tibble(question_pre = c("prerace1", "prerace2", "prehigh2", "prehigh3", "prehigh4", "prehigh1", "pregrowth1", "pregrowth2", "preacc1", "preacc2", "preacc3"),
+                question_post = c("postrace1", "postrace2", "posthigh2", "posthigh3", "posthigh4", "posthigh1", "postgrowth1", "postgrowth2", "postacc1", "postacc2", "postacc3"),
+                coding = list("negative", "negative", "negative", "negative", "negative", "positive", "negative", "negative", "positive", "positive", "positive"))
+
+unmatched_both_mindsets <- pmap_df(list(index$question_pre, index$question_post, index$coding), 
+                                  ~ score_question_number(data = full_2021, question_pre = ..1, question_post = ..2, coding = ..3)) %>%
+  mutate(percent_pre = round(100 * score_pre/max_score_pre),
+         percent_post = round(100 * score_post/max_score_post),
+         difference = percent_post - percent_pre) %>%
+  select(percent_pre, n1, percent_post, n2, difference)
+
+unmatched_both_mindsets %>%
+  slice(1:2) %>%
+  summarise(across(c(1, 3, 5), ~ sum(as.double(.x))/2)) %>%
+  mutate(across(everything(), ~ round(.x))) %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  mutate(difference = case_when(str_detect(difference, "-") ~ difference,
+                                !str_detect(difference, "-|0") ~ paste0("+", difference),                                 str_detect(difference, "0") ~ difference)) %>%
+  mutate(difference = str_remove_all(difference, "%")) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 1 Mindsets",
+              range = "B4:D4",
+              col_names = F,
+              reformat = F)
+
+unmatched_both_mindsets %>%
+  slice(3:6) %>%
+  summarise(across(c(1, 3, 5), ~ sum(as.double(.x))/4)) %>%
+  mutate(across(everything(), ~ round(.x))) %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  mutate(difference = case_when(str_detect(difference, "-") ~ difference,
+                                !str_detect(difference, "-|0") ~ paste0("+", difference),                                 str_detect(difference, "0") ~ difference)) %>%
+  mutate(difference = str_remove_all(difference, "%")) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 1 Mindsets",
+              range = "B5:D5",
+              col_names = F,
+              reformat = F)
+
+unmatched_both_mindsets %>%
+  slice(7:8) %>%
+  summarise(across(c(1, 3, 5), ~ sum(as.double(.x))/2)) %>%
+  mutate(across(everything(), ~ round(.x))) %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  mutate(difference = case_when(str_detect(difference, "-") ~ difference,
+                                !str_detect(difference, "-|0") ~ paste0("+", difference),                                 str_detect(difference, "0") ~ difference)) %>%
+  mutate(difference = str_remove_all(difference, "%")) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 1 Mindsets",
+              range = "B6:D6",
+              col_names = F,
+              reformat = F)
+
+unmatched_both_mindsets %>%
+  slice(9:11) %>%
+  summarise(across(c(1, 3, 5), ~ sum(as.double(.x))/3)) %>%
+  mutate(across(everything(), ~ round(.x))) %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  mutate(difference = case_when(str_detect(difference, "-") ~ difference,
+                                !str_detect(difference, "-|0") ~ paste0("+", difference),
+                                str_detect(difference, "0") ~ difference)) %>%
+  mutate(difference = str_remove_all(difference, "%")) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 1 Mindsets",
+              range = "B7:D7",
+              col_names = F,
+              reformat = F)
+
+unmatched_both_mindsets %>%
+  summarise(across(c(1, 3, 5), ~ sum(as.double(.x))/11)) %>%
+  mutate(across(everything(), ~ round(.x))) %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  mutate(difference = case_when(str_detect(difference, "-") ~ difference,
+                                !str_detect(difference, "-|0") ~ paste0("+", difference),
+                                str_detect(difference, "0") ~ difference)) %>%
+  mutate(difference = str_remove_all(difference, "%")) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 1 Mindsets",
+              range = "B3:D3",
+              col_names = F,
+              reformat = F)
+
+unmatched_both_mindsets %>%
+  slice(1) %>%
+  select(n1, n2) %>%
+  mutate(across(everything(), ~ paste("n =", .x))) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 1 Mindsets",
+              range = "B8:C8",
+              col_names = F,
+              reformat = F)
+```
+
+#### Matched Mindsets
+
+```{r}
+matched_both_mindsets <- pmap_df(list(index$question_pre, index$question_post, index$coding), 
+                                  ~ score_question_number(data = matched_2021, question_pre = ..1, question_post = ..2, coding = ..3)) %>%
+  mutate(percent_pre = round(100 * score_pre/max_score_pre),
+         percent_post = round(100 * score_post/max_score_post),
+         difference = percent_post - percent_pre) %>%
+  select(percent_pre, n1, percent_post, n2, difference)
+```
+
+
+#### Percent Improved or Sustained
+
+```{r}
+index <- tibble(question_pre = c("prerace1", "prerace2", "prehigh2", "prehigh3", "prehigh4", "prehigh1", "pregrowth1", "pregrowth2", "preacc1", "preacc2", "preacc3"),
+                question_post = c("postrace1", "postrace2", "posthigh2", "posthigh3", "posthigh4", "posthigh1", "postgrowth1", "postgrowth2", "postacc1", "postacc2", "postacc3"),
+                coding = list("negative", "negative", "negative", "negative", "negative", "positive", "negative", "negative", "positive", "positive", "positive"))
+
+pmap_dfc(list(index$question_pre, index$question_post, index$coding),
+                                   ~ score_question_mindsets(data = full_2021, question_pre = ..1, question_post = ..2, coding = ..3, na_remove = T)) %>%
+  mutate(id = row_number()) %>%
+  relocate(id, .before = 1) %>%
+  pivot_longer(!id, values_to = "score", names_to = "names") %>%
+  mutate(prepost = case_when(str_detect(names, "pre") == T ~ "pre",
+                             str_detect(names, "post") == T ~ "post")) %>%
+  mutate(names = str_remove(names, "[:digit:]")) %>%
+  mutate(names = str_remove(names, "score_")) %>%
+  mutate(names = str_remove(names, "pre")) %>%
+  mutate(names = str_remove(names, "post")) %>%
+  group_by(names, id, prepost) %>%
+  summarise(score = sum(score)) %>%
+  pivot_wider(names_from = "prepost", values_from = "score") %>%
+  mutate(score_compare = post - pre) %>%
+  ungroup() %>%
+  mutate(names = factor(names, levels = c("race", "high", "growth", "acc"))) %>%
+  arrange(names) %>%
+  # group_by(names) %>%
+  mutate(max_score = c(rep(4, length(unique(id))), rep(8, length(unique(id))), rep(4, length(unique(id))), rep(6, length(unique(id))))) %>%
+  group_by(names) %>%
+  summarise(percent_improve_sustain = sum(score_compare > 0 | post == max_score)/length(score_compare)) %>%
+  # mutate(percent_improve_sustain = round(100*percent_improve_sustain)) %>%
+  select(percent_improve_sustain) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 1 Mindsets",
+              range = "E4:E7",
+              col_names = F,
+              reformat = F)
+```
+
+
+### Percent Scoring
+
+```{r eval = F}
+index <- tibble(question_pre = c("prerace1", "prerace2", "prehigh2", "prehigh3", "prehigh4", "prehigh1", "pregrowth1", "pregrowth2", "preacc1", "preacc2", "preacc3"),
+                question_post = c("postrace1", "postrace2", "posthigh2", "posthigh3", "posthigh4", "posthigh1", "postgrowth1", "postgrowth2", "postacc1", "postacc2", "postacc3"),
+                coding = list(negative_vector, negative_vector, negative_vector, negative_vector, negative_vector, positive_vector, negative_vector, negative_vector, positive_vector, positive_vector, positive_vector))
+
+unmatched_both_mindsets <- pmap_df(list(index$question_pre, index$question_post, index$coding), ~ score_question_improved(full_2021, question_pre = ..1, question_post = ..2, coding = ..3))
+
+unmatched_both_mindsets %>%
+  slice(1:2) %>%
+  summarise(across(c(1, 3, 6), ~ sum(as.double(.x))/2)) %>%
+  mutate(difference = post_percent - pre_percent) %>%
+  relocate(difference, .after = post_percent) %>%
+  mutate(across(everything(), ~ round(.x))) %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  mutate(difference = case_when(str_detect(difference, "-") ~ difference,
+                                !str_detect(difference, "-|0") ~ paste0("+", difference),                                 str_detect(difference, "0") ~ difference)) %>%
+  mutate(difference = str_remove_all(difference, "%")) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 1 Mindsets",
+              range = "B4:E4",
+              col_names = F,
+              reformat = F)
+
+unmatched_both_mindsets %>%
+  slice(3:6) %>%
+  summarise(across(c(1, 3, 6), ~ sum(as.double(.x))/4)) %>%
+  mutate(difference = post_percent - pre_percent) %>%
+  relocate(difference, .after = post_percent) %>%
+  mutate(across(everything(), ~ round(.x))) %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  mutate(difference = case_when(str_detect(difference, "-") ~ difference,
+                                !str_detect(difference, "-|0") ~ paste0("+", difference),                                 str_detect(difference, "0") ~ difference)) %>%
+  mutate(difference = str_remove_all(difference, "%")) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 1 Mindsets",
+              range = "B5:E5",
+              col_names = F,
+              reformat = F)
+
+unmatched_both_mindsets %>%
+  slice(7:8) %>%
+  summarise(across(c(1, 3, 6), ~ sum(as.double(.x))/2)) %>%
+  mutate(across(everything(), ~ round(.x))) %>%
+  mutate(difference = post_percent - pre_percent) %>%
+  relocate(difference, .after = post_percent) %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  mutate(difference = case_when(str_detect(difference, "-") ~ difference,
+                                !str_detect(difference, "-|0") ~ paste0("+", difference),                                 str_detect(difference, "0") ~ difference)) %>%
+  mutate(difference = str_remove_all(difference, "%")) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 1 Mindsets",
+              range = "B6:E6",
+              col_names = F,
+              reformat = F)
+
+unmatched_both_mindsets %>%
+  slice(9:11) %>%
+  summarise(across(c(1, 3, 6), ~ sum(as.double(.x))/3)) %>%
+  mutate(across(everything(), ~ round(.x))) %>%
+  mutate(difference = post_percent - pre_percent) %>%
+  relocate(difference, .after = post_percent) %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  mutate(difference = case_when(str_detect(difference, "-") ~ difference,
+                                !str_detect(difference, "-|0") ~ paste0("+", difference),
+                                str_detect(difference, "0") ~ difference)) %>%
+  mutate(difference = str_remove_all(difference, "%")) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 1 Mindsets",
+              range = "B7:E7",
+              col_names = F,
+              reformat = F)
+
+unmatched_both_mindsets %>%
+  summarise(across(c(1, 3, 6), ~ sum(as.double(.x))/11)) %>%
+  mutate(across(everything(), ~ round(.x))) %>%
+  mutate(difference = post_percent - pre_percent) %>%
+  relocate(difference, .after = post_percent) %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  mutate(difference = case_when(str_detect(difference, "-") ~ difference,
+                                !str_detect(difference, "-|0") ~ paste0("+", difference),
+                                str_detect(difference, "0") ~ difference)) %>%
+  mutate(difference = str_remove_all(difference, "%")) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 1 Mindsets",
+              range = "B3:E3",
+              col_names = F,
+              reformat = F)
+
+unmatched_both_mindsets %>%
+  slice(1) %>%
+  select(n1, n2) %>%
+  mutate(across(everything(), ~ paste("n =", .x))) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 1 Mindsets",
+              range = "B8:C8",
+              col_names = F,
+              reformat = F)
+```
+
+
+## School Environment
+
+```{r}
+index <- tibble(question_pre = c("preschool1", "preschool2", "preschool3", "preschool4", "preobs1", "preobs2", "preobs3"),
+                question_post = c("postschool1", "postschool2", "postschool3", "postschool4", "postobs1", "postobs2", "postobs3"),
+                coding = list(positive_vector, positive_vector, positive_vector, positive_vector, positive_vector, positive_vector, positive_vector))
+
+unmatched_environment <- pmap_df(list(index$question_pre, index$question_post, index$coding), 
+        ~ score_question_improved(full_2021, question_pre = ..1, question_post = ..2, coding = ..3))
+# Matched
+# pmap_df(list(index$question_pre, index$question_post, index$coding), 
+#         ~ score_question_improved(legacy_matched, question_pre = ..1, question_post = ..2, coding = ..3))
+
+unmatched_environment %>%
+  slice(1) %>%
+  summarise(across(c(1, 3, 6), ~ sum(as.double(.x))/1)) %>%
+  mutate(difference = post_percent - pre_percent) %>%
+  relocate(difference, .after = post_percent) %>%
+  mutate(across(everything(), ~ round(.x))) %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  mutate(difference = case_when(str_detect(difference, "-") ~ difference,
+                                !str_detect(difference, "-|0") ~ paste0("+", difference),                                 str_detect(difference, "0") ~ difference)) %>%
+  mutate(difference = str_remove_all(difference, "%")) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 2 School Environment",
+              range = "B4:E4",
+              col_names = F,
+              reformat = F)
+
+unmatched_environment %>%
+  slice(2) %>%
+  summarise(across(c(1, 3, 6), ~ sum(as.double(.x))/1)) %>%
+  mutate(difference = post_percent - pre_percent) %>%
+  relocate(difference, .after = post_percent) %>%
+  mutate(across(everything(), ~ round(.x))) %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  mutate(difference = case_when(str_detect(difference, "-") ~ difference,
+                                !str_detect(difference, "-|0") ~ paste0("+", difference),                                 str_detect(difference, "0") ~ difference)) %>%
+  mutate(difference = str_remove_all(difference, "%")) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 2 School Environment",
+              range = "B5:E5",
+              col_names = F,
+              reformat = F)
+
+unmatched_environment %>%
+  slice(3) %>%
+  summarise(across(c(1, 3, 6), ~ sum(as.double(.x))/1)) %>%
+  mutate(across(everything(), ~ round(.x))) %>%
+  mutate(difference = post_percent - pre_percent) %>%
+  relocate(difference, .after = post_percent) %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  mutate(difference = case_when(str_detect(difference, "-") ~ difference,
+                                !str_detect(difference, "-|0") ~ paste0("+", difference),                                 str_detect(difference, "0") ~ difference)) %>%
+  mutate(difference = str_remove_all(difference, "%")) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 2 School Environment",
+              range = "B6:E6",
+              col_names = F,
+              reformat = F)
+
+unmatched_environment %>%
+  slice(4) %>%
+  summarise(across(c(1, 3, 6), ~ sum(as.double(.x))/1)) %>%
+  mutate(across(everything(), ~ round(.x))) %>%
+  mutate(difference = post_percent - pre_percent) %>%
+  relocate(difference, .after = post_percent) %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  mutate(difference = case_when(str_detect(difference, "-") ~ difference,
+                                !str_detect(difference, "-|0") ~ paste0("+", difference),
+                                str_detect(difference, "0") ~ difference)) %>%
+  mutate(difference = str_remove_all(difference, "%")) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 2 School Environment",
+              range = "B7:E7",
+              col_names = F,
+              reformat = F)
+
+unmatched_environment %>%
+  slice(1:4) %>%
+  summarise(across(c(1, 3, 6), ~ sum(as.double(.x))/4)) %>%
+  mutate(difference = post_percent - pre_percent) %>%
+  relocate(difference, .after = post_percent) %>%
+  mutate(across(everything(), ~ round(.x))) %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  mutate(difference = case_when(str_detect(difference, "-") ~ difference,
+                                !str_detect(difference, "-|0") ~ paste0("+", difference),                                 str_detect(difference, "0") ~ difference)) %>%
+  mutate(difference = str_remove_all(difference, "%")) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 2 School Environment",
+              range = "B3:E3",
+              col_names = F,
+              reformat = F)
+
+unmatched_environment %>%
+  slice(1) %>%
+  select(n1, n2) %>%
+  mutate(across(everything(), ~ paste("n =", .x))) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 2 School Environment",
+              range = "B8:C8",
+              col_names = F,
+              reformat = F)
+```
+
+## ELA Content
+
+```{r}
+index <- tibble(question_pre = c("preelagen1a", "preelagen1b", "preelagen1c", "preelagen1d", 
+"preelagen2", "preelafluency1a", "preelafluency1b", "preelafluency1c", 
+"preelafluency1d", "preelafluency2", "preelatext1", "preelatext2a", 
+"preelatext2b", "preelatext2c", "preelatext2d", "preelaevi1a", 
+"preelaevi1b", "preelaevi1c", "preelaevi1d", "preelaevi2", 
+"preelaknow1", "preelaknow2", "preelasupp1", "preelasupp2a", 
+"postelasupp2b", "postelasupp2c", "postelasupp2d"),
+                question_post = c("postelagen1a", "postelagen1b", "postelagen1c", "postelagen1d", 
+"postelagen2", "postelafluency1a", "postelafluency1b", "postelafluency1c", 
+"postelafluency1d", "postelafluency2", "postelatext1", "postelatext2a", 
+"postelatext2b", "postelatext2c", "postelatext2d", "postelaevi1a", 
+"postelaevi1b", "postelaevi1c", "postelaevi1d", "postelaevi2", 
+"postelaknow1", "postelaknow2", "postelasupp1", "postelasupp2a", 
+"postelasupp2b", "postelasupp2c", "postelasupp2d"),
+                coding = list("Yes", 
+                              "Yes", 
+                              "No", 
+                              "No", 
+                              "A complex text that is worthy of reading multiple times.", 
+                              "TRUE", 
+                              "TRUE", 
+                              "FALSE", 
+                              "FALSE", 
+                              "Students independently read aloud texts at their reading level.", 
+                              "Ability to read complex text independently and proficiently.", 
+                              "Yes", 
+                              "Yes", 
+                              "No", 
+                              "No", 
+                              "TRUE", 
+                              "TRUE", 
+                              "FALSE", "
+                              FALSE", 
+                              "Students pull out evidence from the text to explain their thinking in response to questions.", 
+                              "Students with low reading ability and a lot of knowledge about the food chain.", 
+                              "Have students read a series of additional texts at a variety of complexity levels on the topic.", 
+                              "Provide students with lower reading abilities an audio version of the main text to listen to before reading the main text in class.",
+                              "Yes", 
+                              "Yes", 
+                              "No", 
+                              "No"))
+
+# score_question_improved(data = fall_spring_legacy, question_pre = c("preschool1"), question_post = c("postschool1"), coding = positive_vector)
+unmatched_ela_both <- pmap_df(list(index$question_pre, index$question_post, index$coding), ~ score_question_improved(full_2021, question_pre = ..1, question_post = ..2, coding = ..3))
+
+unmatched_ela_both %>%
+  slice(1:5) %>%
+  summarise(across(c(1, 3, 6), ~ sum(as.double(.x))/5)) %>%
+  mutate(difference = post_percent - pre_percent) %>%
+  relocate(difference, .after = post_percent) %>%
+  mutate(across(everything(), ~ round(.x))) %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  mutate(difference = case_when(str_detect(difference, "-") ~ difference,
+                                !str_detect(difference, "-|0") ~ paste0("+", difference),                                 str_detect(difference, "0") ~ difference)) %>%
+  mutate(difference = str_remove_all(difference, "%")) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 3 - ELA Knowledge",
+              range = "B4:E4",
+              col_names = F,
+              reformat = F)
+
+unmatched_ela_both %>%
+  slice(6:10) %>%
+  summarise(across(c(1, 3, 6), ~ sum(as.double(.x))/5)) %>%
+  mutate(difference = post_percent - pre_percent) %>%
+  relocate(difference, .after = post_percent) %>%
+  mutate(across(everything(), ~ round(.x))) %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  mutate(difference = case_when(str_detect(difference, "-") ~ difference,
+                                !str_detect(difference, "-|0") ~ paste0("+", difference),                                 str_detect(difference, "0") ~ difference)) %>%
+  mutate(difference = str_remove_all(difference, "%")) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 3 - ELA Knowledge",
+              range = "B5:E5",
+              col_names = F,
+              reformat = F)
+
+unmatched_ela_both %>%
+  slice(11:15) %>%
+  summarise(across(c(1, 3, 6), ~ sum(as.double(.x))/5)) %>%
+  mutate(across(everything(), ~ round(.x))) %>%
+  mutate(difference = post_percent - pre_percent) %>%
+  relocate(difference, .after = post_percent) %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  mutate(difference = case_when(str_detect(difference, "-") ~ difference,
+                                !str_detect(difference, "-|0") ~ paste0("+", difference),                                 str_detect(difference, "0") ~ difference)) %>%
+  mutate(difference = str_remove_all(difference, "%")) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 3 - ELA Knowledge",
+              range = "B6:E6",
+              col_names = F,
+              reformat = F)
+
+unmatched_ela_both %>%
+  slice(16:20) %>%
+  summarise(across(c(1, 3, 6), ~ sum(as.double(.x))/5)) %>%
+  mutate(across(everything(), ~ round(.x))) %>%
+  mutate(difference = post_percent - pre_percent) %>%
+  relocate(difference, .after = post_percent) %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  mutate(difference = case_when(str_detect(difference, "-") ~ difference,
+                                !str_detect(difference, "-|0") ~ paste0("+", difference),
+                                str_detect(difference, "0") ~ difference)) %>%
+  mutate(difference = str_remove_all(difference, "%")) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 3 - ELA Knowledge",
+              range = "B7:E7",
+              col_names = F,
+              reformat = F)
+
+unmatched_ela_both %>%
+  slice(21:22) %>%
+  summarise(across(c(1, 3, 6), ~ sum(as.double(.x))/2)) %>%
+  mutate(across(everything(), ~ round(.x))) %>%
+  mutate(difference = post_percent - pre_percent) %>%
+  relocate(difference, .after = post_percent) %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  mutate(difference = case_when(str_detect(difference, "-") ~ difference,
+                                !str_detect(difference, "-|0") ~ paste0("+", difference),
+                                str_detect(difference, "(?<!-)10") ~ paste0("+", difference),
+                                str_detect(difference, "0") ~ difference)) %>%
+  mutate(difference = str_remove_all(difference, "%")) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 3 - ELA Knowledge",
+              range = "B8:E8",
+              col_names = F,
+              reformat = F)
+
+unmatched_ela_both %>%
+  slice(23:30) %>%
+  distinct(question, .keep_all = T) %>%
+  summarise(across(c(1, 3, 6), ~ sum(as.double(.x))/5)) %>%
+  mutate(across(everything(), ~ round(.x))) %>%
+  mutate(difference = post_percent - pre_percent) %>%
+  relocate(difference, .after = post_percent) %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  mutate(difference = case_when(str_detect(difference, "-") ~ difference,
+                                !str_detect(difference, "-|0") ~ paste0("+", difference),
+                                str_detect(difference, "0") ~ difference)) %>%
+  mutate(difference = str_remove_all(difference, "%")) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 3 - ELA Knowledge",
+              range = "B9:E9",
+              col_names = F,
+              reformat = F)
+
+unmatched_ela_both %>%
+  distinct(question, .keep_all = T) %>%
+  summarise(across(c(1, 3, 6), ~ sum(as.double(.x))/27)) %>%
+  mutate(across(everything(), ~ round(.x))) %>%
+  mutate(difference = post_percent - pre_percent) %>%
+  relocate(difference, .after = post_percent) %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  mutate(difference = case_when(str_detect(difference, "-") ~ difference,
+                                !str_detect(difference, "-|0") ~ paste0("+", difference),
+                                str_detect(difference, "0") ~ difference)) %>%
+  mutate(difference = str_remove_all(difference, "%")) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 3 - ELA Knowledge",
+              range = "B3:E3",
+              col_names = F,
+              reformat = F)
+
+unmatched_ela_both %>%
+  slice(1) %>%
+  select(n1, n2) %>%
+  mutate(across(everything(), ~ paste("n =", .x))) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 3 - ELA Knowledge",
+              range = "B10:C10",
+              col_names = F,
+              reformat = F)
+```
+
+## Math Content
+
+```{r}
+index <- tibble(question_pre = c("mathgen1a.x", "mathgen1b.x", "mathgen1c.x", "mathgen1d.x", 
+"mathgen2.x", "mathgen3a.x", "mathgen3b.x", "mathgen3c.x", "mathgen3d.x", 
+"matheq1.x", "matheq2a.x", "matheq2b.x", "matheq2c.x", "matheq2d.x", 
+"matheq3.x", "mathsupp1.x", "mathsupp2a.x", "mathsupp2b.x", "mathsupp2c.x", 
+"mathsupp2d.x", "matheff1a.x", "matheff1b.x", "matheff1c.x", 
+"matheff1d.x", "matheff2.x", "matheff3.x"),
+                question_post = c("mathgen1a.y", "mathgen1b.y", "mathgen1c.y", "mathgen1d.y", 
+"mathgen2.y", "mathgen3a.y", "mathgen3b.y", "mathgen3c.y", "mathgen3d.y", 
+"matheq1.y", "matheq2a.y", "matheq2b.y", "matheq2c.y", "matheq2d.y", 
+"matheq3.y", "mathsupp1.y", "mathsupp2a.y", "mathsupp2b.y", "mathsupp2c.y", 
+"mathsupp2d.y", "matheff1a.y", "matheff1b.y", "matheff1c.y", 
+"matheff1d.y", "matheff2.y", "matheff3.y"),
+                coding = list("Yes",
+                              "Yes",
+                              "No",
+                              "No",
+                              "Procedural knowledge should be built from conceptual understanding.",
+                              "TRUE",
+                              "TRUE",
+                              "FALSE",
+                              "FALSE",
+                              "Creating opportunities for students to practice saying out loud how they solved for a problem.",
+                              "TRUE",
+                              "TRUE",
+                              "FALSE",
+                              "FALSE",
+                              "Enables teachers to make in-the-moment decisions on how to respond to students with questions and prompts that probe, scaffold, and extend to meet various learning needs.",
+                              "Identifying unfinished learning leading up to the current topic and teach 1-2 lessons targeting those prerequisites at the beginning of the topic.",
+                              "Yes",
+                              "Yes",
+                              "No",
+                              "No",
+                              "TRUE",
+                              "TRUE",
+                              "FALSE",
+                              "FALSE",
+                              "What’s the first step?",
+                              "Explicitly teaching students how to use certain representations."))
+
+unmatched_math_both <- pmap_df(list(index$question_pre, index$question_post, index$coding), ~ score_question_improved(full_2021, question_pre = ..1, question_post = ..2, coding = ..3))
+
+unmatched_math_both %>%
+  slice(1:9) %>%
+  summarise(across(c(1, 3, 6), ~ sum(as.double(.x))/9)) %>%
+  mutate(difference = post_percent - pre_percent) %>%
+  relocate(difference, .after = post_percent) %>%
+  mutate(across(everything(), ~ round(.x))) %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  mutate(difference = case_when(str_detect(difference, "-") ~ difference,
+                                !str_detect(difference, "-|0") ~ paste0("+", difference),                                 str_detect(difference, "0") ~ difference)) %>%
+  mutate(difference = str_remove_all(difference, "%")) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 4 - Math Knowledge",
+              range = "B4:E4",
+              col_names = F,
+              reformat = F)
+
+unmatched_math_both %>%
+  slice(10:15) %>%
+  summarise(across(c(1, 3, 6), ~ sum(as.double(.x))/6)) %>%
+  mutate(difference = post_percent - pre_percent) %>%
+  relocate(difference, .after = post_percent) %>%
+  mutate(across(everything(), ~ round(.x))) %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  mutate(difference = case_when(str_detect(difference, "-") ~ difference,
+                                !str_detect(difference, "-|0") ~ paste0("+", difference),                                 str_detect(difference, "0") ~ difference)) %>%
+  mutate(difference = str_remove_all(difference, "%")) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 4 - Math Knowledge",
+              range = "B5:E5",
+              col_names = F,
+              reformat = F)
+
+unmatched_math_both %>%
+  slice(16:20) %>%
+  summarise(across(c(1, 3, 6), ~ sum(as.double(.x))/5)) %>%
+  mutate(across(everything(), ~ round(.x))) %>%
+  mutate(difference = post_percent - pre_percent) %>%
+  relocate(difference, .after = post_percent) %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  mutate(difference = case_when(str_detect(difference, "-") ~ difference,
+                                !str_detect(difference, "-|0") ~ paste0("+", difference),                                 str_detect(difference, "0") ~ difference)) %>%
+  mutate(difference = str_remove_all(difference, "%")) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 4 - Math Knowledge",
+              range = "B6:E6",
+              col_names = F,
+              reformat = F)
+
+unmatched_math_both %>%
+  slice(21:26) %>%
+  summarise(across(c(1, 3, 6), ~ sum(as.double(.x))/6)) %>%
+  mutate(across(everything(), ~ round(.x))) %>%
+  mutate(difference = post_percent - pre_percent) %>%
+  relocate(difference, .after = post_percent) %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  mutate(difference = case_when(str_detect(difference, "-") ~ difference,
+                                !str_detect(difference, "-|0") ~ paste0("+", difference),
+                                str_detect(difference, "0") ~ difference)) %>%
+  mutate(difference = str_remove_all(difference, "%")) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 4 - Math Knowledge",
+              range = "B7:E7",
+              col_names = F,
+              reformat = F)
+
+unmatched_math_both %>%
+  distinct(question, .keep_all = T) %>%
+  summarise(across(c(1, 3, 6), ~ sum(as.double(.x))/27)) %>%
+  mutate(across(everything(), ~ round(.x))) %>%
+  mutate(difference = post_percent - pre_percent) %>%
+  relocate(difference, .after = post_percent) %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  mutate(difference = case_when(str_detect(difference, "-") ~ difference,
+                                !str_detect(difference, "-|0") ~ paste0("+", difference),
+                                str_detect(difference, "0") ~ difference)) %>%
+  mutate(difference = str_remove_all(difference, "%")) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 4 - Math Knowledge",
+              range = "B3:E3",
+              col_names = F,
+              reformat = F)
+
+unmatched_math_both %>%
+  slice(1) %>%
+  select(n1, n2) %>%
+  mutate(across(everything(), ~ paste("n =", .x))) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 4 - Math Knowledge",
+              range = "B8:C8",
+              col_names = F,
+              reformat = F)
+```
+
+## Observing Teacher Practices
+
+```{r eval = F}
+index <- tibble(question_pre = c("preobs1",
+                                  "preobs2",
+                                  "preobs3"),
+                question_post = c("postobs1",
+                                  "postobs2",
+                                  "postobs3"),
+                coding = list(positive_vector, positive_vector, positive_vector))
+
+unmatched_admins <- pmap_df(list(index$question_pre, index$question_post, index$coding), 
+        ~ score_question_improved(full_2021, question_pre = ..1, question_post = ..2, coding = ..3))
+
+unmatched_admins %>%
+  slice(1) %>%
+  summarise(across(c(1, 3, 6), ~ sum(as.double(.x))/1)) %>%
+  mutate(difference = post_percent - pre_percent) %>%
+  relocate(difference, .after = post_percent) %>%
+  mutate(across(everything(), ~ round(.x))) %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  mutate(difference = case_when(str_detect(difference, "-") ~ difference,
+                                !str_detect(difference, "-|0") ~ paste0("+", difference),                                 str_detect(difference, "0") ~ difference)) %>%
+  mutate(difference = str_remove_all(difference, "%")) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 5 Observing Teacher Practices",
+              range = "B4:E4",
+              col_names = F,
+              reformat = F)
+
+unmatched_admins %>%
+  slice(2) %>%
+  summarise(across(c(1, 3, 6), ~ sum(as.double(.x))/1)) %>%
+  mutate(difference = post_percent - pre_percent) %>%
+  relocate(difference, .after = post_percent) %>%
+  mutate(across(everything(), ~ round(.x))) %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  mutate(difference = case_when(str_detect(difference, "-") ~ difference,
+                                !str_detect(difference, "-|0") ~ paste0("+", difference),                                 str_detect(difference, "0") ~ difference)) %>%
+  mutate(difference = str_remove_all(difference, "%")) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 5 Observing Teacher Practices",
+              range = "B5:E5",
+              col_names = F,
+              reformat = F)
+
+unmatched_admins %>%
+  slice(3) %>%
+  summarise(across(c(1, 3, 6), ~ sum(as.double(.x))/1)) %>%
+  mutate(across(everything(), ~ round(.x))) %>%
+  mutate(difference = post_percent - pre_percent) %>%
+  relocate(difference, .after = post_percent) %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  mutate(difference = case_when(str_detect(difference, "-") ~ difference,
+                                !str_detect(difference, "-|0") ~ paste0("+", difference),                                 str_detect(difference, "0") ~ difference)) %>%
+  mutate(difference = str_remove_all(difference, "%")) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 5 Observing Teacher Practices",
+              range = "B6:E6",
+              col_names = F,
+              reformat = F)
+
+unmatched_admins %>%
+  slice(1:4) %>%
+  summarise(across(c(1, 3, 6), ~ sum(as.double(.x))/4)) %>%
+  mutate(difference = post_percent - pre_percent) %>%
+  relocate(difference, .after = post_percent) %>%
+  mutate(across(everything(), ~ round(.x))) %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  mutate(difference = case_when(str_detect(difference, "-") ~ difference,
+                                !str_detect(difference, "-|0") ~ paste0("+", difference),                                 str_detect(difference, "0") ~ difference)) %>%
+  mutate(difference = str_remove_all(difference, "%")) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 5 Observing Teacher Practices",
+              range = "B3:E3",
+              col_names = F,
+              reformat = F)
+
+unmatched_admins %>%
+  slice(1) %>%
+  select(n1, n2) %>%
+  mutate(across(everything(), ~ paste("n =", .x))) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 5 Observing Teacher Practices",
+              range = "B7:C7",
+              col_names = F,
+              reformat = F)
+```
+
+
+## Teacher Practices
+
+```{r eval = F}
+index <- tibble(question_pre = c("postadmin1",
+  "postadmin2",
+  "postadmin3"),
+                question_post = c("postadmin4",
+  "postadmin5",
+  "postadmin6"),
+                coding = list(c("Often", "Almost always"), c("Often", "Almost always"), c("Often", "Almost always")))
+
+unmatched_teacher_practices <- pmap_df(list(index$question_pre, index$question_post, index$coding), 
+        ~ score_question_improved(full_2021, question_pre = ..1, question_post = ..2, coding = ..3)) %>%
+  distinct(question, .keep_all = T)
+
+unmatched_teacher_practices %>%
+  slice(1) %>%
+  summarise(across(c(1, 3), ~ sum(as.double(.x))/1)) %>%
+  mutate(across(everything(), ~ round(.x))) %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 6 Teacher Practices",
+              range = "B4:C4",
+              col_names = F,
+              reformat = F)
+
+unmatched_teacher_practices %>%
+  slice(2) %>%
+  summarise(across(c(1, 3), ~ sum(as.double(.x))/1)) %>%
+  mutate(across(everything(), ~ round(.x))) %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 6 Teacher Practices",
+              range = "B5:C5",
+              col_names = F,
+              reformat = F)
+
+unmatched_teacher_practices %>%
+  slice(3) %>%
+  summarise(across(c(1, 3), ~ sum(as.double(.x))/1)) %>%
+  mutate(across(everything(), ~ round(.x))) %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 6 Teacher Practices",
+              range = "B6:C6",
+              col_names = F,
+              reformat = F)
+
+unmatched_teacher_practices %>%
+  slice(1) %>%
+  select(n1, n2) %>%
+  mutate(across(everything(), ~ paste("n =", .x))) %>%
+  range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+              sheet = "Table 6 Teacher Practices",
+              range = "B7:C7",
+              col_names = F,
+              reformat = F)
+```
+
+
+

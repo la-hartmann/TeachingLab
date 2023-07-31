@@ -1,0 +1,762 @@
+---
+title: "2020-2021"
+author: "Duncan Gates"
+date: "5/13/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, message = F, warning = F)
+
+devtools::load_all()
+library(TeachingLab)
+library(tidyverse)
+library(here)
+library(gt)
+library(googlesheets4)
+```
+
+# Read in Data
+
+Note that I read in all data as characters.
+
+```{r}
+spring <- read_sheet("https://docs.google.com/spreadsheets/d/1e3IvUw36O9jjYqZOU6alOClBsGmA6Sy6Wzr4Bz7fNG4/edit#gid=118561712",
+                     col_types = "c") %>%
+  slice(-1)
+fall <- read_sheet("https://docs.google.com/spreadsheets/d/1DhVmQWqOzXab1EARPuleWSdZirNNuAcENhG2Wn2IVwU/edit#gid=87988906",
+                   sheet = "Form Responses 1",
+                   skip = 1,
+                   col_types = "c") %>%
+  slice(-1)
+```
+
+# Vectors for Checking Answers
+
+```{r}
+positive_vector <- c("4", "5")
+negative_vector <- c("1", "2")
+```
+
+# Function for Score per Question
+
+```{r}
+score_question <- function(data, question, coding) {
+  data %>%
+    summarise(percent = 100* (sum(.data[[question]] %in% coding, na.rm = T)/length(which(!is.na(.data[[question]])))),
+              n = length(which(!is.na(.data[[question]])))) %>%
+    mutate(question = question)
+  
+}
+
+score_question_number <- function(data, question, coding) {
+  
+  n <- data %>% summarise(length(which(!is.na(.data[[question]])))) %>% as_vector()
+  
+  data_count <- data %>%
+    summarise(one = sum(.data[[question]] %in% "1", na.rm = T),
+              two = sum(.data[[question]] %in% "2", na.rm = T),
+              three = sum(.data[[question]] %in% "3", na.rm = T),
+              four = sum(.data[[question]] %in% "4", na.rm = T),
+              five = sum(.data[[question]] %in% "5", na.rm = T))
+  
+  if (coding == "positive") {
+    score <- tibble(
+      score = data_count$five*2 + data_count$four*2 + data_count$three,
+      question = question,
+      n = n
+      )
+  } else if (coding == "negative") {
+    score <- tibble(
+      score = data_count$one*2 + data_count$two*2 + data_count$three,
+      question = question,
+      n = n
+      )
+  }
+  
+  score
+  
+}
+
+score_question_improved <- function(data, question_pre, question_post, coding) {
+  
+  data1 <- data %>%
+    summarise(pre_percent = 100* (sum(.data[[question_pre]] %in% coding, na.rm = T)/length(which(!is.na(.data[[question_pre]])))),
+              n1 = length(which(!is.na(.data[[question_pre]]))),
+              post_percent = 100* (sum(.data[[question_post]] %in% coding, na.rm = T)/length(which(!is.na(.data[[question_post]])))),
+              n2 = length(which(!is.na(.data[[question_post]])))) %>%
+    mutate(question = str_remove(question_pre, "pre"))
+  
+  n <- tibble(data1$n1,
+              data1$n2) %>%
+    pivot_longer(everything()) %>%
+    filter(value == min(value)) %>%
+    pull(value)
+  
+  coding_with_3 <- append(coding, 3)
+  
+  data2 <- data %>%
+    mutate(increase = 0) %>%
+    mutate(increase = case_when(.data[[question_pre]] %in% "3" & .data[[question_post]] %in% "3" ~ increase,
+                                .data[[question_pre]] %in% coding & .data[[question_post]] %in% coding ~ increase + 1,
+                                .data[[question_pre]] %!in% coding & .data[[question_post]] %in% coding_with_3 ~ increase + 1,
+                                .data[[question_pre]] %!in% coding & .data[[question_post]] %!in% coding ~ increase,
+                                .data[[question_pre]] %in% coding & .data[[question_post]] %!in% coding ~ increase)) %>%
+    summarise(percent_improve_sustain = 100 * sum(increase, na.rm = T)/n)
+  
+  data3 <- bind_cols(data1, data2)
+  
+  data3
+  
+}
+```
+
+# Legacy Data
+
+```{r}
+not_all_na <- function(x) any(!is.na(x))
+
+not_all_null <- function(x) any(!is.null(x))
+
+all_na <- function(x) all(is.na(x))
+
+spring_legacy <- spring %>% 
+  filter(post_site == "Legacy Early College, SC") %>%
+  # mutate(across(where(!is.list), ~ na_if(.x, is.null(.x)))) %>%
+  select(where(not_all_na)) %>%
+  mutate(id = str_to_lower(str_trim(id))) %>%
+  rename_with( ~ str_replace_all(.x, "ela", "post_ela"))
+
+fall_legacy <- fall %>% 
+  filter(pre_site == "Legacy Early College, SC") %>%
+  # select(where(not_all_na)) %>%
+  # Literally ALL NA
+  select(-c(87:112)) %>%
+  mutate(id = str_to_lower(str_trim(id))) %>%
+  rename_with( ~ str_replace_all(.x, "ela", "pre_ela"))
+
+
+fall_spring_legacy <- full_join(fall_legacy, spring_legacy, by = "id")
+
+legacy_matched_filter <- fall_legacy$id[fall_legacy$id %in% spring_legacy$id]
+
+fall_one <- fall_legacy %>% filter(id %in% legacy_matched_filter)
+spring_one <- spring_legacy %>% filter(id %in% legacy_matched_filter)
+
+legacy_matched <- bind_cols(fall_one %>% arrange(id), spring_one %>% arrange(id) %>% select(-id))
+```
+
+# Table 2
+
+# Old way of Scoring
+```{r}
+index <- tibble(question = c("postrace1", "postrace2", "posthigh2"),
+                coding = list(negative_vector, negative_vector, negative_vector))
+
+map2_df(index$question, index$coding, ~ score_question(data = legacy_matched, question = .x, coding = .y))
+```
+# Legacy Mindsets and Expectations
+
+## Pre
+
+```{r}
+index <- tibble(question = c("prerace1", "prerace2", "prehigh2", "prehigh3", "prehigh4", "prehigh1", "pregrowth1", "pregrowth2", "preacc1", "preacc2", "preacc3"),
+                coding = list("negative", "negative", "negative", "negative", "negative", "positive", "negative", "negative", "positive", "positive", "positive"))
+
+unmatched_mindsets_pre <- map2_df(index$question, index$coding, ~ score_question_number(data = fall_legacy, question = .x, coding = .y)) %>%
+  mutate(final_score = score / (n*2))
+# Matched
+matched_mindsets_pre <- map2_df(index$question, index$coding, ~ score_question_number(data = fall_legacy %>% filter(id %in% legacy_matched_filter & pre_role == "Teacher"), question = .x, coding = .y)) %>%
+  mutate(final_score = score / (n*2))
+
+unmatched_mindsets_pre %>%
+  slice(1:2) %>%
+  summarise(race_eth = sum(final_score)/2)
+
+unmatched_mindsets_pre %>%
+  slice(3:6) %>%
+  summarise(high_expec = sum(final_score)/4)
+
+unmatched_mindsets_pre %>%
+  slice(7:8) %>%
+  summarise(growth = sum(final_score)/2)
+
+unmatched_mindsets_pre %>%
+  slice(9:11) %>%
+  summarise(accountability = sum(final_score)/3)
+```
+
+## Post
+
+```{r}
+index <- tibble(question = c("postrace1", "postrace2", "posthigh2", "posthigh3", "posthigh4", "posthigh1", "postgrowth1", "postgrowth2", "postacc1", "postacc2", "postacc3"),
+                coding = list("negative", "negative", "negative", "negative", "negative", "positive", "negative", "negative", "positive", "positive", "positive"))
+
+unmatched_mindsets_post <- map2_df(index$question, index$coding, ~ score_question_number(data = spring_legacy, question = .x, coding = .y)) %>%
+  mutate(final_score = score / (n*2))
+# Matched
+matched_mindsets_post <- map2_df(index$question, index$coding, ~ score_question_number(data = spring_legacy %>% filter(id %in% legacy_matched_filter), question = .x, coding = .y)) %>%
+  mutate(final_score = score / (n*2))
+
+unmatched_mindsets_post %>%
+  slice(1:2) %>%
+  summarise(race_eth = sum(final_score)/2)
+
+unmatched_mindsets_post %>%
+  slice(3:6) %>%
+  summarise(high_expec = sum(final_score)/4)
+
+unmatched_mindsets_post %>%
+  slice(7:8) %>%
+  summarise(growth = sum(final_score)/2)
+
+unmatched_mindsets_post %>%
+  slice(9:11) %>%
+  summarise(accountability = sum(final_score)/3)
+unmatched_mindsets_post
+```
+
+# Score for both
+
+```{r}
+score_question3 <- function(data, question_pre, question_post, coding) {
+  
+  data <- data %>%
+    # Select only observations that have no NAs
+    drop_na(.data[[question_pre]], .data[[question_post]])
+  
+  if (coding == "positive") {
+    score <- data %>%
+      mutate(score_pre = case_when(.data[[question_pre]] %in% "5" ~ 2,
+                                 .data[[question_pre]] %in% "4" ~ 2,
+                                 .data[[question_pre]] %in% "3" ~ 1,
+                                 .data[[question_pre]] %in% "2" ~ 0,
+                                 .data[[question_pre]] %in% "1" ~ 0)) %>%
+    mutate(score_post = case_when(.data[[question_post]] %in% "5" ~ 2,
+                                 .data[[question_post]] %in% "4" ~ 2,
+                                 .data[[question_post]] %in% "3" ~ 1,
+                                 .data[[question_post]] %in% "2" ~ 0,
+                                 .data[[question_post]] %in% "1" ~ 0)) %>%
+      select(score_pre, score_post)#, .data[[question_pre]], .data[[question_post]])
+    colnames(score)[1] <- paste0("score_", question_pre)
+    colnames(score)[2] <- paste0("score_", question_post)
+  } else if (coding == "negative") {
+    score <- data %>%
+      mutate(score_pre = case_when(.data[[question_pre]] %in% "1" ~ 2,
+                                 .data[[question_pre]] %in% "2" ~ 2,
+                                 .data[[question_pre]] %in% "3" ~ 1,
+                                 .data[[question_pre]] %in% "4" ~ 0,
+                                 .data[[question_pre]] %in% "5" ~ 0)) %>%
+    mutate(score_post = case_when(.data[[question_post]] %in% "1" ~ 2,
+                                 .data[[question_post]] %in% "2" ~ 2,
+                                 .data[[question_post]] %in% "3" ~ 1,
+                                 .data[[question_post]] %in% "4" ~ 0,
+                                 .data[[question_post]] %in% "5" ~ 0)) %>%
+      select(score_pre, score_post)#, .data[[question_pre]], .data[[question_post]])
+    colnames(score)[1] <- paste0("score_", question_pre)
+    colnames(score)[2] <- paste0("score_", question_post)
+  }
+  
+  score
+  
+}
+
+index <- tibble(question_pre = c("prerace1", "prerace2", "prehigh2", "prehigh3", "prehigh4", "prehigh1", "pregrowth1", "pregrowth2", "preacc1", "preacc2", "preacc3"),
+                question_post = c("postrace1", "postrace2", "posthigh2", "posthigh3", "posthigh4", "posthigh1", "postgrowth1", "postgrowth2", "postacc1", "postacc2", "postacc3"),
+                coding = list("negative", "negative", "negative", "negative", "negative", "positive", "negative", "negative", "positive", "positive", "positive"))
+
+unmatched_mindsets_pre <- pmap_dfc(list(index$question_pre, index$question_post, index$coding),
+                                   ~ score_question3(data = fall_spring_legacy, question_pre = ..1, question_post = ..2, coding = ..3)) %>%
+  mutate(id = row_number()) %>%
+  relocate(id, .before = 1) %>%
+  pivot_longer(!id, values_to = "score", names_to = "names") %>%
+  mutate(prepost = case_when(str_detect(names, "pre") == T ~ "pre",
+                             str_detect(names, "post") == T ~ "post")) %>%
+  mutate(names = str_remove(names, "[:digit:]")) %>%
+  mutate(names = str_remove(names, "score_")) %>%
+  mutate(names = str_remove(names, "pre")) %>%
+  mutate(names = str_remove(names, "post")) %>%
+  group_by(names, id, prepost) %>%
+  summarise(score = sum(score)) %>%
+  pivot_wider(names_from = "prepost", values_from = "score") %>%
+  mutate(score_compare = post - pre) %>%
+  ungroup() %>%
+  mutate(names = factor(names, levels = c("race", "high", "growth", "acc"))) %>%
+  arrange(names) %>%
+  mutate(max_score = c(rep(4, 9), rep(8, 9), rep(4, 9), rep(6, 9))) %>%
+  group_by(names) %>%
+  summarise(percent_improve_sustain = sum(score_compare > 0 | post == max_score)/length(score_compare))
+```
+
+
+## Both
+
+```{r}
+index <- tibble(question_pre = c("prerace1", "prerace2", "prehigh2", "prehigh3", "prehigh4", "prehigh1", "pregrowth1", "pregrowth2", "preacc1", "preacc2", "preacc3"),
+                question_post = c("postrace1", "postrace2", "posthigh2", "posthigh3", "posthigh4", "posthigh1", "postgrowth1", "postgrowth2", "postacc1", "postacc2", "postacc3"),
+                coding = list(negative_vector, negative_vector, negative_vector, negative_vector, negative_vector, positive_vector, negative_vector, negative_vector, positive_vector, positive_vector, positive_vector))
+
+unmatched_both_mindsets <- pmap_df(list(index$question_pre, index$question_post, index$coding), ~ score_question_improved(fall_spring_legacy, question_pre = ..1, question_post = ..2, coding = ..3))
+
+unmatched_both_mindsets %>%
+  slice(1:2) %>%
+  summarise(race_eth = sum(percent_improve_sustain)/2)
+
+unmatched_both_mindsets %>%
+  slice(3:6) %>%
+  summarise(high_expec = sum(percent_improve_sustain)/4)
+
+unmatched_both_mindsets %>%
+  slice(7:8) %>%
+  summarise(growth = sum(percent_improve_sustain)/2)
+
+unmatched_both_mindsets %>%
+  slice(9:11) %>%
+  summarise(accountability = sum(percent_improve_sustain)/3)
+
+unmatched_both_mindsets %>%
+  summarise(overall = sum(percent_improve_sustain)/11)
+```
+
+
+# School Environment
+
+## Pre
+
+```{r}
+index <- tibble(question = c("preschool1", "preschool2", "preschool3", "preschool4", "preobs1", "preobs2", "preobs3"),
+                coding = list(positive_vector, positive_vector, positive_vector, positive_vector, positive_vector, positive_vector, positive_vector))
+
+map2_df(index$question, index$coding, ~ score_question(data = fall_legacy, question = .x, coding = .y))
+# Matched
+map2_df(index$question, index$coding, ~ score_question(data = fall_legacy %>% filter(id %in% legacy_matched_filter), question = .x, coding = .y))
+```
+
+## Post
+
+```{r}
+index <- tibble(question = c("postschool1", "postschool2", "postschool3", "postschool4", "postobs1", "postobs2", "postobs3",
+                             "postadmin1", "postadmin2", "postadmin3", "postadmin4", "postadmin5", "postadmin6"),
+                coding = list(positive_vector, positive_vector, positive_vector, positive_vector, positive_vector, positive_vector, positive_vector,
+                              positive_vector, c("Almost always", "Often"), c("Almost always", "Often"), c("Almost always", "Often"), c("Almost always", "Often"), c("Almost always", "Often")))
+
+map2_df(index$question, index$coding, ~ score_question(data = spring_legacy, question = .x, coding = .y))
+# Matched
+map2_df(index$question, index$coding, ~ score_question(data = spring_legacy %>% filter(id %in% legacy_matched_filter), question = .x, coding = .y))
+```
+
+## Both
+
+```{r}
+index <- tibble(question_pre = c("preschool1", "preschool2", "preschool3", "preschool4", "preobs1", "preobs2", "preobs3"),
+                question_post = c("postschool1", "postschool2", "postschool3", "postschool4", "postobs1", "postobs2", "postobs3"),
+                coding = list(positive_vector, positive_vector, positive_vector, positive_vector, positive_vector, positive_vector, positive_vector))
+
+# score_question_improved(data = fall_spring_legacy, question_pre = c("preschool1"), question_post = c("postschool1"), coding = positive_vector)
+pmap_df(list(index$question_pre, index$question_post, index$coding), ~ score_question_improved(fall_spring_legacy, question_pre = ..1, question_post = ..2, coding = ..3))
+# Matched
+pmap_df(list(index$question_pre, index$question_post, index$coding), ~ score_question_improved(legacy_matched, question_pre = ..1, question_post = ..2, coding = ..3))
+```
+
+
+
+
+# ELA Content
+
+## Pre
+
+```{r}
+index <- tibble(question = c("pre_elalit1a", "pre_elalit1b", "pre_elalit1c", "pre_elalit1d", "pre_elagen1a", "pre_elagen1b", "pre_elagen1c", "pre_elagen1d", "pre_elagen2", "pre_elafluency1a", "pre_elafluency1b", "pre_elafluency1c", "pre_elafluency1d", "pre_elafluency2", "pre_elatext1", "pre_elatext2a", "pre_elatext2b", "pre_elatext2c", "pre_elatext2d", "pre_elaevi1a", "pre_elaevi1b", "pre_elaevi1c", "pre_elaevi1d", "pre_elaevi2", "pre_elaknow1", "pre_elaknow2", "pre_elasupp1", "pre_elasupp2a", "pre_elasupp2b", "pre_elasupp2c", "pre_elasupp2d"),
+                coding = list("Equitable",
+                              "Equitable",
+                              "Not equitable",
+                              "Not equitable",
+                              "Yes", 
+                              "Yes", 
+                              "No", 
+                              "No", 
+                              "A complex text that is worthy of reading multiple times.", 
+                              "TRUE", 
+                              "TRUE", 
+                              "FALSE", 
+                              "FALSE", 
+                              "Students independently read aloud texts at their reading level.", 
+                              "Ability to read complex text independently and proficiently.", 
+                              "Yes", 
+                              "Yes", 
+                              "No", 
+                              "No", 
+                              "TRUE", 
+                              "TRUE", 
+                              "FALSE", 
+                              "FALSE", 
+                              "Students pull out evidence from the text to explain their thinking in response to questions.", 
+                              "Students with low reading ability and a lot of knowledge about the food chain.", 
+                              "Have students read a series of additional texts at a variety of complexity levels on the topic.", 
+                              "Provide students with lower reading abilities an audio version of the main text to listen to before reading the main text in class.",
+                              "Yes", 
+                              "Yes", 
+                              "No", 
+                              "No"))
+
+ela_pre <- map2_df(index$question, index$coding, ~ score_question(data = fall_legacy, question = .x, coding = .y))
+
+ela_pre %>%
+  slice(5:9) %>%
+  summarise(sum(percent)/5)
+
+ela_pre %>%
+  slice(10:14) %>%
+  summarise(sum(percent)/5)
+
+ela_pre %>%
+  slice(15:19) %>%
+  summarise(sum(percent)/5)
+
+ela_pre %>%
+  slice(20:24) %>%
+  summarise(sum(percent)/5)
+
+ela_pre %>%
+  slice(25:26) %>%
+  summarise(sum(percent)/2)
+
+ela_pre %>%
+  slice(27:31) %>%
+  summarise(sum(percent)/5)
+
+# Matched
+# map2_df(index$question, index$coding, ~ score_question(data = fall_legacy %>% filter(id %in% legacy_matched_filter), question = .x, coding = .y))
+```
+## Post
+
+```{r}
+index <- tibble(question = c("post_elagen1a", "post_elagen1b", "post_elagen1c", "post_elagen1d", "post_elagen2", "post_elafluency1a", "post_elafluency1b", "post_elafluency1c", "post_elafluency1d", "post_elafluency2", "post_elatext1", "post_elatext2a", "post_elatext2b", "post_elatext2c", "post_elatext2d", "post_elaevi1a", "post_elaevi1b", "post_elaevi1c", "post_elaevi1d", "post_elaevi2", "post_elaknow1", "post_elaknow2", "post_elasupp1", "post_elasupp2a", "post_elasupp2b", "post_elasupp2c", "post_elasupp2d"),
+                coding = list("Yes", 
+                              "Yes", 
+                              "No", 
+                              "No", 
+                              "A complex text that is worthy of reading multiple times.", 
+                              "TRUE", 
+                              "TRUE", 
+                              "FALSE", 
+                              "FALSE", 
+                              "Students independently read aloud texts at their reading level.", 
+                              "Ability to read complex text independently and proficiently.", 
+                              "Yes", 
+                              "Yes", 
+                              "No", 
+                              "No", 
+                              "TRUE", 
+                              "TRUE", 
+                              "FALSE", 
+                              "FALSE", 
+                              "Students pull out evidence from the text to explain their thinking in response to questions.", 
+                              "Students with low reading ability and a lot of knowledge about the food chain.", 
+                              "Have students read a series of additional texts at a variety of complexity levels on the topic.", 
+                              "Provide students with lower reading abilities an audio version of the main text to listen to before reading the main text in class.",
+                              "Yes", 
+                              "Yes", 
+                              "No", 
+                              "No"))
+
+ela_post <- map2_df(index$question, index$coding, ~ score_question(data = spring_legacy, question = .x, coding = .y))
+
+ela_post %>%
+  slice(1:5) %>%
+  summarise(sum(percent)/5)
+
+ela_post %>%
+  slice(6:10) %>%
+  summarise(sum(percent)/5)
+
+ela_post %>%
+  slice(11:15) %>%
+  summarise(sum(percent)/5)
+
+ela_post %>%
+  slice(16:20) %>%
+  summarise(sum(percent)/5)
+
+ela_post %>%
+  slice(21:22) %>%
+  summarise(sum(percent)/2)
+
+ela_post %>%
+  slice(23:27) %>%
+  summarise(sum(percent)/5)
+# Matched
+# map2_df(index$question, index$coding, ~ score_question(data = spring_legacy %>% filter(id %in% legacy_matched_filter), question = .x, coding = .y))
+```
+
+## Both
+
+```{r}
+index <- tibble(question_pre = c("pre_elagen1a", "pre_elagen1b", "pre_elagen1c", "pre_elagen1d", 
+"pre_elagen2", "pre_elafluency1a", "pre_elafluency1b", "pre_elafluency1c", 
+"pre_elafluency1d", "pre_elafluency2", "pre_elatext1", "pre_elatext2a", 
+"pre_elatext2b", "pre_elatext2c", "pre_elatext2d", "pre_elaevi1a", 
+"pre_elaevi1b", "pre_elaevi1c", "pre_elaevi1d", "pre_elaevi2", 
+"pre_elaknow1", "pre_elaknow2", "pre_elasupp1", "pre_elasupp2a", 
+"post_elasupp2b", "post_elasupp2c", "post_elasupp2d"),
+                question_post = c("post_elagen1a", "post_elagen1b", "post_elagen1c", "post_elagen1d", 
+"post_elagen2", "post_elafluency1a", "post_elafluency1b", "post_elafluency1c", 
+"post_elafluency1d", "post_elafluency2", "post_elatext1", "post_elatext2a", 
+"post_elatext2b", "post_elatext2c", "post_elatext2d", "post_elaevi1a", 
+"post_elaevi1b", "post_elaevi1c", "post_elaevi1d", "post_elaevi2", 
+"post_elaknow1", "post_elaknow2", "post_elasupp1", "post_elasupp2a", 
+"post_elasupp2b", "post_elasupp2c", "post_elasupp2d"),
+                coding = list("Yes", 
+                              "Yes", 
+                              "No", 
+                              "No", 
+                              "A complex text that is worthy of reading multiple times.", 
+                              "TRUE", 
+                              "TRUE", 
+                              "FALSE", 
+                              "FALSE", 
+                              "Students independently read aloud texts at their reading level.", 
+                              "Ability to read complex text independently and proficiently.", 
+                              "Yes", 
+                              "Yes", 
+                              "No", 
+                              "No", 
+                              "TRUE", 
+                              "TRUE", 
+                              "FALSE", "
+                              FALSE", 
+                              "Students pull out evidence from the text to explain their thinking in response to questions.", 
+                              "Students with low reading ability and a lot of knowledge about the food chain.", 
+                              "Have students read a series of additional texts at a variety of complexity levels on the topic.", 
+                              "Provide students with lower reading abilities an audio version of the main text to listen to before reading the main text in class.",
+                              "Yes", 
+                              "Yes", 
+                              "No", 
+                              "No"))
+
+# score_question_improved(data = fall_spring_legacy, question_pre = c("preschool1"), question_post = c("postschool1"), coding = positive_vector)
+unmatched_ela_both <- pmap_df(list(index$question_pre, index$question_post, index$coding), ~ score_question_improved(fall_spring_legacy, question_pre = ..1, question_post = ..2, coding = ..3))
+# Matched
+# pmap_df(list(index$question_pre, index$question_post, index$coding), ~ score_question_improved(legacy_matched, question_pre = ..1, question_post = ..2, coding = ..3))
+
+unmatched_ela_both %>%
+  slice(1:5) %>%
+  summarise(sum(percent_improve_sustain)/5,
+            sum(pre_percent)/5,
+            sum(post_percent)/5)
+
+unmatched_ela_both %>%
+  slice(6:10) %>%
+  summarise(sum(percent_improve_sustain)/5,
+            sum(pre_percent)/5,
+            sum(post_percent)/5)
+
+unmatched_ela_both %>%
+  slice(11:15) %>%
+  summarise(sum(percent_improve_sustain)/5,
+            sum(pre_percent)/5,
+            sum(post_percent)/5)
+
+unmatched_ela_both %>%
+  slice(16:20) %>%
+  summarise(sum(percent_improve_sustain)/5,
+            sum(pre_percent)/5,
+            sum(post_percent)/5)
+
+unmatched_ela_both %>%
+  slice(21:22) %>%
+  summarise(sum(percent_improve_sustain)/2,
+            sum(pre_percent)/2,
+            sum(post_percent)/2)
+
+unmatched_ela_both %>%
+  slice(23:27) %>%
+  summarise(sum(percent_improve_sustain)/5,
+            sum(pre_percent)/5,
+            sum(post_percent)/5)
+```
+
+# Math Content
+
+```{r}
+index <- tibble(question = c("mathgen1a", "mathgen1b", "mathgen1c", "mathgen1d", "mathgen2", "mathgen3a", "mathgen3b", "mathgen3c", "mathgen3d", "matheq1", "matheq2a", "matheq2b", "matheq2c", "matheq2d", "matheq3", "mathsupp1", "mathsupp2a", "mathsupp2b", "mathsupp2c", "mathsupp2d", "matheff1a", "matheff1b", "matheff1c", "matheff1d", "matheff2", "matheff3"),
+                coding = list("Yes",
+                              "Yes",
+                              "No",
+                              "No",
+                              "Procedural knowledge should be built from conceptual understanding.",
+                              "TRUE",
+                              "TRUE",
+                              "FALSE",
+                              "FALSE",
+                              "Creating opportunities for students to practice saying out loud how they solved for a problem.",
+                              "TRUE",
+                              "TRUE",
+                              "FALSE",
+                              "FALSE",
+                              "Enables teachers to make in-the-moment decisions on how to respond to students with questions and prompts that probe, scaffold, and extend to meet various learning needs.",
+                              "Identifying unfinished learning leading up to the current topic and teach 1-2 lessons targeting those prerequisites at the beginning of the topic.",
+                              "Yes",
+                              "Yes",
+                              "No",
+                              "No",
+                              "TRUE",
+                              "TRUE",
+                              "FALSE",
+                              "FALSE",
+                              "What’s the first step?",
+                              "Explicitly teaching students how to use certain representations."))
+
+math_pre <- map2_df(index$question, index$coding, ~ score_question(data = fall_legacy, question = .x, coding = .y))
+# Matched
+# map2_df(index$question, index$coding, ~ score_question(data = fall_legacy %>% filter(id %in% legacy_matched_filter), question = .x, coding = .y))
+
+math_pre %>%
+  slice(1:9) %>% 
+  summarise(sum(percent)/9)
+
+math_pre %>%
+  slice(10:15) %>% 
+  summarise(sum(percent)/6)
+
+math_pre %>%
+  slice(16:20) %>% 
+  summarise(sum(percent)/5)
+
+math_pre %>%
+  slice(21:26) %>% 
+  summarise(sum(percent)/6)
+```
+## Post
+
+```{r}
+index <- tibble(question = c("mathgen1a", "mathgen1b", "mathgen1c", "mathgen1d", "mathgen2", "mathgen3a", "mathgen3b", "mathgen3c", "mathgen3d", "matheq1", "matheq2a", "matheq2b", "matheq2c", "matheq2d", "matheq3", "mathsupp1", "mathsupp2a", "mathsupp2b", "mathsupp2c", "mathsupp2d", "matheff1a", "matheff1b", "matheff1c", "matheff1d", "matheff2", "matheff3"),
+                coding = list("Yes",
+                              "Yes",
+                              "No",
+                              "No",
+                              "Procedural knowledge should be built from conceptual understanding.",
+                              "TRUE",
+                              "TRUE",
+                              "FALSE",
+                              "FALSE",
+                              "Creating opportunities for students to practice saying out loud how they solved for a problem.",
+                              "TRUE",
+                              "TRUE",
+                              "FALSE",
+                              "FALSE",
+                              "Enables teachers to make in-the-moment decisions on how to respond to students with questions and prompts that probe, scaffold, and extend to meet various learning needs.",
+                              "Identifying unfinished learning leading up to the current topic and teach 1-2 lessons targeting those prerequisites at the beginning of the topic.",
+                              "Yes",
+                              "Yes",
+                              "No",
+                              "No",
+                              "TRUE",
+                              "TRUE",
+                              "FALSE",
+                              "FALSE",
+                              "What’s the first step?",
+                              "Explicitly teaching students how to use certain representations."))
+
+math_post <- map2_df(index$question, index$coding, ~ score_question(data = spring_legacy, question = .x, coding = .y))
+# Matched
+# map2_df(index$question, index$coding, ~ score_question(data = spring_legacy %>% filter(id %in% legacy_matched_filter), question = .x, coding = .y))
+math_post %>%
+  slice(1:9) %>% 
+  summarise(sum(percent)/9)
+
+math_post %>%
+  slice(10:15) %>% 
+  summarise(sum(percent)/6)
+
+math_post %>%
+  slice(16:20) %>% 
+  summarise(sum(percent)/5)
+
+math_post %>%
+  slice(21:26) %>% 
+  summarise(sum(percent)/6)
+```
+
+## Both
+
+```{r}
+index <- tibble(question_pre = c("mathgen1a.x", "mathgen1b.x", "mathgen1c.x", "mathgen1d.x", 
+"mathgen2.x", "mathgen3a.x", "mathgen3b.x", "mathgen3c.x", "mathgen3d.x", 
+"matheq1.x", "matheq2a.x", "matheq2b.x", "matheq2c.x", "matheq2d.x", 
+"matheq3.x", "mathsupp1.x", "mathsupp2a.x", "mathsupp2b.x", "mathsupp2c.x", 
+"mathsupp2d.x", "matheff1a.x", "matheff1b.x", "matheff1c.x", 
+"matheff1d.x", "matheff2.x", "matheff3.x"),
+                question_post = c("mathgen1a.y", "mathgen1b.y", "mathgen1c.y", "mathgen1d.y", 
+"mathgen2.y", "mathgen3a.y", "mathgen3b.y", "mathgen3c.y", "mathgen3d.y", 
+"matheq1.y", "matheq2a.y", "matheq2b.y", "matheq2c.y", "matheq2d.y", 
+"matheq3.y", "mathsupp1.y", "mathsupp2a.y", "mathsupp2b.y", "mathsupp2c.y", 
+"mathsupp2d.y", "matheff1a.y", "matheff1b.y", "matheff1c.y", 
+"matheff1d.y", "matheff2.y", "matheff3.y"),
+                coding = list("Yes",
+                              "Yes",
+                              "No",
+                              "No",
+                              "Procedural knowledge should be built from conceptual understanding.",
+                              "TRUE",
+                              "TRUE",
+                              "FALSE",
+                              "FALSE",
+                              "Creating opportunities for students to practice saying out loud how they solved for a problem.",
+                              "TRUE",
+                              "TRUE",
+                              "FALSE",
+                              "FALSE",
+                              "Enables teachers to make in-the-moment decisions on how to respond to students with questions and prompts that probe, scaffold, and extend to meet various learning needs.",
+                              "Identifying unfinished learning leading up to the current topic and teach 1-2 lessons targeting those prerequisites at the beginning of the topic.",
+                              "Yes",
+                              "Yes",
+                              "No",
+                              "No",
+                              "TRUE",
+                              "TRUE",
+                              "FALSE",
+                              "FALSE",
+                              "What’s the first step?",
+                              "Explicitly teaching students how to use certain representations."))
+
+# score_question_improved(data = fall_spring_legacy, question_pre = c("preschool1"), question_post = c("postschool1"), coding = positive_vector)
+math_both <- pmap_df(list(index$question_pre, index$question_post, index$coding), ~ score_question_improved(fall_spring_legacy, question_pre = ..1, question_post = ..2, coding = ..3))
+
+math_both %>%
+  slice(1:9) %>% 
+  summarise(sum(pre_percent)/9,
+            sum(post_percent)/9,
+            sum(percent_improve_sustain)/9)
+
+math_both %>%
+  slice(10:15) %>% 
+  summarise(sum(pre_percent)/6,
+            sum(post_percent)/6,
+            sum(percent_improve_sustain)/6)
+
+math_both %>%
+  slice(16:20) %>% 
+  summarise(sum(pre_percent)/5,
+            sum(post_percent)/5,
+            sum(percent_improve_sustain)/5)
+
+math_both %>%
+  slice(21:26) %>% 
+  summarise(sum(pre_percent)/6,
+            sum(post_percent)/6,
+            sum(percent_improve_sustain)/6)
+# Matched
+# pmap_df(list(index$question_pre, index$question_post, index$coding), ~ score_question_improved(legacy_matched, question_pre = ..1, question_post = ..2, coding = ..3))
+```
+
+# Fixing unmatched columns
+
+```{r}
+# V-AF, F-P
+spring_coalesce <- c()
+# E-O, CI-CS
+fall_coalesce <- c("elalit1d" = )
+```
+
+

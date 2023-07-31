@@ -1,0 +1,39 @@
+/* COURSE SURVEY DASHBOARD */
+@import url('https://fonts.googleapis.com/css2?family=Calibri');
+
+* {
+  font-family: Calibri;
+}
+
+/* .box { margin-bottom: 50; } */
+
+/*
+.ui.wide.left.sidebar, .ui.wide.right.sidebar {
+  width: 450px;
+}
+*/
+
+.bttn {
+  position:relative!important;
+  margin-top: -20px!important; /* Makes buttons slightly above the tables */
+}
+
+.selectize-input {
+  width: 85%;
+}
+
+.irs--shiny {
+  width: 85%;
+}
+
+.ui.form {
+  width: 85%;
+}
+
+.h3 {
+  line-height: 1.1;
+}
+
+pre.shiny-text-output {
+  font-family: Calibri;
+}

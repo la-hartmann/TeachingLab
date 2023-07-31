@@ -1,0 +1,30 @@
+---
+title: "D11 MAP Comparisons"
+author: "Duncan Gates"
+date: "5/6/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F)
+library(tidyverse)
+library(pdftools)
+library(tabulizer)
+```
+
+```{r pdf-scrape}
+tt_winter <- pdf_text(here("PDF/D11 MAP Growth Winter Projected Proficiency March 15 2021 (1).pdf"))
+tt_winter <- extract_tables(file = here("PDF/D11 MAP Growth Winter Projected Proficiency March 15 2021 (1).pdf"),
+                            method = "decide",
+                            output = "data.frame",
+                            pages = 9)
+```
+
+
+```{r table_make}
+
+```
+
+```{r gt_example}
+
+```

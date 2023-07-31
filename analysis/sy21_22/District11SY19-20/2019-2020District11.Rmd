@@ -1,0 +1,1586 @@
+---
+title: "Teaching Lab 2019-2020 Report"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  rmdformats::readthedown:
+    css: styles.css
+    self_contained: true # Other options are downcute, material, readthedown, html_clean, html_docco, lockdown, https://github.com/juba/rmdformats
+    thumbnails: false
+    lightbox: true
+    gallery: false
+    highlight: kate # Also can do tango
+    number_sections: false
+    includes:
+      after_body: footer.html
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, warning = F, message = F)
+library(readxl)
+library(tidyverse)
+library(here)
+library(gt)
+library(TeachingLab)
+
+# og_df <- read_excel(here("Data/SY19-20 Fall Spring merged.xlsx"))
+second_df <- read_excel(here("Data-Clean/Data-move/SY19-20/SY19-20 Fall-Spring Merged Dataset Update.xls")) %>%
+  filter(str_detect(district, "District 11"))
+
+identifiers <- second_df %>%
+  select(district, school, portfolio, id, merge)#, role, role2...10, role_txt)
+
+fall_df <- second_df %>%
+  select(c(contains("pre"))) %>%
+  bind_cols(identifiers) %>%
+  relocate(merge, .after = last_col())
+
+
+spring_df <- second_df %>%
+  select(c(contains("post"))) %>%
+  bind_cols(identifiers) %>%
+  relocate(merge, .after = last_col())
+```
+
+```{r echo = F}
+htmltools::tagList(rmarkdown::html_dependency_font_awesome()) # Needed so fa's in footer will show
+```
+
+
+```{r}
+### ELA CONTENT: 12a-23d
+## Average Scores
+# 14a-14d, 18a-18d need recoding
+fall_averages_ela <- fall_df %>%
+  select(12:38) %>%
+  summarise(
+    pre12a = c(sum(pre12a == "Yes", na.rm = T)/sum(!is.na(pre12a)), length(which(!is.na(pre12a)))),
+    pre12b = c(sum(pre12b == "Yes", na.rm = T)/sum(!is.na(pre12b)), length(which(!is.na(pre12b)))),
+    pre12c = c(sum(pre12c == "No", na.rm = T)/sum(!is.na(pre12c)), length(which(!is.na(pre12c)))),
+    pre12d = c(sum(pre12d == "No", na.rm = T)/sum(!is.na(pre12d)), length(which(!is.na(pre12d)))),
+    pre13 = c(sum(pre13 == "A complex text that is worthy of reading multiple times.", na.rm = T)/sum(!is.na(pre13)), length(which(!is.na(pre13)))),
+    pre14a = c(sum(pre14a == "True", na.rm = T)/sum(!is.na(pre14a)), length(which(!is.na(pre14a)))),
+    pre14b = c(sum(pre14b == "True", na.rm = T)/sum(!is.na(pre14b)), length(which(!is.na(pre14b)))),
+    pre14c = c(sum(pre14c == "False", na.rm = T)/sum(!is.na(pre14c)), length(which(!is.na(pre14c)))),
+    pre14d = c(sum(pre14d == "False", na.rm = T)/sum(!is.na(pre14d)), length(which(!is.na(pre14d)))),
+    pre15 = c(sum(pre15 == "Students independently read aloud texts at their reading level.", na.rm = T)/sum(!is.na(pre15)), length(which(!is.na(pre15)))),
+    pre16 = c(sum(pre16 == "Ability to read complex text independently and proficiently.", na.rm = T)/sum(!is.na(pre16)), length(which(!is.na(pre16)))),
+    pre17a = c(sum(pre17a == "Yes", na.rm = T)/sum(!is.na(pre17a)), length(which(!is.na(pre17a)))),
+    pre17b = c(sum(pre17b == "Yes", na.rm = T)/sum(!is.na(pre17b)), length(which(!is.na(pre17b)))),
+    pre17c = c(sum(pre17c == "No", na.rm = T)/sum(!is.na(pre17c)), length(which(!is.na(pre17c)))),
+    pre17d = c(sum(pre17d == "No", na.rm = T)/sum(!is.na(pre17d)), length(which(!is.na(pre17d)))),
+    pre18a = c(sum(pre18a == "True", na.rm = T)/sum(!is.na(pre18a)), length(which(!is.na(pre18a)))),
+    pre18b = c(sum(pre18b == "True", na.rm = T)/sum(!is.na(pre18b)), length(which(!is.na(pre18b)))),
+    pre18c = c(sum(pre18c == "False", na.rm = T)/sum(!is.na(pre18c)), length(which(!is.na(pre18c)))),
+    pre18d = c(sum(pre18d == "False", na.rm = T)/sum(!is.na(pre18d)), length(which(!is.na(pre18d)))),
+    pre19 = c(sum(pre19 == "Students pull out evidence from the text to explain their thinking in response to questions.", na.rm = T)/sum(!is.na(pre19)), length(which(!is.na(pre19)))),
+    pre20 = c(sum(pre20 == "Students with low reading ability and a lot of knowledge about the food chain.", na.rm = T)/sum(!is.na(pre20)), length(which(!is.na(pre20)))),
+    pre21 = c(sum(pre21 == "Have students read a series of additional texts at a variety of complexity levels on the topic.", na.rm = T)/sum(!is.na(pre21)), length(which(!is.na(pre21)))),
+    pre22 = c(sum(pre22 == "Provide students with lower reading abilities an audio version of the main text to listen to before reading the main text in class.", na.rm = T)/sum(!is.na(pre22)), length(which(!is.na(pre22)))),
+    pre23a = c(sum(pre23a == "Yes", na.rm = T)/sum(!is.na(pre23a)), length(which(!is.na(pre23a)))),
+    pre23b = c(sum(pre23b == "Yes", na.rm = T)/sum(!is.na(pre23b)), length(which(!is.na(pre23b)))),
+    pre23c = c(sum(pre23c == "No", na.rm = T)/sum(!is.na(pre23c)), length(which(!is.na(pre23c)))),
+    pre23d = c(sum(pre23d == "No", na.rm = T)/sum(!is.na(pre23d)), length(which(!is.na(pre23d))))
+  ) %>%
+  dplyr::mutate(across(everything(), ~ .x * 100))
+
+fall_ela_n <- fall_averages_ela %>% slice(2) %>%
+  dplyr::mutate(across(everything(), ~ .x / 100)) %>%
+  pivot_longer(everything())
+
+
+### ELA CONTENT: 12a-23d
+## Average Scores
+# 14a-14d, 18a-18d need recoding
+spring_averages_ela <- spring_df %>%
+  select(20:46) %>%
+  summarise(
+    post12a = c(sum(post12a == "Yes", na.rm = T)/sum(!is.na(post12a)), length(which(!is.na(post12a)))),
+    post12b = c(sum(post12b == "Yes", na.rm = T)/sum(!is.na(post12b)), length(which(!is.na(post12b)))),
+    post12c = c(sum(post12c == "No", na.rm = T)/sum(!is.na(post12c)), length(which(!is.na(post12c)))),
+    post12d = c(sum(post12d == "No", na.rm = T)/sum(!is.na(post12d)), length(which(!is.na(post12d)))),
+    post13 = c(sum(post13 == "A complex text that is worthy of reading multiple times.", na.rm = T)/sum(!is.na(post13)), length(which(!is.na(post13)))),
+    post14a = c(sum(post14a == "True", na.rm = T)/sum(!is.na(post14a)), length(which(!is.na(post14a)))),
+    post14b = c(sum(post14b == "True", na.rm = T)/sum(!is.na(post14b)), length(which(!is.na(post14b)))),
+    post14c = c(sum(post14c == "False", na.rm = T)/sum(!is.na(post14c)), length(which(!is.na(post14c)))),
+    post14d = c(sum(post14d == "False", na.rm = T)/sum(!is.na(post14d)), length(which(!is.na(post14d)))),
+    post15 = c(sum(post15 == "Students independently read aloud texts at their reading level.", na.rm = T)/sum(!is.na(post15)), length(which(!is.na(post15)))),
+    post16 = c(sum(post16 == "Ability to read complex text independently and proficiently.", na.rm = T)/sum(!is.na(post16)), length(which(!is.na(post16)))),
+    post17a = c(sum(post17a == "Yes", na.rm = T)/sum(!is.na(post17a)), length(which(!is.na(post17a)))),
+    post17b = c(sum(post17b == "Yes", na.rm = T)/sum(!is.na(post17b)), length(which(!is.na(post17b)))),
+    post17c = c(sum(post17c == "No", na.rm = T)/sum(!is.na(post17c)), length(which(!is.na(post17c)))),
+    post17d = c(sum(post17d == "No", na.rm = T)/sum(!is.na(post17d)), length(which(!is.na(post17d)))),
+    post18a = c(sum(post18a == "True", na.rm = T)/sum(!is.na(post18a)), length(which(!is.na(post18a)))),
+    post18b = c(sum(post18b == "True", na.rm = T)/sum(!is.na(post18b)), length(which(!is.na(post18b)))),
+    post18c = c(sum(post18c == "False", na.rm = T)/sum(!is.na(post18c)), length(which(!is.na(post18c)))),
+    post18d = c(sum(post18d == "False", na.rm = T)/sum(!is.na(post18d)), length(which(!is.na(post18d)))),
+    post19 = c(sum(post19 == "Students pull out evidence from the text to explain their thinking in response to questions.", na.rm = T)/sum(!is.na(post19)), length(which(!is.na(post19)))),
+    post20 = c(sum(post20 == "Students with low reading ability and a lot of knowledge about the food chain.", na.rm = T)/sum(!is.na(post20)), length(which(!is.na(post20)))),
+    post21 = c(sum(post21 == "Have students read a series of additional texts at a variety of complexity levels on the topic.", na.rm = T)/sum(!is.na(post21)), length(which(!is.na(post21)))),
+    post22 = c(sum(post22 == "Provide students with lower reading abilities an audio version of the main text to listen to before reading the main text in class.", na.rm = T)/sum(!is.na(post22)), length(which(!is.na(post22)))),
+    post23a = c(sum(post23a == "Yes", na.rm = T)/sum(!is.na(post23a)), length(which(!is.na(post23a)))),
+    post23b = c(sum(post23b == "Yes", na.rm = T)/sum(!is.na(post23b)), length(which(!is.na(post23b)))),
+    post23c = c(sum(post23c == "No", na.rm = T)/sum(!is.na(post23c)), length(which(!is.na(post23c)))),
+    post23d = c(sum(post23d == "No", na.rm = T)/sum(!is.na(post23d)), length(which(!is.na(post23d))))
+  ) %>%
+  dplyr::mutate(across(everything(), ~ .x * 100))
+
+spring_ela_n <- spring_averages_ela %>% slice(2) %>%
+  dplyr::mutate(across(everything(), ~ .x / 100)) %>%
+  pivot_longer(everything())
+
+
+### JOINING FALL AND SPRING
+## EL
+fall_spring_el_averages <- bind_rows(fall_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "pre")),
+                                     spring_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "post")),
+                                     spring_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "post")) - 
+                                       fall_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "pre"))) %>%
+  rownames_to_column() %>%
+  pivot_longer(-rowname, 'variable', 'value') %>%
+  pivot_wider(variable, rowname) %>%
+  rename(Question = variable, Fall = `1`, Spring = `2`, Improvement = `3`) %>%
+  bind_cols(n2 = spring_ela_n$value, n1 = fall_ela_n$value) %>%
+  relocate(n2, .after = `Spring`) %>%
+  relocate(n1, .after = `Fall`)
+```
+
+```{r math-question-key}
+question_key2 <- tibble(Number = c('24a', '24b', '24c', '24d', '25', '26a', '26b', '26c', '26d', '27', '28', '29', '30a', '30b', '30c', '30d', '31a', '31b', '31c', '31d', '32', '33a', '33b', '33c', '33d'),
+                       Question = c(rep("Which of the following statements describe math instructional shifts, and which do not?", 4),
+                                    "What does “rigor” mean in math instruction, as defined by the instructional shifts?",
+                                    rep("Which of the following statements describe student mindsets and habits that must be in place in order to execute a problem-based approach effectively?", 4),
+                                    "Which of the following statements is true about math identities?",
+                                    "What is the MOST important reason for ensuring that all students receive on grade-level instruction in math?",
+                                    "Which of the following is an INEFFECTIVE strategy for equitably involving students who are English learners in classroom discussions?",
+                                    rep("A teacher can take several different approaches to identify unfinished learning for students. Which of the following are actions they should take?", 4),
+                                    rep("Which of the following actions describe equitable instructional strategies for supporting students with unfinished learning in math", 4),
+                                    "Which of the following BEST describes one purpose of mathematics learning goals?",
+                       rep("Which of the following statements about the purpose of student-to-student conversations are true, and which are false?", 4)))
+```
+
+
+```{r ela-question-key}
+question_key <- tibble(Number = c('12a', '12b', '12c', '12d', '13', '14a', '14b', '14c', '14d', '15', '16', '17a', '17b', '17c', '17d', '18a', '18b', '18c', '18d', '19', '20', '21', '22', '23a', '23b', '23c', '23d'),
+       Question = c(rep("Which of the following are literacy instructional shifts, and which are not?", 4),
+                    "When designing literacy lessons, teachers should start with which of the following?",
+                    rep("Which of the following statements are true about the relationship between reading fluency and reading comprehension, and which are false?", 4),
+                    "Which of the following is NOT an effective strategy for improving student fluency?",
+                    "Which of the following is the single biggest differentiator of college and career-readiness?",
+                    rep("Which of the following approaches for selecting texts for whole-class reading instruction are aligned with post-shifts literacy instruction and which are not", 4),
+                    rep("Which of the following statements are true about reading the same complex text multiple times?", 4),
+                    "Which of the following describes something students might do during close reading of complex texts?",
+                    "Mrs. Richards’ students have a range of reading proficiency and knowledge about the food chain. When reading a grade-level complex text about this topic, which group of students is most likely to perform better on comprehension questions?",
+                    "How could Mrs. Richards best prepare students to build knowledge about the topic of the food chain?",
+                    "The main text that the students in Ms. Blackwell’s class is about to read is likely to be very difficult for the majority of the class. Which of the following is a strategy that Ms. Blackwell could use with her students with lower reading abilities?",
+                    rep("Which of the following describe strategies for supporting struggling readers, and which do not?", 4)))
+```
+
+# Breakdown by Content Knowledge
+
+Some text here.
+
+## ELA Table
+
+::: sidenav
+
+**ELA Question Key**
+
+```{r}
+key1 <- question_key %>%
+  gt() %>%
+  cols_width(
+    2 ~ px(200),
+    1 ~ px(69)
+  ) %>%
+  cols_label(
+    Question = md("**Question**"),
+    Number = md("**Number**")
+  ) %>%
+  cols_align(
+    align = "center"
+  )
+
+key1 %>%
+  gtsave(here("Images/2021-2022/District11/el_key.png"))
+```
+
+**Math Question Key**
+
+```{r}
+key2 <- question_key2 %>%
+  gt() %>%
+  cols_width(
+    2 ~ px(200),
+    1 ~ px(69)
+  ) %>%
+  cols_label(
+    Question = md("**Question**"),
+    Number = md("**Number**")
+  ) %>%
+  cols_align(
+    align = "center"
+  )
+
+key2 %>%
+  gtsave(here("Images/2021-2022/District11/math_key.png"))
+```
+
+:::
+
+ELA text here.
+
+```{r}
+el_table_grouped <- fall_spring_el_averages %>%
+   mutate(Content = c(rep("ELA General Standards and Shifts", 5),
+                      rep("Fluency", 5),
+                      rep("Text Complexity", 5),
+                      rep("Evidence & Close Reading", 5),
+                      rep("Building Knowledge", 2),
+                      rep("Supporting Students with Unfinished Learning", 5))) %>%
+  gt::gt(groupname_col = "Content") %>%
+  tab_header(
+    title = md("**ELA Scores in Fall vs. Spring**")
+  ) %>%
+   cols_label(
+     n1 = gt::html("n<sub>1</sub>"),
+     n2 = gt::html("n<sub>2</sub>")
+   ) %>%
+  gt::data_color(
+     columns = c(Improvement),
+     colors = scales::col_numeric(
+       palette = ggsci::rgb_material('light-green'),
+       domain = NULL
+     )
+   ) %>%
+  fmt_percent(
+    columns = c(Fall, Spring, Improvement),
+    decimals = 2,
+    scale_values = F
+  ) %>%
+  summary_rows(groups = T,
+               columns = c(n1, n2),
+               fns = list(
+                 `Block Average` = ~ mean(., na.rm = T)),
+               formatter = fmt_number
+               ) %>%
+  summary_rows(groups = T,
+               columns = c(Fall, Spring, Improvement),
+               fns = list(
+                 `Block Average` = ~ mean(., na.rm = T)),
+               formatter = fmt_percent,
+               scale_values = F
+               ) %>%
+  tab_style(style = list(
+      cell_text(style = "italic",
+              weight = "bold"),
+      cell_fill(color = "#377A98")
+    ),
+    locations = cells_summary(
+      groups = c("ELA General Standards and Shifts", "Fluency", "Text Complexity", 
+                  "Evidence & Close Reading", "Building Knowledge", "Supporting Students with Unfinished Learning"),
+      columns = c(Improvement)
+    )
+  ) %>%
+  tab_style(
+    style = list(
+      cell_text(weight = "bold")
+    ),
+    locations = cells_row_groups(
+      groups = c("ELA General Standards and Shifts", "Fluency", "Text Complexity", 
+                  "Evidence & Close Reading", "Building Knowledge", "Supporting Students with Unfinished Learning")
+    )
+  ) %>%
+  tab_style(
+    style = list(
+      cell_text(style = "italic")
+    ),
+    locations = cells_summary(
+      groups = c("ELA General Standards and Shifts", "Fluency", "Text Complexity", "Evidence & Close Reading",
+                 "Building Knowledge", "Supporting Students with Unfinished Learning"),
+      columns = everything()
+    )
+  ) %>%
+  grand_summary_rows(
+    columns = c(Fall, Spring, Improvement),
+    fns = list(
+      Average = ~ mean(., na.rm = T)
+    ),
+    formatter = fmt_percent,
+    scale_values = F
+  ) %>%
+  grand_summary_rows(
+    columns = c(n1, n2),
+    fns = list(
+      Average = ~ round(mean(., na.rm = T))
+    ),
+    formatter = fmt_number
+  ) %>%
+  tab_style(
+    style = list(
+      cell_text(weight = "bold"),
+      cell_fill(color = "#00743F")
+    ),
+    locations = cells_grand_summary(
+      columns = everything()
+    )
+  )
+
+el_table_grouped %>%
+  gtsave(filename = "GroupedSY19-20ELScores.png", path = here("Images/2021-2022/District11/"))
+```
+
+# Matched Analysis
+
+This analysis only compares data for which respondents completed at least 75% of the responses in both the diagnosis and follow-up questionnaires, providing a matched sample analysis table that can be used to gauge improvement on an individual basis.
+
+```{r eval = F}
+# Email matching
+fall_email <- fall_df %>% filter(merge == 3) %>% select(id) %>% unique() %>%
+  pull()
+spring_email <- spring_df %>% filter(merge == 3) %>% select(id) %>% 
+  unique() %>% pull()
+
+both_email <- fall_email[fall_email %in% spring_email] # All of them
+
+test_fall_id_ela <- fall_df %>%
+  dplyr::filter(id %in% fall_email & !str_detect(`district`, "District 11")) %>%
+  select(12:38, id) %>%
+  # filter(rowSums(is.na(.)) < 5) %>%
+  filter(rowSums(across(everything(), ~ is.na(.))) < 3)
+  # filter(if_any(everything(), ~ sum(is.na(.)) < 10))
+  # purrr::discard(~ sum(is.na(.x))/length(.x) * 100 >= 50)
+
+test_spring_id_ela <- spring_df %>%
+  dplyr::filter(id %in% spring_email & !str_detect(`district`, "District 11")) %>%
+  select(20:46, id) %>%
+  filter(rowSums(across(everything(), ~ is.na(.))) < 3)
+
+both_email_ela <- intersect(test_fall_id$id, test_spring_id$id) # Only 28 in both for ela
+
+test_fall_id_math <- fall_df %>%
+  dplyr::filter(merge == 3 & !str_detect(`district`, "District 11")) %>%
+  select(39:59, id) #%>%
+  # filter(rowSums(is.na(.)) < 5) %>%
+  # filter(rowSums(across(everything(), ~ is.na(.))) < 3)
+  # filter(if_any(everything(), ~ sum(is.na(.)) < 10))
+  # purrr::discard(~ sum(is.na(.x))/length(.x) * 100 >= 50)
+
+test_spring_id_math <- spring_df %>%
+  dplyr::filter(merge == 3 & !str_detect(`district`, "District 11")) %>%
+  select(47:67, id) #%>%
+  # filter(rowSums(across(everything(), ~ is.na(.))) < 3)
+
+both_email_math <- intersect(test_fall_id_math$id, test_spring_id_math$id) # Only 28 in both for math
+
+# There are more NAs in the Spring dataframe it looks like
+```
+
+
+
+```{r}
+fall_averages_ela_matched <- fall_df %>%
+  dplyr::filter(merge == 3 & !str_detect(`district`, "District 11")) %>%
+  select(12:38) %>%
+  filter(rowSums(across(everything(), ~ is.na(.))) < 20) %>%
+  summarise(
+    pre12a = c(sum(pre12a == "Yes", na.rm = T)/sum(!is.na(pre12a)), length(which(!is.na(pre12a)))),
+    pre12b = c(sum(pre12b == "Yes", na.rm = T)/sum(!is.na(pre12b)), length(which(!is.na(pre12b)))),
+    pre12c = c(sum(pre12c == "No", na.rm = T)/sum(!is.na(pre12c)), length(which(!is.na(pre12c)))),
+    pre12d = c(sum(pre12d == "No", na.rm = T)/sum(!is.na(pre12d)), length(which(!is.na(pre12d)))),
+    pre13 = c(sum(pre13 == "A complex text that is worthy of reading multiple times.", na.rm = T)/sum(!is.na(pre13)), length(which(!is.na(pre13)))),
+    pre14a = c(sum(pre14a == "True", na.rm = T)/sum(!is.na(pre14a)), length(which(!is.na(pre14a)))),
+    pre14b = c(sum(pre14b == "True", na.rm = T)/sum(!is.na(pre14b)), length(which(!is.na(pre14b)))),
+    pre14c = c(sum(pre14c == "False", na.rm = T)/sum(!is.na(pre14c)), length(which(!is.na(pre14c)))),
+    pre14d = c(sum(pre14d == "False", na.rm = T)/sum(!is.na(pre14d)), length(which(!is.na(pre14d)))),
+    pre15 = c(sum(pre15 == "Students independently read aloud texts at their reading level.", na.rm = T)/sum(!is.na(pre15)), length(which(!is.na(pre15)))),
+    pre16 = c(sum(pre16 == "Ability to read complex text independently and proficiently.", na.rm = T)/sum(!is.na(pre16)), length(which(!is.na(pre16)))),
+    pre17a = c(sum(pre17a == "Yes", na.rm = T)/sum(!is.na(pre17a)), length(which(!is.na(pre17a)))),
+    pre17b = c(sum(pre17b == "Yes", na.rm = T)/sum(!is.na(pre17b)), length(which(!is.na(pre17b)))),
+    pre17c = c(sum(pre17c == "No", na.rm = T)/sum(!is.na(pre17c)), length(which(!is.na(pre17c)))),
+    pre17d = c(sum(pre17d == "No", na.rm = T)/sum(!is.na(pre17d)), length(which(!is.na(pre17d)))),
+    pre18a = c(sum(pre18a == "True", na.rm = T)/sum(!is.na(pre18a)), length(which(!is.na(pre18a)))),
+    pre18b = c(sum(pre18b == "True", na.rm = T)/sum(!is.na(pre18b)), length(which(!is.na(pre18b)))),
+    pre18c = c(sum(pre18c == "False", na.rm = T)/sum(!is.na(pre18c)), length(which(!is.na(pre18c)))),
+    pre18d = c(sum(pre18d == "False", na.rm = T)/sum(!is.na(pre18d)), length(which(!is.na(pre18d)))),
+    pre19 = c(sum(pre19 == "Students pull out evidence from the text to explain their thinking in response to questions.", na.rm = T)/sum(!is.na(pre19)), length(which(!is.na(pre19)))),
+    pre20 = c(sum(pre20 == "Students with low reading ability and a lot of knowledge about the food chain.", na.rm = T)/sum(!is.na(pre20)), length(which(!is.na(pre20)))),
+    pre21 = c(sum(pre21 == "Have students read a series of additional texts at a variety of complexity levels on the topic.", na.rm = T)/sum(!is.na(pre21)), length(which(!is.na(pre21)))),
+    pre22 = c(sum(pre22 == "Provide students with lower reading abilities an audio version of the main text to listen to before reading the main text in class.", na.rm = T)/sum(!is.na(pre22)), length(which(!is.na(pre22)))),
+    pre23a = c(sum(pre23a == "Yes", na.rm = T)/sum(!is.na(pre23a)), length(which(!is.na(pre23a)))),
+    pre23b = c(sum(pre23b == "Yes", na.rm = T)/sum(!is.na(pre23b)), length(which(!is.na(pre23b)))),
+    pre23c = c(sum(pre23c == "No", na.rm = T)/sum(!is.na(pre23c)), length(which(!is.na(pre23c)))),
+    pre23d = c(sum(pre23d == "No", na.rm = T)/sum(!is.na(pre23d)), length(which(!is.na(pre23d))))
+  ) %>%
+  dplyr::mutate(across(everything(), ~ .x * 100))
+
+fall_ela_n_matched <- fall_averages_ela_matched %>% slice(2) %>%
+  dplyr::mutate(across(everything(), ~ .x / 100)) %>%
+  pivot_longer(everything())
+
+
+### ELA CONTENT: 12a-23d
+## Average Scores
+# 14a-14d, 18a-18d need recoding
+spring_averages_ela_matched <- spring_df %>%
+  dplyr::filter(merge == 3 & !str_detect(`district`, "District 11")) %>%
+  select(20:46) %>%
+  filter(rowSums(across(everything(), ~ is.na(.))) < 20) %>%
+  summarise(
+    post12a = c(sum(post12a == "Yes", na.rm = T)/sum(!is.na(post12a)), length(which(!is.na(post12a)))),
+    post12b = c(sum(post12b == "Yes", na.rm = T)/sum(!is.na(post12b)), length(which(!is.na(post12b)))),
+    post12c = c(sum(post12c == "No", na.rm = T)/sum(!is.na(post12c)), length(which(!is.na(post12c)))),
+    post12d = c(sum(post12d == "No", na.rm = T)/sum(!is.na(post12d)), length(which(!is.na(post12d)))),
+    post13 = c(sum(post13 == "A complex text that is worthy of reading multiple times.", na.rm = T)/sum(!is.na(post13)), length(which(!is.na(post13)))),
+    post14a = c(sum(post14a == "True", na.rm = T)/sum(!is.na(post14a)), length(which(!is.na(post14a)))),
+    post14b = c(sum(post14b == "True", na.rm = T)/sum(!is.na(post14b)), length(which(!is.na(post14b)))),
+    post14c = c(sum(post14c == "False", na.rm = T)/sum(!is.na(post14c)), length(which(!is.na(post14c)))),
+    post14d = c(sum(post14d == "False", na.rm = T)/sum(!is.na(post14d)), length(which(!is.na(post14d)))),
+    post15 = c(sum(post15 == "Students independently read aloud texts at their reading level.", na.rm = T)/sum(!is.na(post15)), length(which(!is.na(post15)))),
+    post16 = c(sum(post16 == "Ability to read complex text independently and proficiently.", na.rm = T)/sum(!is.na(post16)), length(which(!is.na(post16)))),
+    post17a = c(sum(post17a == "Yes", na.rm = T)/sum(!is.na(post17a)), length(which(!is.na(post17a)))),
+    post17b = c(sum(post17b == "Yes", na.rm = T)/sum(!is.na(post17b)), length(which(!is.na(post17b)))),
+    post17c = c(sum(post17c == "No", na.rm = T)/sum(!is.na(post17c)), length(which(!is.na(post17c)))),
+    post17d = c(sum(post17d == "No", na.rm = T)/sum(!is.na(post17d)), length(which(!is.na(post17d)))),
+    post18a = c(sum(post18a == "True", na.rm = T)/sum(!is.na(post18a)), length(which(!is.na(post18a)))),
+    post18b = c(sum(post18b == "True", na.rm = T)/sum(!is.na(post18b)), length(which(!is.na(post18b)))),
+    post18c = c(sum(post18c == "False", na.rm = T)/sum(!is.na(post18c)), length(which(!is.na(post18c)))),
+    post18d = c(sum(post18d == "False", na.rm = T)/sum(!is.na(post18d)), length(which(!is.na(post18d)))),
+    post19 = c(sum(post19 == "Students pull out evidence from the text to explain their thinking in response to questions.", na.rm = T)/sum(!is.na(post19)), length(which(!is.na(post19)))),
+    post20 = c(sum(post20 == "Students with low reading ability and a lot of knowledge about the food chain.", na.rm = T)/sum(!is.na(post20)), length(which(!is.na(post20)))),
+    post21 = c(sum(post21 == "Have students read a series of additional texts at a variety of complexity levels on the topic.", na.rm = T)/sum(!is.na(post21)), length(which(!is.na(post21)))),
+    post22 = c(sum(post22 == "Provide students with lower reading abilities an audio version of the main text to listen to before reading the main text in class.", na.rm = T)/sum(!is.na(post22)), length(which(!is.na(post22)))),
+    post23a = c(sum(post23a == "Yes", na.rm = T)/sum(!is.na(post23a)), length(which(!is.na(post23a)))),
+    post23b = c(sum(post23b == "Yes", na.rm = T)/sum(!is.na(post23b)), length(which(!is.na(post23b)))),
+    post23c = c(sum(post23c == "No", na.rm = T)/sum(!is.na(post23c)), length(which(!is.na(post23c)))),
+    post23d = c(sum(post23d == "No", na.rm = T)/sum(!is.na(post23d)), length(which(!is.na(post23d))))
+  ) %>%
+  dplyr::mutate(across(everything(), ~ .x * 100))
+
+spring_ela_n_matched <- spring_averages_ela_matched %>% slice(2) %>%
+  dplyr::mutate(across(everything(), ~ .x / 100)) %>%
+  pivot_longer(everything())
+
+### JOINING FALL AND SPRING
+## EL
+fall_spring_el_averages_matched <- bind_rows(fall_averages_ela_matched %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "pre")),
+                                     spring_averages_ela_matched %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "post")),
+                                     spring_averages_ela_matched %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "post")) - 
+                                       fall_averages_ela_matched %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "pre"))) %>%
+  rownames_to_column() %>%
+  pivot_longer(-rowname, 'variable', 'value') %>%
+  pivot_wider(variable, rowname) %>%
+  rename(Question = variable, Fall = `1`, Spring = `2`, Improvement = `3`) %>%
+  bind_cols(n2 = spring_ela_n_matched$value, n1 = fall_ela_n_matched$value) %>%
+  relocate(n2, .after = `Spring`) %>%
+  relocate(n1, .after = `Fall`)
+```
+
+## ELA Table Matched and Grouped
+
+There were no matched samples in 2019-2020 for District 11.
+
+```{r eval = F}
+el_table_grouped_matched <- fall_spring_el_averages_matched %>%
+   mutate(Content = c(rep("ELA General Standards and Shifts", 5),
+                      rep("Fluency", 5),
+                      rep("Text Complexity", 5),
+                      rep("Evidence & Close Reading", 5),
+                      rep("Building Knowledge", 2),
+                      rep("Supporting Students with Unfinished Learning", 5))) %>%
+  gt::gt(groupname_col = "Content") %>%
+  tab_header(
+    title = md("**ELA Matched Scores in Fall vs. Spring**"),
+    subtitle = md("*Those with at least a 75% response rate*")
+  ) %>%
+   cols_label(
+     n1 = gt::html("n<sub>1</sub>"),
+     n2 = gt::html("n<sub>2</sub>")
+   ) %>%
+  gt::data_color(
+     columns = c(Improvement),
+     colors = scales::col_numeric(
+       palette = ggsci::rgb_material('light-green'),
+       domain = NULL
+     )
+   ) %>%
+  fmt_percent(
+    columns = c(Fall, Spring, Improvement),
+    decimals = 2,
+    scale_values = F
+  ) %>%
+  summary_rows(groups = T,
+               columns = c(n1, n2),
+               fns = list(
+                 `Block Average` = ~ mean(., na.rm = T)),
+               formatter = fmt_number
+               ) %>%
+  summary_rows(groups = T,
+               columns = c(Fall, Spring, Improvement),
+               fns = list(
+                 `Block Average` = ~ mean(., na.rm = T)),
+               formatter = fmt_percent,
+               scale_values = F
+               ) %>%
+  tab_style(style = list(
+      cell_text(style = "italic",
+              weight = "bold"),
+      cell_fill(color = "#377A98")
+    ),
+    locations = cells_summary(
+      groups = c("ELA General Standards and Shifts", "Fluency", "Text Complexity", 
+                  "Evidence & Close Reading", "Building Knowledge", "Supporting Students with Unfinished Learning"),
+      columns = c(Improvement)
+    )
+  ) %>%
+  tab_style(
+    style = list(
+      cell_text(weight = "bold")
+    ),
+    locations = cells_row_groups(
+      groups = c("ELA General Standards and Shifts", "Fluency", "Text Complexity", 
+                  "Evidence & Close Reading", "Building Knowledge", "Supporting Students with Unfinished Learning")
+    )
+  ) %>%
+  tab_style(
+    style = list(
+      cell_text(style = "italic")
+    ),
+    locations = cells_summary(
+      groups = c("ELA General Standards and Shifts", "Fluency", "Text Complexity", "Evidence & Close Reading",
+                 "Building Knowledge", "Supporting Students with Unfinished Learning"),
+      columns = everything()
+    )
+  ) %>%
+  grand_summary_rows(
+    columns = c(Fall, Spring, Improvement),
+    fns = list(
+      Average = ~ mean(., na.rm = T)
+    ),
+    formatter = fmt_percent,
+    scale_values = F
+  ) %>%
+  grand_summary_rows(
+    columns = c(n1, n2),
+    fns = list(
+      Average = ~ round(mean(., na.rm = T))
+    ),
+    formatter = fmt_number
+  ) %>%
+  tab_style(
+    style = list(
+      cell_text(weight = "bold"),
+      cell_fill(color = "#00743F")
+    ),
+    locations = cells_grand_summary(
+      columns = everything()
+    )
+  )
+
+el_table_grouped_matched %>%
+  gtsave(filename = "GroupedSY19-20ELScores_Matched.png", path = here("Images/2021-2022/District11/"))
+```
+
+
+# Improvements
+
+## Matched Improvements
+
+In this section the overall improvement of only matched emails are investigated, to show how specific respondents responses changed from the start to the finish of their professional learning.
+
+### ELA Percent that did Improve
+
+```{r}
+ela_correct <- fall_df %>% filter(merge == 3) %>% select(12:38, id)
+ela_general_fall <- ela_correct %>%
+  select(1:5, id) %>%
+  mutate(score = 0) %>%
+  mutate(score = ifelse(pre12a == "Yes", score + 1, score)) %>%
+  mutate(score = ifelse(pre12b == "Yes", score + 1, score)) %>%
+  mutate(score = ifelse(pre12c == "No", score + 1, score)) %>%
+  mutate(score = ifelse(pre12d == "No", score + 1, score)) %>%
+  mutate(score = ifelse(pre13 == "A complex text that is worthy of reading multiple times.
+", score + 1, score)) %>%
+  drop_na()
+  
+
+ela_correct_spring <- spring_df %>% filter(merge == 3) %>% select(20:46, id)
+ela_general_spring <- ela_correct_spring %>%
+  select(1:5, id) %>%
+  mutate(score_spring = 0) %>%
+  mutate(score_spring = ifelse(post12a == "Yes", score_spring + 1, score_spring)) %>%
+  mutate(score_spring = ifelse(post12b == "Yes", score_spring + 1, score_spring)) %>%
+  mutate(score_spring = ifelse(post12c == "No", score_spring + 1, score_spring)) %>%
+  mutate(score_spring = ifelse(post12d == "No", score_spring + 1, score_spring)) %>%
+  mutate(score_spring = ifelse(post13 == "A complex text that is worthy of reading multiple times.
+", score_spring + 1, score_spring)) %>%
+  drop_na()
+
+score_compare_general <- left_join(ela_general_fall, ela_general_spring, by = "id") %>%
+  select(score, score_spring)
+
+score_compare_general %>%
+  mutate(final_score = score_spring - score) %>%
+  summarise(100 * sum(final_score > 0, na.rm = T)/n())
+
+## Building knowledge
+ela_general_fall <- ela_correct %>%
+  select(21:22, id) %>%
+  mutate(score = 0) %>%
+  mutate(score = ifelse(pre20 == "Students with low reading ability and a lot of knowledge about the food chain.", score + 1, score)) %>%
+  mutate(score = ifelse(pre21 == "Have students read a series of additional texts at a variety of complexity levels on the topic.", score + 1, score)) %>%
+  drop_na()
+  
+
+ela_correct_spring <- spring_df %>% filter(merge == 3) %>% select(20:46, id)
+ela_general_spring <- ela_correct_spring %>%
+  select(21:22, id) %>%
+  mutate(score_spring = 0) %>%
+  mutate(score_spring = ifelse(post20 == "Students with low reading ability and a lot of knowledge about the food chain.", score_spring + 1, score_spring)) %>%
+  mutate(score_spring = ifelse(post21 == "Have students read a series of additional texts at a variety of complexity levels on the topic.", score_spring + 1, score_spring)) %>%
+  drop_na()
+
+score_compare_general <- left_join(ela_general_fall, ela_general_spring, by = "id") %>%
+  select(score, score_spring)
+
+score_compare_general %>%
+  mutate(final_score = score_spring - score) %>%
+  summarise(100 * sum(final_score > 0, na.rm = T)/n())
+
+## Making it a function
+grouped_scoring <- function(questions_fall, questions_spring, answers) {
+  ela_correct <- fall_df %>% filter(merge == 3) %>% select(12:38, id)
+  ela_general_fall <- ela_correct %>%
+    select(questions_fall, id) %>%
+    mutate(score = 0) %>%
+    mutate(score = ifelse(get(questions_fall[1]) == as.character(answers[1]), score + 1, score)) %>%
+    mutate(score = ifelse(get(questions_fall[2]) == as.character(answers[2]), score + 1, score)) %>%
+    mutate(score = ifelse(get(questions_fall[3]) == as.character(answers[3]), score + 1, score)) %>%
+    mutate(score = ifelse(get(questions_fall[4]) == as.character(answers[4]), score + 1, score)) %>%
+    mutate(score = ifelse(get(questions_fall[5]) == as.character(answers[5]), score + 1, score)) %>%
+    drop_na()
+    
+  
+  ela_correct_spring <- spring_df %>% filter(merge == 3) %>% select(20:46, id)
+  ela_general_spring <- ela_correct_spring %>%
+    select(questions_spring, id) %>%
+    mutate(score_spring = 0) %>%
+    mutate(score_spring = ifelse(get(questions_spring[1]) == answers[1], score_spring + 1, score_spring)) %>%
+    mutate(score_spring = ifelse(get(questions_spring[2]) == answers[2], score_spring + 1, score_spring)) %>%
+    mutate(score_spring = ifelse(get(questions_spring[3]) == answers[3], score_spring + 1, score_spring)) %>%
+    mutate(score_spring = ifelse(get(questions_spring[4]) == answers[4], score_spring + 1, score_spring)) %>%
+    mutate(score_spring = ifelse(get(questions_spring[5]) == answers[5], score_spring + 1, score_spring)) %>%
+    drop_na()
+
+  score_compare_general <- left_join(ela_general_fall, ela_general_spring, by = "id") %>%
+    select(score, score_spring)
+
+  score_compare_general %>%
+    mutate(final_score = score_spring - score) %>%
+    summarise(100 * sum(final_score > 0, na.rm = T)/n())
+}
+
+## Fluency Score
+fluency_score <- grouped_scoring(questions_fall = c("pre14a", "pre14b", "pre14c", "pre14d", "pre15"), 
+                                 questions_spring = c("post14a", "post14b", "post14c", "post14d", "post15"), 
+                                 answers = c("True", "True", "False", "False", "Students independently read aloud texts at their reading level."))
+fluency_score %>% gt()
+
+## Complexity Score
+complexity_score <- grouped_scoring(questions_fall = c("pre16", "pre17a", "pre17b", "pre17c", "pre17d"), 
+                                 questions_spring = c("post16", "post17a", "post17b", "post17c", "post17d"), 
+                                 answers = c("Ability to read complex text independently and proficiently.", "Yes", "Yes", "No", "No"))
+complexity_score %>% gt()
+
+## Close Reading Score
+close_score <- grouped_scoring(questions_fall = c("pre18a", "pre18b", "pre18c", "pre18d", "pre19"), 
+                                 questions_spring = c("post18a", "post18b", "post18c", "post18d", "post19"), 
+                                 answers = c("True", "True", "False", "False", "Students pull out evidence from the text to explain their thinking in response to questions."))
+close_score %>% gt()
+
+## Support Reading Score
+support_score <- grouped_scoring(questions_fall = c("pre22", "pre23a", "pre23b", "pre23c", "pre23d"), 
+                                 questions_spring = c("post22", "post23a", "post23b", "post23c", "post23d"), 
+                                 answers = c("Provide students with lower reading abilities an audio version of the main text to listen to before reading the main text in class.", "Yes", "Yes", "No", "No"))
+support_score %>% gt()
+```
+### Math Percent that Did Improve
+
+```{r include = F, eval = F}
+## Making it a function
+grouped_scoring_math <- function(questions_fall, questions_spring, answers) {
+  ela_correct <- fall_df %>% filter(merge == 3) %>% select(39:63, id)
+  ela_general_fall <- ela_correct %>%
+    select(questions_fall, id) %>%
+    mutate(score = 0) %>%
+    # mutate(score = map_dfr(1:length(questions_fall), ~ ifelse(get(questions_fall) == as.character(answers), score + 1, score))) %>%
+    mutate(score = ifelse(get(questions_fall[1]) == as.character(answers[1]), score + 1, score)) %>%
+    mutate(score = ifelse(get(questions_fall[2]) == as.character(answers[2]), score + 1, score)) %>%
+    mutate(score = ifelse(get(questions_fall[3]) == as.character(answers[3]), score + 1, score)) %>%
+    mutate(score = ifelse(get(questions_fall[4]) == as.character(answers[4]), score + 1, score)) %>%
+    # mutate(score = ifelse(get(questions_fall[5]) == as.character(answers[5]), score + 1, score)) %>%
+    # mutate(score = ifelse(get(questions_fall[3]) == as.character(answers[6]), score + 1, score)) %>%
+    # mutate(score = ifelse(get(questions_fall[4]) == as.character(answers[7]), score + 1, score)) %>%
+    # mutate(score = ifelse(get(questions_fall[5]) == as.character(answers[8]), score + 1, score)) %>%
+    drop_na()
+    
+  
+  ela_correct_spring <- spring_df %>% filter(merge == 3) %>% select(47:71, id)
+  ela_general_spring <- ela_correct_spring %>%
+    select(questions_spring, id) %>%
+    mutate(score_spring = 0) %>%
+    # mutate(score = map_dfr(1:length(questions_spring), ~ ifelse(get(questions_spring) == as.character(answers), score + 1, score))) %>%
+    mutate(score_spring = ifelse(get(questions_spring[1]) == answers[1], score_spring + 1, score_spring)) %>%
+    mutate(score_spring = ifelse(get(questions_spring[2]) == answers[2], score_spring + 1, score_spring)) %>%
+    mutate(score_spring = ifelse(get(questions_spring[3]) == answers[3], score_spring + 1, score_spring)) %>%
+    mutate(score_spring = ifelse(get(questions_spring[4]) == answers[4], score_spring + 1, score_spring)) %>%
+    # mutate(score_spring = ifelse(get(questions_spring[5]) == answers[5], score_spring + 1, score_spring)) %>%
+    # mutate(score_spring = ifelse(get(questions_spring[3]) == answers[6], score_spring + 1, score_spring)) %>%
+    # mutate(score_spring = ifelse(get(questions_spring[4]) == answers[7], score_spring + 1, score_spring)) %>%
+    # mutate(score_spring = ifelse(get(questions_spring[5]) == answers[8], score_spring + 1, score_spring)) %>%
+    drop_na()
+
+  score_compare_general <- left_join(ela_general_fall, ela_general_spring, by = "id") %>%
+    select(score, score_spring)
+
+  score_compare_general %>%
+    mutate(final_score = score_spring - score) %>%
+    summarise(100 * sum(final_score > 0, na.rm = T)/n())
+}
+
+## Instructional Shifts Score
+standards_shifts <- grouped_scoring_math(questions_fall = c("pre24a", "pre24b", "pre24c", "pre24d", "pre25"), 
+                                 questions_spring = c("post24a", "post24b", "post24c", "post24d", "post25"), 
+                                 answers = c("Yes", "Yes", "No", "No", "Giving students opportunities to develop deep commands of the how, why, and when of mathematical concepts."))
+standards_shifts %>% gt()
+
+## Identities Score
+identities <- grouped_scoring_math(questions_fall = c("pre26a", "pre26b", "pre26c", "pre26d", "pre27"), 
+                                 questions_spring = c("post26a", "post26b", "post26c", "post26d", "post27"), 
+                                 answers = c("Yes", "Yes", "No", "No", "Students’ beliefs about whether or not they are a “math person” influences their performance in math class."))
+identities %>% gt()
+
+## Equitable Score
+equitable <- grouped_scoring_math(questions_fall = c("pre28", "pre29"), 
+                                 questions_spring = c("post28", "post29"), 
+                                 answers = c("Students need to receive on grade-level instruction every year in order to graduate high school ready for college and career.", 
+                                             "Having the teacher simplify the language and task complexity for students who are English learners."))
+equitable %>% gt()
+
+## Supporting Students Score
+unfinished_learning <- grouped_scoring_math(questions_fall = c("pre30a", "pre30b", "pre30c", "pre30d", "pre31a", "pre31b", "pre31c", "pre31d"), 
+                                 questions_spring = c("post30a", "post30b", "post30c", "post30d", "post31a", "post31b", "post31c", "post31d"), 
+                                 answers = c("Yes", "Yes", "No", "No", 
+                                             "Yes", "Yes", "No", "No"))
+unfinished_learning %>% gt()
+
+## Math Learning Goals Score
+math_learning <- grouped_scoring_math(questions_fall = c("pre32"), 
+                                 questions_spring = c("post32"), 
+                                 answers = c("They describe how students will demonstrate their understanding."))
+math_learning %>% gt()
+
+## Student Talk Score
+student_talk <- grouped_scoring_math(questions_fall = c("pre33a", "pre33b", "pre33c", "pre33d"), 
+                                 questions_spring = c("post33a", "post33b", "post33c", "post33d"), 
+                                 answers = c("True", "True", "False", "False"))
+student_talk %>% gt()
+
+
+```
+
+
+## Overall
+
+### ELA
+
+Here's what ELA looks like by question:
+
+```{r}
+### Making Summary Tables
+## EL
+el_table <- fall_spring_el_averages %>%
+  gt::gt() %>%
+  tab_header(
+    title = md("**ELA Scores in Fall vs. Spring**")
+  ) %>%
+   cols_label(
+     n1 = gt::html("n<sub>1</sub>"),
+     n2 = gt::html("n<sub>2</sub>")
+   ) %>%
+  # tab_style(
+  #   style = cell_fill(color = "forestgreen", alpha = 0.2),
+  #   locations = cells_body(
+  #     columns = c(Improvement),
+  #     rows = Improvement > 0
+  #     )
+  # ) %>%
+  gt::data_color(
+     columns = c(Improvement),
+     colors = scales::col_numeric(
+       palette = ggsci::rgb_material('light-green'),
+       domain = NULL
+     )
+   ) %>%
+  fmt_percent(
+    columns = c(Fall, Spring, Improvement),
+    decimals = 2,
+    scale_values = F
+  ) %>%
+  grand_summary_rows(
+    columns = c(Fall, Spring, Improvement),
+    fns = list(
+      Average = ~ mean(., na.rm = T)
+    ),
+    formatter = fmt_percent,
+    scale_values = F
+  ) %>%
+  grand_summary_rows(
+    columns = c(n1, n2),
+    fns = list(
+      Average = ~ round(mean(., na.rm = T))
+    ),
+    formatter = fmt_number
+  )
+el_table %>%
+  gtsave(here("Images/2021-2022/District11/SY19-20ELScores.png"))
+```
+
+## Mindsets and expectations
+
+```{r mindsets-expectations}
+recode_vector <- c("1" = "Very Untrue", 
+                   "2" = "Untrue",
+                   "3" = "Somewhat Untrue",
+                   "4" = "Somewhat True",
+                   "5" = "True",
+                   "6" = "Very True")
+
+true_vector <- c("Very True", "True")
+untrue_vector <- c("Very Untrue", "Untrue")
+# '%!in%' <- function(x,y)!('%in%'(x,y))
+
+### ELA CONTENT: 12a-23d
+## Average Scores
+# 14a-14d, 18a-18d need recoding
+fall_averages_ela <- fall_df %>%
+  dplyr::filter(merge == 3) %>%
+  select(1:9) %>%
+  mutate(across(everything(), ~ str_replace_all(.x, recode_vector))) %>%
+  mutate(across(everything(), ~ str_to_title(.x))) %>%
+  summarise(
+    pre1 = c(sum(pre1 %in% untrue_vector, na.rm = T)/length(which(!is.na(pre1))), length(which(!is.na(pre1)))),
+    pre2 = c(sum(pre2 %in% true_vector, na.rm = T)/length(which(!is.na(pre2))), length(which(!is.na(pre2)))),
+    pre3 = c(sum(pre3 %in% untrue_vector, na.rm = T)/length(which(!is.na(pre3))), length(which(!is.na(pre3)))),
+    pre4 = c(sum(pre4 %in% untrue_vector, na.rm = T)/length(which(!is.na(pre4))), length(which(!is.na(pre4)))),
+    pre5 = c(sum(pre5 %in% true_vector, na.rm = T)/length(which(!is.na(pre5))), length(which(!is.na(pre5)))),
+    pre6 = c(sum(pre6 %in% true_vector, na.rm = T)/length(which(!is.na(pre6))), length(which(!is.na(pre6)))),
+    pre7 = c(sum(pre7 %in% true_vector, na.rm = T)/length(which(!is.na(pre7))), length(which(!is.na(pre7)))),
+    pre8 = c(sum(pre8 %in% untrue_vector, na.rm = T)/length(which(!is.na(pre8))), length(which(!is.na(pre8)))),
+    pre9 = c(sum(pre9 %in% untrue_vector, na.rm = T)/length(which(!is.na(pre9))), length(which(!is.na(pre9))))) %>%
+  dplyr::mutate(across(everything(), ~ .x * 100))
+
+fall_ela_n <- fall_averages_ela %>% slice(2) %>%
+  dplyr::mutate(across(everything(), ~ .x / 100)) %>%
+  pivot_longer(everything())
+
+
+### ELA CONTENT: 12a-23d
+## Average Scores
+# 14a-14d, 18a-18d need recoding
+spring_averages_ela <- spring_df %>%
+  dplyr::filter(merge == 3) %>%
+  select(4:12) %>%
+  mutate(across(everything(), ~ str_replace_all(.x, recode_vector))) %>%
+  mutate(across(everything(), ~ str_to_title(.x))) %>%
+  summarise(
+    post1 = c(sum(post1 %in% untrue_vector, na.rm = T)/length(which(!is.na(post1))), length(which(!is.na(post1)))),
+    post2 = c(sum(post2 %in% true_vector, na.rm = T)/length(which(!is.na(post2))), length(which(!is.na(post2)))),
+    post3 = c(sum(post3 %in% untrue_vector, na.rm = T)/length(which(!is.na(post3))), length(which(!is.na(post3)))),
+    post4 = c(sum(post4 %in% untrue_vector, na.rm = T)/length(which(!is.na(post4))), length(which(!is.na(post4)))),
+    post5 = c(sum(post5 %in% true_vector, na.rm = T)/length(which(!is.na(post5))), length(which(!is.na(post5)))),
+    post6 = c(sum(post6 %in% true_vector, na.rm = T)/length(which(!is.na(post6))), length(which(!is.na(post6)))),
+    post7 = c(sum(post7 %in% true_vector, na.rm = T)/length(which(!is.na(post7))), length(which(!is.na(post7)))),
+    post8 = c(sum(post8 %in% untrue_vector, na.rm = T)/length(which(!is.na(post8))), length(which(!is.na(post8)))),
+    post9 = c(sum(post9 %in% untrue_vector, na.rm = T)/length(which(!is.na(post9))), length(which(!is.na(post9))))) %>%
+  dplyr::mutate(across(everything(), ~ .x * 100))
+
+spring_ela_n <- spring_averages_ela %>% slice(2) %>%
+  dplyr::mutate(across(everything(), ~ .x / 100)) %>%
+  pivot_longer(everything())
+
+### JOINING FALL AND SPRING
+## EL
+fall_spring_el_averages <- bind_rows(fall_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "pre")),
+                                     spring_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "post")),
+                                     spring_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "post")) - 
+                                       fall_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "pre"))) %>%
+  rownames_to_column() %>%
+  pivot_longer(-rowname, 'variable', 'value') %>%
+  pivot_wider(variable, rowname) %>%
+  rename(Question = variable, Fall = `1`, Spring = `2`, Improvement = `3`) %>%
+  bind_cols(n2 = spring_ela_n$value, n1 = fall_ela_n$value) %>%
+  relocate(n2, .after = `Spring`) %>%
+  relocate(n1, .after = `Fall`)
+
+fall_spring_el_averages %>% gt()
+```
+
+```{r demonstrated-increase-mindsets}
+fall_join <- fall_df %>%
+  dplyr::filter(merge == 3) %>%
+  select(1:9, id) %>%
+  mutate(across(!id, ~ str_replace_all(.x, recode_vector))) %>%
+  mutate(across(everything(), ~ str_to_title(.x)))
+  
+spring_join <- spring_df %>%
+  dplyr::filter(merge == 3) %>%
+  select(4:12, id) %>%
+  mutate(across(!id, ~ str_replace_all(.x, recode_vector))) %>%
+  mutate(across(everything(), ~ str_to_title(.x)))
+
+joined_increase <- left_join(fall_join, spring_join, by = "id") %>%
+  mutate(increase1 = 0,
+         increase2 = 0,
+         increase3 = 0,
+         increase4 = 0,
+         increase5 = 0,
+         increase6 = 0,
+         increase7 = 0,
+         increase8 = 0,
+         increase9 = 0) %>%
+  mutate(increase1 = case_when(pre1 %in% untrue_vector & post1 %in% untrue_vector ~ increase1 + 1,
+                                pre1 %!in% untrue_vector & post1 %in% untrue_vector ~ increase1 + 1),
+         increase2 = case_when(pre2 %in% true_vector & post2 %in% true_vector ~ increase2 + 1,
+                                pre2 %!in% true_vector & post2 %in% true_vector ~ increase2 + 1),
+         increase3 = case_when(pre3 %in% untrue_vector & post3 %in% untrue_vector ~ increase3 + 1,
+                                pre3 %!in% untrue_vector & post3 %in% untrue_vector ~ increase3 + 1),
+         increase4 = case_when(pre4 %in% untrue_vector & post4 %in% untrue_vector ~ increase4 + 1,
+                                pre4 %!in% untrue_vector & post4 %in% untrue_vector ~ increase4 + 1),
+         increase5 = case_when(pre5 %in% true_vector & post5 %in% true_vector ~ increase5 + 1,
+                                pre5 %!in% true_vector & post5 %in% true_vector ~ increase5 + 1),
+         increase6 = case_when(pre6 %in% true_vector & post6 %in% true_vector ~ increase6 + 1,
+                                pre6 %!in% true_vector & post6 %in% true_vector ~ increase6 + 1),
+         increase7 = case_when(pre7 %in% true_vector & post7 %in% true_vector ~ increase7 + 1,
+                                pre7 %!in% true_vector & post7 %in% true_vector ~ increase7 + 1),
+         increase8 = case_when(pre8 %in% untrue_vector & post8 %in% untrue_vector ~ increase8 + 1,
+                                pre8 %!in% untrue_vector & post8 %in% untrue_vector ~ increase8 + 1),
+         increase9 = case_when(pre9 %in% untrue_vector & post9 %in% untrue_vector ~ increase9 + 1,
+                                pre9 %!in% untrue_vector & post9 %in% untrue_vector ~ increase9 + 1)) %>%
+  summarise(sum(increase1, na.rm = T)/118,
+            sum(increase2, na.rm = T)/118,
+            sum(increase3, na.rm = T)/141,
+            sum(increase4, na.rm = T)/141,
+            sum(increase5, na.rm = T)/118,
+            sum(increase6, na.rm = T)/118,
+            sum(increase7, na.rm = T)/141,
+            sum(increase8, na.rm = T)/141,
+            sum(increase9, na.rm = T)/141) %>%
+  mutate_all( ~ .x * 100)
+
+joined_increase %>% gt()
+```
+
+```{r culture-climate}
+agree_vector <- c("Agree", "Strongly Agree")
+
+fall_averages_ela <- fall_df %>%
+  filter(merge == 3) %>%
+  select(64:67) %>%
+  mutate(across(everything(), ~ str_to_title(.x))) %>%
+  summarise(
+    pre1 = c(sum(pre35 %in% agree_vector, na.rm = T)/sum(!is.na(pre35)), length(which(!is.na(pre35)))),
+    pre2 = c(sum(pre36 %in% agree_vector, na.rm = T)/sum(!is.na(pre36)), length(which(!is.na(pre36)))),
+    pre3 = c(sum(pre37 %in% agree_vector, na.rm = T)/sum(!is.na(pre37)), length(which(!is.na(pre37)))),
+    pre4 = c(sum(pre38 %in% agree_vector, na.rm = T)/sum(!is.na(pre38)), length(which(!is.na(pre38))))) %>%
+  dplyr::mutate(across(everything(), ~ .x * 100))
+
+fall_ela_n <- fall_averages_ela %>% slice(2) %>%
+  dplyr::mutate(across(everything(), ~ .x / 100)) %>%
+  pivot_longer(everything())
+
+
+### ELA CONTENT: 12a-23d
+## Average Scores
+# 14a-14d, 18a-18d need recoding
+spring_averages_ela <- spring_df %>%
+  filter(merge == 3) %>%
+  select(73:76) %>%
+  mutate(across(everything(), ~ str_to_title(.x))) %>%
+  summarise(
+    post1 = c(sum(post35 %in% agree_vector, na.rm = T)/sum(!is.na(post35)), length(which(!is.na(post35)))),
+    post2 = c(sum(post36 %in% agree_vector, na.rm = T)/sum(!is.na(post36)), length(which(!is.na(post36)))),
+    post3 = c(sum(post37 %in% agree_vector, na.rm = T)/sum(!is.na(post37)), length(which(!is.na(post37)))),
+    post4 = c(sum(post38 %in% agree_vector, na.rm = T)/sum(!is.na(post38)), length(which(!is.na(post38))))) %>%
+  dplyr::mutate(across(everything(), ~ .x * 100))
+
+spring_ela_n <- spring_averages_ela %>% slice(2) %>%
+  dplyr::mutate(across(everything(), ~ .x / 100)) %>%
+  pivot_longer(everything())
+
+### JOINING FALL AND SPRING
+## EL
+fall_spring_el_averages <- bind_rows(fall_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "pre")),
+                                     spring_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "post")),
+                                     spring_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "post")) - 
+                                       fall_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "pre"))) %>%
+  rownames_to_column() %>%
+  pivot_longer(-rowname, 'variable', 'value') %>%
+  pivot_wider(variable, rowname) %>%
+  rename(Question = variable, Fall = `1`, Spring = `2`, Improvement = `3`) %>%
+  bind_cols(n2 = spring_ela_n$value, n1 = fall_ela_n$value) %>%
+  relocate(n2, .after = `Spring`) %>%
+  relocate(n1, .after = `Fall`)
+fall_spring_el_averages %>% gt()
+```
+
+```{r demonstrated-increase-culture-climate}
+fall_join <- fall_df %>%
+  dplyr::filter(merge == 3) %>%
+  select(64:67, id) %>%
+  drop_na() %>%
+  mutate(across(everything(), ~ str_to_title(.x)))
+  
+spring_join <- spring_df %>%
+  dplyr::filter(merge == 3) %>%
+  select(73:76, id) %>%
+  drop_na() %>%
+  mutate(across(everything(), ~ str_to_title(.x)))
+
+joined_increase <- left_join(fall_join, spring_join, by = "id") %>%
+  mutate(increase35 = 0,
+         increase36 = 0,
+         increase37 = 0,
+         increase38 = 0) %>%
+  mutate(increase35 = case_when(pre35 %in% agree_vector & post35 %in% agree_vector ~ increase35 + 1,
+                                pre35 %!in% agree_vector & post35 %in% agree_vector ~ increase35 + 1),
+         increase36 = case_when(pre36 %in% agree_vector & post36 %in% agree_vector ~ increase36 + 1,
+                                pre36 %!in% agree_vector & post36 %in% agree_vector ~ increase36 + 1),
+         increase37 = case_when(pre37 %in% agree_vector & post37 %in% agree_vector ~ increase37 + 1,
+                                pre37 %!in% agree_vector & post37 %in% agree_vector ~ increase37 + 1),
+         increase38 = case_when(pre38 %in% agree_vector & post38 %in% agree_vector ~ increase38 + 1,
+                                pre38 %!in% agree_vector & post38 %in% agree_vector ~ increase38 + 1)) %>%
+  summarise(sum(increase35, na.rm = T)/100,
+            sum(increase36, na.rm = T)/100,
+            sum(increase37, na.rm = T)/100,
+            sum(increase38, na.rm = T)/100)
+
+joined_increase %>% gt()
+```
+
+
+```{r collaboration}
+agree_vector <- c("3", "4", "4 or more times", "4 or more", "3 times")
+
+fall_averages_ela <- fall_df %>%
+  filter(merge == 3) %>%
+  select(68:70) %>%
+  summarise(
+    pre1 = c(sum(pre39 %in% agree_vector, na.rm = T)/sum(!is.na(pre39)), length(which(!is.na(pre39)))),
+    pre2 = c(sum(pre40 %in% agree_vector, na.rm = T)/sum(!is.na(pre40)), length(which(!is.na(pre40)))),
+    pre3 = c(sum(pre41 %in% agree_vector, na.rm = T)/sum(!is.na(pre41)), length(which(!is.na(pre41))))) %>%
+  dplyr::mutate(across(everything(), ~ .x * 100))
+
+fall_ela_n <- fall_averages_ela %>% slice(2) %>%
+  dplyr::mutate(across(everything(), ~ .x / 100)) %>%
+  pivot_longer(everything())
+
+
+### ELA CONTENT: 12a-23d
+## Average Scores
+# 14a-14d, 18a-18d need recoding
+spring_averages_ela <- spring_df %>%
+  filter(merge == 3) %>%
+  select(77:79) %>%
+  summarise(
+    post1 = c(sum(post39 %in% agree_vector, na.rm = T)/sum(!is.na(post39)), length(which(!is.na(post39)))),
+    post2 = c(sum(post40 %in% agree_vector, na.rm = T)/sum(!is.na(post40)), length(which(!is.na(post40)))),
+    post3 = c(sum(post41 %in% agree_vector, na.rm = T)/sum(!is.na(post41)), length(which(!is.na(post41))))) %>%
+  dplyr::mutate(across(everything(), ~ .x * 100))
+
+spring_ela_n <- spring_averages_ela %>% slice(2) %>%
+  dplyr::mutate(across(everything(), ~ .x / 100)) %>%
+  pivot_longer(everything())
+
+### JOINING FALL AND SPRING
+## EL
+fall_spring_el_averages <- bind_rows(fall_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "pre")),
+                                     spring_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "post")),
+                                     spring_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "post")) - 
+                                       fall_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "pre"))) %>%
+  rownames_to_column() %>%
+  pivot_longer(-rowname, 'variable', 'value') %>%
+  pivot_wider(variable, rowname) %>%
+  rename(Question = variable, Fall = `1`, Spring = `2`, Improvement = `3`) %>%
+  bind_cols(n2 = spring_ela_n$value, n1 = fall_ela_n$value) %>%
+  relocate(n2, .after = `Spring`) %>%
+  relocate(n1, .after = `Fall`)
+fall_spring_el_averages %>% gt()
+```
+
+
+
+```{r collaboration-increase}
+fall_join <- fall_df %>%
+  dplyr::filter(merge == 3) %>%
+  select(68:70, id) %>%
+  drop_na()
+  
+spring_join <- spring_df %>%
+  dplyr::filter(merge == 3) %>%
+  select(77:79, id) %>%
+  drop_na()
+
+joined_increase <- left_join(fall_join, spring_join, by = "id") %>%
+  mutate(increase39 = 0,
+         increase40 = 0,
+         increase41 = 0) %>%
+  mutate(increase39 = case_when(pre39 %in% agree_vector & post39 %in% agree_vector ~ increase39 + 1,
+                                pre39 %!in% agree_vector & post39 %in% agree_vector ~ increase39 + 1),
+         increase40 = case_when(pre40 %in% agree_vector & post40 %in% agree_vector ~ increase40 + 1,
+                                pre40 %!in% agree_vector & post40 %in% agree_vector ~ increase40 + 1),
+         increase41 = case_when(pre41 %in% agree_vector & post41 %in% agree_vector ~ increase41 + 1,
+                                pre41 %!in% agree_vector & post41 %in% agree_vector ~ increase41 + 1)) %>%
+  summarise(sum(increase39, na.rm = T)/97,
+            sum(increase40, na.rm = T)/97,
+            sum(increase41, na.rm = T)/97)
+
+joined_increase %>% gt()
+```
+
+
+
+
+```{r lab-leaders}
+agree_vector <- c("Strongly agree", "Agree", "Strongly Agree")
+
+fall_averages_ela <- fall_df %>%
+  filter(merge == 3) %>%
+  select(90:92) %>%
+  summarise(
+    pre1 = c(sum(pre42 %in% agree_vector, na.rm = T)/sum(!is.na(pre42)), length(which(!is.na(pre42)))),
+    pre2 = c(sum(pre43 %in% agree_vector, na.rm = T)/sum(!is.na(pre43)), length(which(!is.na(pre43)))),
+    pre3 = c(sum(pre44 %in% agree_vector, na.rm = T)/sum(!is.na(pre44)), length(which(!is.na(pre44))))) %>%
+  dplyr::mutate(across(everything(), ~ .x * 100))
+
+fall_ela_n <- fall_averages_ela %>% slice(2) %>%
+  dplyr::mutate(across(everything(), ~ .x / 100)) %>%
+  pivot_longer(everything())
+
+
+### ELA CONTENT: 12a-23d
+## Average Scores
+# 14a-14d, 18a-18d need recoding
+spring_averages_ela <- spring_df %>%
+  filter(merge == 3) %>%
+  select(80:82) %>%
+  summarise(
+    post1 = c(sum(post42 %in% agree_vector, na.rm = T)/sum(!is.na(post42)), length(which(!is.na(post42)))),
+    post2 = c(sum(post43 %in% agree_vector, na.rm = T)/sum(!is.na(post43)), length(which(!is.na(post43)))),
+    post3 = c(sum(post44 %in% agree_vector, na.rm = T)/sum(!is.na(post44)), length(which(!is.na(post44))))) %>%
+  dplyr::mutate(across(everything(), ~ .x * 100))
+
+spring_ela_n <- spring_averages_ela %>% slice(2) %>%
+  dplyr::mutate(across(everything(), ~ .x / 100)) %>%
+  pivot_longer(everything())
+
+### JOINING FALL AND SPRING
+## EL
+fall_spring_el_averages <- bind_rows(fall_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "pre")),
+                                     spring_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "post")),
+                                     spring_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "post")) - 
+                                       fall_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "pre"))) %>%
+  rownames_to_column() %>%
+  pivot_longer(-rowname, 'variable', 'value') %>%
+  pivot_wider(variable, rowname) %>%
+  rename(Question = variable, Fall = `1`, Spring = `2`, Improvement = `3`) %>%
+  bind_cols(n2 = spring_ela_n$value, n1 = fall_ela_n$value) %>%
+  relocate(n2, .after = `Spring`) %>%
+  relocate(n1, .after = `Fall`)
+fall_spring_el_averages %>% gt()
+```
+
+```{r lab-leaders-increase}
+fall_join <- fall_df %>%
+  dplyr::filter(merge == 3) %>%
+  select(90:92, id) %>%
+  drop_na()
+  
+spring_join <- spring_df %>%
+  dplyr::filter(merge == 3) %>%
+  select(80:82, id) %>%
+  drop_na()
+
+joined_increase <- left_join(fall_join, spring_join, by = "id") %>%
+  drop_na() %>%
+  mutate(increase42 = 0,
+         increase43 = 0,
+         increase44 = 0) %>%
+  mutate(increase42 = case_when(pre42 %in% agree_vector & post42 %in% agree_vector ~ increase42 + 1,
+                                pre42 %!in% agree_vector & post42 %in% agree_vector ~ increase42 + 1),
+         increase43 = case_when(pre43 %in% agree_vector & post43 %in% agree_vector ~ increase43 + 1,
+                                pre43 %!in% agree_vector & post43 %in% agree_vector ~ increase43 + 1),
+         increase44 = case_when(pre44 %in% agree_vector & post44 %in% agree_vector ~ increase44 + 1,
+                                pre44 %!in% agree_vector & post44 %in% agree_vector ~ increase44 + 1)) %>%
+  summarise(sum(increase42, na.rm = T)/10,
+            sum(increase43, na.rm = T)/10,
+            sum(increase44, na.rm = T)/10)
+
+joined_increase %>% gt()
+```
+
+```{r lab-leaders-content}
+agree_vector <- c("Lead professional learning for teachers", "Lead PLC meetings for teachers", "Coach teachers",
+                  "Share information or resources with teachers", "Improve my own instructional practice",
+                  "I have not been able to do anything with this content yet",
+                  "reinforce the structure or Guidebook, and remind teachers that building knowledge is just as important as demonstrating mastery of a skill or standard",
+                  "Assist Students to better navigate or comprehend text dependent questions and support diverse learning")
+
+fall_averages_ela <- fall_df %>%
+  # filter(merge == 3) %>%
+  # filter(pre_role_tl == "Lab Leader/Content Leader") %>%
+  select(93:99) %>%
+  summarise(
+    pre1 = c(sum(pre45a %in% agree_vector, na.rm = T)/47, length(pre45a)),
+    pre2 = c(sum(pre45b %in% agree_vector, na.rm = T)/47, length(pre45b)),
+    pre3 = c(sum(pre45c %in% agree_vector, na.rm = T)/47, length(pre45c)),
+    pre4 = c(sum(pre45d %in% agree_vector, na.rm = T)/47, length(pre45d)),
+    pre5 = c(sum(pre45e %in% agree_vector, na.rm = T)/47, length(pre45e)),
+    pre6 = c(sum(pre45f %in% agree_vector, na.rm = T)/47, length(pre45f)),
+    pre7 = c(sum(pre45g %in% agree_vector, na.rm = T)/47, length(pre45g))) %>%
+  dplyr::mutate(across(everything(), ~ .x * 100))
+
+fall_ela_n <- fall_averages_ela %>% slice(2) %>%
+  dplyr::mutate(across(everything(), ~ .x / 100)) %>%
+  pivot_longer(everything())
+
+
+### ELA CONTENT: 12a-23d
+## Average Scores
+# 14a-14d, 18a-18d need recoding
+spring_averages_ela <- spring_df %>%
+  # filter(merge == 3) %>%
+  # filter(post_role_tl == "Lab Leader/Content Leader") %>%
+  select(83:89) %>%
+  summarise(
+    post1 = c(sum(post45a %in% agree_vector, na.rm = T)/27, length(post45a)),
+    post2 = c(sum(post45b %in% agree_vector, na.rm = T)/27, length(post45b)),
+    post3 = c(sum(post45c %in% agree_vector, na.rm = T)/27, length(post45c)),
+    post4 = c(sum(post45d %in% agree_vector, na.rm = T)/27, length(post45d)),
+    post5 = c(sum(post45e %in% agree_vector, na.rm = T)/27, length(post45e)),
+    post6 = c(sum(post45f %in% agree_vector, na.rm = T)/27, length(post45f)),
+    post7 = c(sum(post45g %in% agree_vector, na.rm = T)/27, length(post45g))) %>%
+  dplyr::mutate(across(everything(), ~ .x * 100))
+
+spring_ela_n <- spring_averages_ela %>% slice(2) %>%
+  dplyr::mutate(across(everything(), ~ .x / 100)) %>%
+  pivot_longer(everything())
+
+### JOINING FALL AND SPRING
+## EL
+fall_spring_el_averages <- bind_rows(fall_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "pre")),
+                                     spring_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "post")),
+                                     spring_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "post")) - 
+                                       fall_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "pre"))) %>%
+  rownames_to_column() %>%
+  pivot_longer(-rowname, 'variable', 'value') %>%
+  pivot_wider(variable, rowname) %>%
+  rename(Question = variable, Fall = `1`, Spring = `2`, Improvement = `3`) %>%
+  bind_cols(n2 = spring_ela_n$value, n1 = fall_ela_n$value) %>%
+  relocate(n2, .after = `Spring`) %>%
+  relocate(n1, .after = `Fall`)
+fall_spring_el_averages %>% gt()
+```
+
+```{r}
+fall_averages_ela <- fall_df %>%
+    filter(merge == 3 & pre_role != "Teacher" & pre_role != "Teacher or specialist") %>%
+    select(93:99, id) %>%
+    filter(if_any(!id, ~ !is.na(.x)))
+
+spring_averages_ela <- spring_df %>%
+  filter(merge == 3 & post_role != "Teacher" & post_role != "Teacher or specialist") %>%
+  select(83:89, id) %>%
+  filter(if_any(!id, ~ !is.na(.x)))
+
+joined <- left_join(fall_averages_ela, spring_averages_ela, by = c("id"))
+```
+
+
+```{r}
+a_vector <- "Lead professional learning for teachers"
+b_vector <- "Lead PLC meetings for teachers"
+c_vector <- "Coach teachers"
+d_vector <- "Share information or resources with teachers"
+e_vector <- "Improve my own instructional practice"
+f_vector <- ""
+g_vector <- c("Assist Students to better navigate or comprehend text dependent questions and support diverse learning",
+              "reinforce the structure or Guidebook, and remind teachers that building knowledge is just as important as demonstrating mastery of a skill or standard")
+
+
+
+fall_join <- fall_df %>%
+  # dplyr::filter(merge == 3) %>%
+  select(93:99, id) %>%
+  mutate(across(!id, ~ str_replace_all(.x, recode_vector)))
+  
+spring_join <- spring_df %>%
+  # dplyr::filter(merge == 3) %>%
+  select(83:89, id) %>%
+  mutate(across(!id, ~ str_replace_all(.x, recode_vector)))
+
+joined_increase <- left_join(fall_join, spring_join, by = "id") %>%
+  mutate(increase45a = 0,
+         increase45b = 0,
+         increase45c = 0,
+         increase45d = 0,
+         increase45e = 0,
+         increase45f = 0,
+         increase45g = 0) %>%
+  mutate(increase45a = case_when(pre45a %in% a_vector & post45a %in% a_vector ~ increase45a + 1,
+                                pre45a %!in% a_vector & post45a %in% a_vector ~ increase45a + 1),
+         increase45b = case_when(pre45b %in% b_vector & post45b %in% b_vector ~ increase45b + 1,
+                                pre45b %!in% b_vector & post45b %in% b_vector ~ increase45b + 1),
+         increase45c = case_when(pre45c %in% c_vector & post45c %in% c_vector ~ increase45c + 1,
+                                pre45c %!in% c_vector & post45c %in% c_vector ~ increase45c + 1),
+         increase45d = case_when(pre45d %in% d_vector & post45d %in% d_vector ~ increase45d + 1,
+                                pre45d %!in% d_vector & post45d %in% d_vector ~ increase45d + 1),
+         increase45e = case_when(pre45e %in% e_vector & post45e %in% e_vector ~ increase45e + 1,
+                                pre45e %!in% e_vector & post45e %in% e_vector ~ increase45e + 1),
+         increase45f = case_when(pre45f %in% f_vector & post45f %in% f_vector ~ increase45f + 1,
+                                pre45f %!in% f_vector & post45f %in% f_vector ~ increase45f + 1),
+         increase45g = case_when(pre45g %in% g_vector & post45g %in% g_vector ~ increase45g + 1,
+                                pre45g %!in% g_vector & post45g %in% g_vector ~ increase45g + 1)) %>%
+  summarise(sum(increase45a, na.rm = T)/47,
+            sum(increase45b, na.rm = T)/47,
+            sum(increase45c, na.rm = T)/47,
+            sum(increase45d, na.rm = T)/47,
+            sum(increase45e, na.rm = T)/47,
+            sum(increase45f, na.rm = T)/47,
+            sum(increase45g, na.rm = T)/47) %>%
+  mutate_all( ~ .x * 100)
+
+joined_increase %>% gt()
+```
+
+
+```{r}
+agree_vector <- c("Hold a relational meeting with at least one teacher",
+                  "Encourage teachers to participate in Teaching Lab PD",
+                  "Encourage teachers to become LL or Content Leader",
+                  "Advocate to the school or district leader to change the plan for teacher PD",
+                  "None of the above")
+
+fall_averages_ela <- fall_df %>%
+  filter(merge == 3 & pre_role != "Teacher") %>%
+  select(100:105) %>%
+  summarise(
+    pre1 = c(sum(pre46a %in% agree_vector, na.rm = T)/sum(!is.na(pre46a)), sum(!is.na(pre46a))),
+    pre2 = c(sum(pre46b %in% agree_vector, na.rm = T)/sum(!is.na(pre46b)), sum(!is.na(pre46b))),
+    pre3 = c(sum(pre46c %in% agree_vector, na.rm = T)/sum(!is.na(pre46c)), sum(!is.na(pre46c))),
+    pre4 = c(sum(pre46d %in% agree_vector, na.rm = T)/sum(!is.na(pre46d)), sum(!is.na(pre46d))),
+    pre5 = c(sum(pre46e %in% agree_vector, na.rm = T)/sum(!is.na(pre46e)), sum(!is.na(pre46e))),
+    pre6 = c(sum(pre46f %in% agree_vector, na.rm = T)/sum(!is.na(pre46f)), sum(!is.na(pre46f)))) %>%
+  dplyr::mutate(across(everything(), ~ .x * 100))
+
+fall_ela_n <- fall_averages_ela %>% slice(2) %>%
+  dplyr::mutate(across(everything(), ~ .x / 100)) %>%
+  pivot_longer(everything())
+
+
+### ELA CONTENT: 12a-23d
+## Average Scores
+# 14a-14d, 18a-18d need recoding
+spring_averages_ela <- spring_df %>%
+  filter(merge == 3 & post_role != "Teacher") %>%
+  select(90:95) %>%
+  summarise(
+    post1 = c(sum(post46a %in% agree_vector, na.rm = T)/sum(!is.na(post46a)), sum(!is.na(post46a))),
+    post2 = c(sum(post46b %in% agree_vector, na.rm = T)/sum(!is.na(post46b)), sum(!is.na(post46b))),
+    post3 = c(sum(post46c %in% agree_vector, na.rm = T)/sum(!is.na(post46c)), sum(!is.na(post46c))),
+    post4 = c(sum(post46d %in% agree_vector, na.rm = T)/sum(!is.na(post46d)), sum(!is.na(post46d))),
+    post5 = c(sum(post46e %in% agree_vector, na.rm = T)/sum(!is.na(post46e)), sum(!is.na(post46e))),
+    post6 = c(sum(post46f %in% agree_vector, na.rm = T)/sum(!is.na(post46f)), sum(!is.na(post46f)))) %>%
+  dplyr::mutate(across(everything(), ~ .x * 100))
+
+spring_ela_n <- spring_averages_ela %>% slice(2) %>%
+  dplyr::mutate(across(everything(), ~ .x / 100)) %>%
+  pivot_longer(everything())
+
+### JOINING FALL AND SPRING
+## EL
+fall_spring_el_averages <- bind_rows(fall_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "pre")),
+                                     spring_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "post")),
+                                     spring_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "post")) - 
+                                       fall_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "pre"))) %>%
+  rownames_to_column() %>%
+  pivot_longer(-rowname, 'variable', 'value') %>%
+  pivot_wider(variable, rowname) %>%
+  rename(Question = variable, Fall = `1`, Spring = `2`, Improvement = `3`) %>%
+  bind_cols(n2 = spring_ela_n$value, n1 = fall_ela_n$value) %>%
+  relocate(n2, .after = `Spring`) %>%
+  relocate(n1, .after = `Fall`)
+fall_spring_el_averages %>% gt()
+```
+
+```{r}
+a_vector <- "Hold a relational meeting with at least one teacher"
+b_vector <- "Encourage teachers to participate in Teaching Lab PD"
+c_vector <- "Encourage teachers to become LL or Content Leader"
+d_vector <- "Advocate to the school or district leader to change the plan for teacher PD"
+e_vector <- "None of the above"
+f_vector <- ""
+                  
+
+
+fall_join <- fall_df %>%
+  dplyr::filter(merge == 3) %>%
+  select(100:105, id) %>%
+  mutate(across(!id, ~ str_replace_all(.x, recode_vector)))
+  
+spring_join <- spring_df %>%
+  dplyr::filter(merge == 3) %>%
+  select(90:105, id) %>%
+  mutate(across(!id, ~ str_replace_all(.x, recode_vector)))
+
+joined_increase <- left_join(fall_join, spring_join, by = "id") %>%
+  mutate(increase46a = 0,
+         increase46b = 0,
+         increase46c = 0,
+         increase46d = 0,
+         increase46e = 0,
+         increase46f = 0) %>%
+  mutate(increase46a = case_when(pre46a %in% a_vector & post46a %in% a_vector ~ increase46a + 1,
+                                pre46a %!in% a_vector & post46a %in% a_vector ~ increase46a + 1),
+         increase46b = case_when(pre46b %in% b_vector & post46b %in% b_vector ~ increase46b + 1,
+                                pre46b %!in% b_vector & post46b %in% b_vector ~ increase46b + 1),
+         increase46c = case_when(pre46c %in% c_vector & post46c %in% c_vector ~ increase46c + 1,
+                                pre46c %!in% c_vector & post46c %in% c_vector ~ increase46c + 1),
+         increase46d = case_when(pre46d %in% d_vector & post46d %in% d_vector ~ increase46d + 1,
+                                pre46d %!in% d_vector & post46d %in% d_vector ~ increase46d + 1),
+         increase46e = case_when(pre46e %in% e_vector & post46e %in% e_vector ~ increase46e + 1,
+                                pre46e %!in% e_vector & post46e %in% e_vector ~ increase46e + 1),
+         increase46f = case_when(pre46f %in% f_vector & post46f %in% f_vector ~ increase46f + 1,
+                                pre46f %!in% f_vector & post46f %in% f_vector ~ increase46f + 1)) %>%
+  summarise(sum(increase46a, na.rm = T)/143,
+            sum(increase46b, na.rm = T)/143,
+            sum(increase46c, na.rm = T)/143,
+            sum(increase46d, na.rm = T)/143,
+            sum(increase46e, na.rm = T)/143,
+            sum(increase46f, na.rm = T)/143) %>%
+  mutate_all( ~ .x * 100)
+
+joined_increase %>% gt()
+```
+
+```{r teaching-practices}
+agree_vector <- c("Often",
+                  "Almost always")
+
+fall_averages_ela <- fall_df %>%
+  # filter(merge == 3) %>%
+  select(106:111) %>%
+  drop_na() %>%
+  summarise(
+    pre47 = c(sum(pre47 %in% agree_vector, na.rm = T)/sum(!is.na(pre47)), sum(!is.na(pre47))),
+    pre48 = c(sum(pre48 %in% agree_vector, na.rm = T)/sum(!is.na(pre48)), length(pre48)),
+    pre49 = c(sum(pre49 %in% agree_vector, na.rm = T)/sum(!is.na(pre49)), length(pre49)),
+    pre50 = c(sum(pre50 %in% agree_vector, na.rm = T)/sum(!is.na(pre50)), length(pre50)),
+    pre51 = c(sum(pre51 %in% agree_vector, na.rm = T)/sum(!is.na(pre51)), length(pre51)),
+    pre52 = c(sum(pre52 %in% agree_vector, na.rm = T)/sum(!is.na(pre52)), sum(!is.na(pre52)))) %>%
+  dplyr::mutate(across(everything(), ~ .x * 100))
+
+fall_ela_n <- fall_averages_ela %>% slice(2) %>%
+  dplyr::mutate(across(everything(), ~ .x / 100)) %>%
+  pivot_longer(everything())
+
+
+### ELA CONTENT: 12a-23d
+## Average Scores
+# 14a-14d, 18a-18d need recoding
+spring_averages_ela <- spring_df %>%
+  # filter(merge == 3) %>%
+  select(96:101) %>%
+  drop_na() %>%
+  summarise(
+    post47 = c(sum(post47 %in% agree_vector, na.rm = T)/sum(!is.na(post47)), sum(!is.na(post47))),
+    post48 = c(sum(post48 %in% agree_vector, na.rm = T)/sum(!is.na(post48)), sum(!is.na(post48))),
+    post49 = c(sum(post49 %in% agree_vector, na.rm = T)/sum(!is.na(post49)), sum(!is.na(post49))),
+    post50 = c(sum(post50 %in% agree_vector, na.rm = T)/sum(!is.na(post50)), sum(!is.na(post50))),
+    post51 = c(sum(post51 %in% agree_vector, na.rm = T)/sum(!is.na(post51)), sum(!is.na(post51))),
+    post52 = c(sum(post52 %in% agree_vector, na.rm = T)/sum(!is.na(post52)), sum(!is.na(post52)))) %>%
+  dplyr::mutate(across(everything(), ~ .x * 100))
+
+spring_ela_n <- spring_averages_ela %>% slice(2) %>%
+  dplyr::mutate(across(everything(), ~ .x / 100)) %>%
+  pivot_longer(everything())
+
+### JOINING FALL AND SPRING
+## EL
+fall_spring_el_averages <- bind_rows(fall_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "pre")),
+                                     spring_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "post")),
+                                     spring_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "post")) - 
+                                       fall_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "pre"))) %>%
+  rownames_to_column() %>%
+  pivot_longer(-rowname, 'variable', 'value') %>%
+  pivot_wider(variable, rowname) %>%
+  rename(Question = variable, Fall = `1`, Spring = `2`, Improvement = `3`) %>%
+  bind_cols(n2 = spring_ela_n$value, n1 = fall_ela_n$value) %>%
+  relocate(n2, .after = `Spring`) %>%
+  relocate(n1, .after = `Fall`)
+fall_spring_el_averages %>% gt()
+```
+
+```{r teaching-practices-increase}
+agree_vector <- c("Often",
+                  "Almost always")
+                  
+
+
+fall_join <- fall_df %>%
+  # dplyr::filter(merge == 3) %>%
+  select(106:111, id)
+  
+spring_join <- spring_df %>%
+  # dplyr::filter(merge == 3) %>%
+  select(96:101, id)
+
+joined_increase <- left_join(fall_join, spring_join, by = "id") %>%
+  filter(if_any(!id, ~ !is.na(.x))) %>%
+  mutate(increase47 = 0,
+         increase48 = 0,
+         increase49 = 0,
+         increase50 = 0,
+         increase51 = 0,
+         increase52 = 0) %>%
+  mutate(increase47 = case_when(pre47 %in% agree_vector & post47 %in% agree_vector ~ increase47 + 1,
+                                pre47 %!in% agree_vector & post47 %in% agree_vector ~ increase47 + 1),
+         increase48 = case_when(pre48 %in% agree_vector & post48 %in% agree_vector ~ increase48 + 1,
+                                pre48 %!in% agree_vector & post48 %in% agree_vector ~ increase48 + 1),
+         increase49 = case_when(pre49 %in% agree_vector & post49 %in% agree_vector ~ increase49 + 1,
+                                pre49 %!in% agree_vector & post49 %in% agree_vector ~ increase49 + 1),
+         increase50 = case_when(pre50 %in% agree_vector & post50 %in% agree_vector ~ increase50 + 1,
+                                pre50 %!in% agree_vector & post50 %in% agree_vector ~ increase50 + 1),
+         increase51 = case_when(pre51 %in% agree_vector & post51 %in% agree_vector ~ increase51 + 1,
+                                pre51 %!in% agree_vector & post51 %in% agree_vector ~ increase51 + 1),
+         increase52 = case_when(pre52 %in% agree_vector & post52 %in% agree_vector ~ increase52 + 1,
+                                pre52 %!in% agree_vector & post52 %in% agree_vector ~ increase52 + 1)) %>%
+  summarise(sum(increase47, na.rm = T)/sum(!is.na(increase47)),
+            sum(increase48, na.rm = T)/sum(!is.na(increase48)),
+            sum(increase49, na.rm = T)/sum(!is.na(increase49)),
+            sum(increase50, na.rm = T)/sum(!is.na(increase50)),
+            sum(increase51, na.rm = T)/sum(!is.na(increase51)),
+            sum(increase52, na.rm = T)/sum(!is.na(increase52))) %>%
+  mutate_all( ~ .x * 100)
+
+fall_df %>% select(pre54) %>% drop_na() %>% as_vector() %>% as.numeric() %>% TeachingLab::calc_nps()
+
+joined_increase %>% gt()
+```
+
+
+
+```{r savetopdf, eval = F}
+pagedown::chrome_print(input = here("Analysis/2021-2022/District11SY19-20/2019-2020District11.html"),
+                       output = here("Analysis/2021-2022/District11SY19-20/2019-2020District11.pdf"))
+```
+

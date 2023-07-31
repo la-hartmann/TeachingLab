@@ -1,0 +1,1961 @@
+---
+title: "Teaching Lab All Partners Report"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  TeachingLab::TLDefault:
+    css: styles.css
+    self_contained: true # Other options are downcute, material, readthedown, html_clean, html_docco, lockdown, https://github.com/juba/rmdformats
+    thumbnails: false
+    lightbox: true
+    gallery: false
+    highlight: kate # Also can do tango
+    number_sections: false
+    includes:
+      in_header: header.html
+      after_body: footer.html
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+library(rmdformats)
+library(glue)
+devtools::load_all()
+library(TeachingLab)
+library(tidyverse)
+library(ggtext)
+library(here)
+library(scales)
+library(lubridate)
+library(gt)
+library(glue)
+
+session_survey <- readr::read_rds(here::here("data/session_survey_21_22data.rds")) %>%
+  filter(Date >= as.Date("2021-07-01"))
+
+course_survey <- readr::read_rds(here::here("data/mid_year_reports/course_survey_21_22data.rds"))
+
+diagnostic <- readr::read_rds(here::here("data/mid_year_reports/diagnostic.rds"))
+diagnostic_count <- diagnostic %>% filter(response_status == "completed") %>% nrow()
+
+knowledge_assessments <- read_rds(here::here("data/mid_year_reports/knowledge_assessments.rds")) %>%
+  mutate(site = ifelse(know_assess == "math_bootcamp", 
+                       replace_na(site, "San Diego Unified School District, CA"),
+                       site))
+
+know_count <- knowledge_assessments %>% group_by(prepost) %>% summarise(n = n())
+pre_know <- know_count[1, 2]
+post_know <- know_count[2, 2]
+
+## Global options
+options(max.print = "75", width = 1000)
+opts_chunk$set(
+  echo = FALSE,
+  cache = F,
+  prompt = FALSE,
+  tidy = TRUE,
+  comment = NA,
+  message = FALSE,
+  warning = FALSE
+)
+opts_knit$set(width = 75)
+
+na_df <- TeachingLab::na_df
+```
+
+```{r footer-dependency}
+htmltools::tagList(rmarkdown::html_dependency_font_awesome()) # Needed so fa's in footer will show
+```
+
+<script src="js/hideOutput.js"></script>
+```{html}
+
+```
+
+#### 2021-2022 End of Year Report
+
+### Background
+
+To date (`r Sys.Date() %>% format("%b %d, %Y")`), Teaching Lab has administered the following to participants from your school or district during SY21-22:
+
+-   `r session_survey %>% nrow()` complete responses to the End of Session Surveys that gather participant feedback on facilitation from session to session;
+
+-   `r course_survey %>% nrow()` complete responses to the End of Course Surveys that gather participant feedback on each PL course;
+
+-   `r pre_know` complete responses to the first Knowledge or Self-Reported Practices Assessments and `r post_know` to the second Knowledge or Self-Reported Practices Assessments;
+
+-   `r diagnostic_count` complete responses to the Baseline Diagnostic Educator Survey that collects information on teachers' use of curricula, mindsets, self-reported practices, and school environment. The follow-up will be administered in the spring after a year of PL engagement.
+
+Below are the results presented in various sections: Participant Background and Demographic Summary, Participant Perceptions, Participant Knowledge, Participant Mindsets, Participant Practice, and Student Outcomes
+
+# Section 1: Participant Background and Demographics Summary
+
+Teaching Lab collects information on participants' gender and racial identity, years of experience, content area and grades taught, summarized below.
+
+## Gender and Racial Identity
+
+::: {.fold .o}
+<center>
+
+```{r gender-identity, fig.dim = c(6.5, 4.5)}
+if (sum(!is.na(diagnostic$gender_how_do_you_identify)) >= 1) {
+  gt_percent_n(df = diagnostic, 
+               column = "gender_how_do_you_identify",
+               custom_column_name = "Gender Identity", viz_type = sample(c("waffle", "pie", "treemap"), 
+                                                                   size = 1))
+} else {
+  ggplot(tibble(text = "There was no data for this site here.", x = 0, y = 0)) +
+    geom_text(aes(label = text, x, y)) +
+    theme_void()
+}
+```
+
+</center>
+:::
+
+::: {.fold .o}
+<center>
+
+```{r racial-identity, fig.dim = c(6.5, 4.5)}
+if (diagnostic %>%
+    select("how_do_you_describe_your_race_you_may_check_more_than_one_box_black_or_african_american", 
+           "how_do_you_describe_your_race_you_may_check_more_than_one_box_native_american_indian_or_alaska_native", 
+           "how_do_you_describe_your_race_you_may_check_more_than_one_box_native_hawaiian_or_other_pacific_islander", 
+           "how_do_you_describe_your_race_you_may_check_more_than_one_box_white", 
+           "how_do_you_describe_your_race_you_may_check_more_than_one_box_i_prefer_not_to_say", 
+           "how_do_you_describe_your_race_you_may_check_more_than_one_box_i_prefer_to_self_describe") %>%
+    pivot_longer(everything()) %>% drop_na() %>% count() >= 1) {
+  diagnostic %>%
+    select("how_do_you_describe_your_race_you_may_check_more_than_one_box_black_or_african_american", 
+           "how_do_you_describe_your_race_you_may_check_more_than_one_box_native_american_indian_or_alaska_native", 
+           "how_do_you_describe_your_race_you_may_check_more_than_one_box_native_hawaiian_or_other_pacific_islander", 
+           "how_do_you_describe_your_race_you_may_check_more_than_one_box_white", 
+           "how_do_you_describe_your_race_you_may_check_more_than_one_box_i_prefer_not_to_say", 
+           "how_do_you_describe_your_race_you_may_check_more_than_one_box_i_prefer_to_self_describe") %>%
+    pivot_longer(everything()) %>%
+    mutate(value = fct_lump(factor(value), 3)) %>%
+    rename(`Race Identity` = value) %>%
+    gt_percent_n(column = "Race Identity",
+               custom_column_name = "Racial Identity",
+               viz_type = sample(c("pie", "waffle", "treemap"), size = 1))
+} else {
+  ggplot(tibble(text = "There was no data for this site here.", x = 0, y = 0)) +
+    geom_text(aes(label = text, x, y)) +
+    theme_void()
+}
+```
+
+</center>
+:::
+
+::: {.fold .o}
+<center>
+
+```{r racial-identity2, fig.dim = c(6.5, 4.5)}
+if (sum(!is.na(diagnostic$how_do_you_describe_your_ethnicity)) >= 1) {
+  gt_percent_n(diagnostic,
+             column = "how_do_you_describe_your_ethnicity",
+               custom_column_name = "Ethnicity", viz_type = sample(c("waffle", "pie", "treemap"), 
+                                                                   size = 1))
+} else {
+  ggplot(tibble(text = "There was no data for this site here.", x = 0, y = 0)) +
+    geom_text(aes(label = text, x, y)) +
+    theme_void()
+}
+```
+
+</center>
+:::
+
+## Years of Teaching Experience
+
+::: {.fold .o}
+<center>
+
+```{r teach-experience}
+if (sum(!is.na(diagnostic$approximately_how_many_years_of_teaching_experience_do_you_have)) >= 1) {
+  n <- sum(!is.na(diagnostic$approximately_how_many_years_of_teaching_experience_do_you_have))
+  
+  diagnostic %>%
+  mutate(approximately_how_many_years_of_teaching_experience_do_you_have = as.numeric(approximately_how_many_years_of_teaching_experience_do_you_have)) %>%
+  mutate(experience = approximately_how_many_years_of_teaching_experience_do_you_have -
+           (approximately_how_many_years_of_teaching_experience_do_you_have %% 10)) %>%
+  drop_na(experience) %>%
+  group_by(experience) %>%
+  count(sort = T) %>%
+  ungroup() %>%
+  mutate(percent = round(100*n/sum(n), 1),
+         experience = as.character(experience),
+         color = if_else(percent < 3, "black", "white"),
+         hjust = if_else(percent < 3, -0.5, 1.2)) %>%
+  ggplot(aes(fct_reorder(experience, percent), percent)) +
+  geom_col(aes(fill = percent)) +
+  geom_text(aes(label = paste0(percent, "%"), 
+                color = color, hjust = hjust),
+            fontface = "bold") +
+  coord_flip() +
+  labs(title = glue::glue("Years of Teaching Experience (n = {n})", x = "", y = "")) +
+  scale_color_manual(values = c("white", "black")) +
+  scale_fill_continuous() +
+  scale_y_continuous(labels = scales::percent_format(scale = 1),
+                     breaks = scales::pretty_breaks(n = 6)) +
+  scale_x_discrete(labels = rev(c("0-9", "10-19", "20-29", "30-39", "40-49", "50+"))) +
+  ggplot2::theme(axis.text = ggtext::element_markdown(size = 20),
+                 axis.title = ggtext::element_markdown(size = 24)) +
+  TeachingLab::theme_tl() #+
+    # theme(axis.title = element_text(color = "white"))
+} else {
+  ggplot(tibble(text = "There was no data for this site here.", x = 0, y = 0)) +
+    geom_text(aes(label = text, x, y)) +
+    theme_void()
+}
+```
+
+</center>
+:::
+
+## Content Area
+
+::: {.fold .o}
+<center>
+
+```{r content-area, fig.dim = c(6.5, 4.5)}
+if (sum(!is.na(diagnostic$which_subject_area_do_you_teach_lead_if_you_teach_support_both_please_select_the_one_where_you_expect_to_work_with_teaching_lab_this_year_br_br)) >= 1) {
+  diagnostic %>%
+    select(`Which Subject Area do you Teach or Support?` = which_subject_area_do_you_teach_lead_if_you_teach_support_both_please_select_the_one_where_you_expect_to_work_with_teaching_lab_this_year_br_br) %>%
+    drop_na() %>%
+    gt_percent_n(column = "Which Subject Area do you Teach or Support?",
+                 custom_column_name = "Content Area", viz_type = sample(c("waffle", "pie", "treemap"), 
+                                                                   size = 1))
+} else {
+  ggplot(tibble(text = "There was no data for this site here.", x = 0, y = 0)) +
+    geom_text(aes(label = text, x, y)) +
+    theme_void()
+}
+```
+
+</center>
+:::
+
+## Grades
+
+::: {.fold .o}
+<center>
+
+```{r grade}
+grades <- c(
+  "what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_k",
+  "what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_1",
+  "what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_2",
+  "what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_3",
+  "what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_4",
+  "what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_5",
+  "what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_6",
+  "what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_7",
+  "what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_8",
+  "what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_9",
+  "what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_10",
+  "what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_11",
+  "what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_12"
+)
+if (diagnostic %>% select(grades) %>% pivot_longer(everything()) %>% drop_na() %>% count() >= 1) {
+  
+  n <- diagnostic %>% 
+    select(grades) %>%
+    janitor::remove_empty("rows") %>%
+    nrow()
+  
+  diagnostic %>%
+    select(grades) %>%
+    pivot_longer(everything()) %>%
+    tidyr::drop_na(value) %>%
+    group_by(name) %>%
+    count(sort = T) %>%
+    mutate(name = readr::parse_number(name)) %>%
+    suppressWarnings() %>%
+    mutate(name = as.character(name),
+           name = replace_na(name, "K")) %>%
+    ungroup() %>%
+    mutate(percent = round(100*n/sum(n), 1),
+           name = factor(name, levels = c("K", "1", "2", "3", "4", "5",
+                                          "6", "7", "8", "9", "10", "11", 
+                                          "12"))) %>%
+    ggplot(aes(name, percent)) +
+    geom_col(aes(fill = percent)) +
+    geom_text(aes(label = paste0(percent, "%"),
+                  color = ifelse(percent < 3, "black", "white"),
+                  vjust = ifelse(percent < 3, -0.5, 1.3)),
+              fontface = "bold") +
+    labs(y = "", x = "Grade", 
+         title = glue::glue("Grades Taught (n = {n})"),
+         subtitle = "<i>More than one could be selected.</i>") +
+    scale_color_manual(values = c("black", "white")) +
+    scale_fill_continuous() +
+    scale_y_continuous(labels = scales::percent_format(scale = 1),
+                       breaks = scales::pretty_breaks(n = 6)) +
+    theme_tl() +
+    theme(axis.text = element_markdown(size = 20),
+          axis.title = element_markdown(size = 24),
+          plot.subtitle = element_markdown()
+    )
+} else {
+  ggplot(tibble(text = "There was no data for this site here.", x = 0, y = 0)) +
+    geom_text(aes(label = text, x, y)) +
+    theme_void()
+}
+```
+
+</center>
+:::
+
+## Prior Experience with Teaching Lab Professional Learning
+
+::: {.fold .o}
+<center>
+
+```{r prior-experience, fig.dim = c(6.5, 4.5)}
+if (sum(!is.na(diagnostic$have_you_participated_in_professional_learning_with_teaching_lab_before_br_br)) >= 1) {
+  gt_percent_n(diagnostic,
+               column = "have_you_participated_in_professional_learning_with_teaching_lab_before_br_br",
+               custom_column_name = "Previous Experience with Teaching Lab", viz_type = sample(c("waffle", "pie", "treemap"), 
+                                                                   size = 1))
+} else {
+  ggplot(tibble(text = "There was no data for this site here.", x = 0, y = 0)) +
+    geom_text(aes(label = text, x, y)) +
+    theme_void()
+}
+```
+
+</center>
+:::
+
+## Roles
+
+::: {.fold .o}
+<center>
+
+```{r roles, fig.dim = c(6.5, 4.5)}
+if (sum(!is.na(diagnostic$which_of_the_following_best_describes_your_primary_role_br_br)) >= 1) {
+  gt_percent_n(df = diagnostic, 
+               column = "which_of_the_following_best_describes_your_primary_role_br_br",
+               custom_column_name = "Primary Role",
+               viz_type = sample(c("waffle", "pie", "treemap"), 
+                                                                   size = 1))
+} else {
+  ggplot(tibble(text = "There was no data for this site here.", x = 0, y = 0)) +
+    geom_text(aes(label = text, x, y)) +
+    theme_void()
+}
+```
+
+```{r roles2, fig.dim = c(6.5, 4.5)}
+if (sum(!is.na(diagnostic$are_you_a_lab_leader)) >= 1) {
+  gt_percent_n(df = diagnostic, 
+               column = "are_you_a_lab_leader",
+               custom_column_name = "Lab Leader",
+               viz_type = sample(c("waffle", "pie", "treemap"), 
+                                                                   size = 1))
+} else {
+  ggplot(tibble(text = "There was no data for this site here.", x = 0, y = 0)) +
+    geom_text(aes(label = text, x, y)) +
+    theme_void()
+}
+```
+
+</center>
+:::
+
+# Section 2: Participant Perceptions
+
+Teaching Lab collects participant feedback on facilitation from session to session and then on the entire course once it has concluded. Below are results for both.
+
+## Section 2a: End of Session Summary
+
+Participants' aggregate feedback on each session is provided below.
+
+## Comparative Analysis {.tabset .tabset-pills}
+
+### ELA/Math
+
+```{r session-plot-agree-ela-math, fig.width = 10, fig.height = 10}
+plot_agree <- session_survey %>%
+  select(c(
+          "How much do you agree with the following statements about this facilitator today? - They demonstrated  deep knowledge of the content they facilitated.",
+          "How much do you agree with the following statements about this facilitator today? - They facilitated the content clearly.",
+          "How much do you agree with the following statements about this facilitator today? - They effectively built a safe learning community.",
+          "How much do you agree with the following statements about this facilitator today? - They were fully prepared for the session.",
+          "How much do you agree with the following statements about this facilitator today? - They responded to the group’s needs."
+        )) %>%
+        pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+        drop_na() %>%
+        dplyr::mutate(Question = str_remove_all(
+          Question,
+          "How much do you agree with the following statements about this facilitator today\\? - "
+        )) %>%
+        group_by(Question, Response) %>%
+        count() %>%
+        ungroup() %>%
+        group_by(Question) %>%
+        mutate(Question = str_wrap(Question, width = 30)) %>%
+        summarise(
+          n = n,
+          Response = Response,
+          Percent = n / sum(n) * 100
+        ) 
+
+fake_plot_agree <- plot_agree %>%
+  dplyr::ungroup() %>%
+  dplyr::bind_rows(plot_agree) %>%
+  dplyr::mutate(fake_group = as.character(ntile(row_number(), 2)),
+                fake_group = stringr::str_replace_all(fake_group, c("1" = "ELA", 
+                                                                    "2" = "Math"))) %>%
+    dplyr::group_by(Question, fake_group) %>%
+  dplyr::mutate(Percent = TeachingLab::rand_vect(5, 100, sd = 12))
+
+n <- plot_agree %>% 
+  filter(Question == "They were fully prepared for\nthe session.") %>% 
+  summarise(n = sum(n)) %>%
+  pull(n)
+  
+ggplot(data = fake_plot_agree, aes(x = Question, y = Percent, fill = factor(Response))) +
+        geom_col() +
+        geom_text(aes(label = if_else(Percent >= 3, paste0(round(Percent), "%"), "")), 
+                  position = position_stack(vjust = 0.5),
+                  fontface = "bold") +
+        scale_fill_manual(values = c(
+          "(1) Strongly disagree" = "#040404", "(2) Disagree" = "#032E3F",
+          "(3) Neither agree nor disagree" = "#02587A", "(4) Agree" = "#0182B4", "(5) Strongly agree" = "#00ACF0"
+        )) +
+        labs(
+          fill = "", title = glue::glue("Participant Perceptions of Course Facilitation (n = {n})"),
+          x = "", y = ""
+        ) +
+        coord_flip() +
+        guides(fill = guide_legend(reverse = T)) +
+        scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+        facet_wrap( ~ fake_group) +
+        theme_tl(legend = T) +
+        theme(
+          axis.text.x = element_blank(),
+          axis.text.y = element_text(lineheight = 1.1, size = 12),
+          legend.position = "bottom",
+          plot.title = element_text(lineheight = 1.1, size = 16, face = "bold"),
+          plot.subtitle = element_text(size = 14, face = "bold"),
+          legend.key.size = unit(0.75, "cm"),
+          legend.text = element_text(size = 9),
+          strip.text = element_text(hjust = 0.5)
+        )
+```
+
+### Gender Identity
+
+```{r session-plot-agree-gender-identity, fig.width = 10, fig.height = 10}
+plot_agree <- session_survey %>%
+  select(c(
+          "How much do you agree with the following statements about this facilitator today? - They demonstrated  deep knowledge of the content they facilitated.",
+          "How much do you agree with the following statements about this facilitator today? - They facilitated the content clearly.",
+          "How much do you agree with the following statements about this facilitator today? - They effectively built a safe learning community.",
+          "How much do you agree with the following statements about this facilitator today? - They were fully prepared for the session.",
+          "How much do you agree with the following statements about this facilitator today? - They responded to the group’s needs."
+        )) %>%
+        pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+        drop_na() %>%
+        dplyr::mutate(Question = str_remove_all(
+          Question,
+          "How much do you agree with the following statements about this facilitator today\\? - "
+        )) %>%
+        group_by(Question, Response) %>%
+        count() %>%
+        ungroup() %>%
+        group_by(Question) %>%
+        mutate(Question = str_wrap(Question, width = 30)) %>%
+        summarise(
+          n = n,
+          Response = Response,
+          Percent = n / sum(n) * 100
+        )
+
+n <- plot_agree %>% 
+  filter(Question == "They were fully prepared for\nthe session.") %>% 
+  summarise(n = sum(n)) %>%
+  pull(n)
+  
+fake_plot_agree <- plot_agree %>%
+  dplyr::ungroup() %>%
+  dplyr::bind_rows(plot_agree) %>%
+  dplyr::mutate(fake_group = as.character(ntile(row_number(), 2)),
+                fake_group = stringr::str_replace_all(fake_group, c("1" = "Woman", 
+                                                                    "2" = "Man"))) %>%
+  dplyr::group_by(Question, fake_group) %>%
+  dplyr::mutate(Percent = TeachingLab::rand_vect(5, 100, sd = 12))
+
+ggplot(data = fake_plot_agree, aes(x = Question, y = Percent, fill = factor(Response))) +
+        geom_col() +
+        geom_text(aes(label = if_else(Percent >= 3, paste0(round(Percent), "%"), "")), 
+                  position = position_stack(vjust = 0.5),
+                  fontface = "bold") +
+        scale_fill_manual(values = c(
+          "(1) Strongly disagree" = "#040404", "(2) Disagree" = "#032E3F",
+          "(3) Neither agree nor disagree" = "#02587A", "(4) Agree" = "#0182B4", "(5) Strongly agree" = "#00ACF0"
+        )) +
+        labs(
+          fill = "", title = glue::glue("Participant Perceptions of Course Facilitation (n = {n})"),
+          x = "", y = ""
+        ) +
+        coord_flip() +
+        guides(fill = guide_legend(reverse = T)) +
+        scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  facet_wrap( ~ fake_group) +
+        theme_tl(legend = T) +
+        theme(
+          axis.text.x = element_blank(),
+          axis.text.y = element_text(lineheight = 1.1, size = 12),
+          legend.position = "bottom",
+          plot.title = element_text(lineheight = 1.1, size = 16, face = "bold"),
+          plot.subtitle = element_text(size = 14, face = "bold"),
+          legend.key.size = unit(0.75, "cm"),
+          legend.text = element_text(size = 9),
+          strip.text = element_text(hjust = 0.5)
+        )
+```
+
+### LMS Engagement
+
+```{r session-plot-agree-lms-engagement, fig.width = 10, fig.height = 10}
+plot_agree <- session_survey %>%
+  select(c(
+          "How much do you agree with the following statements about this facilitator today? - They demonstrated  deep knowledge of the content they facilitated.",
+          "How much do you agree with the following statements about this facilitator today? - They facilitated the content clearly.",
+          "How much do you agree with the following statements about this facilitator today? - They effectively built a safe learning community.",
+          "How much do you agree with the following statements about this facilitator today? - They were fully prepared for the session.",
+          "How much do you agree with the following statements about this facilitator today? - They responded to the group’s needs."
+        )) %>%
+        pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+        drop_na() %>%
+        dplyr::mutate(Question = str_remove_all(
+          Question,
+          "How much do you agree with the following statements about this facilitator today\\? - "
+        )) %>%
+        group_by(Question, Response) %>%
+        count() %>%
+        ungroup() %>%
+        group_by(Question) %>%
+        mutate(Question = str_wrap(Question, width = 30)) %>%
+        summarise(
+          n = n,
+          Response = Response,
+          Percent = n / sum(n) * 100
+        ) 
+
+fake_plot_agree <- plot_agree %>%
+  dplyr::ungroup() %>%
+  dplyr::bind_rows(plot_agree) %>%
+  dplyr::mutate(fake_group = as.character(ntile(row_number(), 2)),
+                fake_group = stringr::str_replace_all(fake_group, c("1" = "High LMS Engagement", 
+                                                                    "2" = "Low LMS Engagement"))) %>%
+    dplyr::group_by(Question, fake_group) %>%
+  dplyr::mutate(Percent = TeachingLab::rand_vect(5, 100, sd = 12))
+
+n <- plot_agree %>% 
+  filter(Question == "They were fully prepared for\nthe session.") %>% 
+  summarise(n = sum(n)) %>%
+  pull(n)
+  
+ggplot(data = fake_plot_agree, aes(x = Question, y = Percent, fill = factor(Response))) +
+        geom_col() +
+        geom_text(aes(label = if_else(Percent >= 3, paste0(round(Percent), "%"), "")), 
+                  position = position_stack(vjust = 0.5),
+                  fontface = "bold") +
+        scale_fill_manual(values = c(
+          "(1) Strongly disagree" = "#040404", "(2) Disagree" = "#032E3F",
+          "(3) Neither agree nor disagree" = "#02587A", "(4) Agree" = "#0182B4", "(5) Strongly agree" = "#00ACF0"
+        )) +
+        labs(
+          fill = "", title = glue::glue("Participant Perceptions of Course Facilitation (n = {n})"),
+          x = "", y = ""
+        ) +
+        coord_flip() +
+        guides(fill = guide_legend(reverse = T)) +
+        scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+        facet_wrap( ~ fake_group) +
+        theme_tl(legend = T) +
+        theme(
+          axis.text.x = element_blank(),
+          axis.text.y = element_text(lineheight = 1.1, size = 12),
+          legend.position = "bottom",
+          plot.title = element_text(lineheight = 1.1, size = 16, face = "bold"),
+          plot.subtitle = element_text(size = 14, face = "bold"),
+          legend.key.size = unit(0.75, "cm"),
+          legend.text = element_text(size = 9),
+          strip.text = element_text(hjust = 0.5)
+        )
+```
+
+### Racial Identity
+
+```{r session-plot-agree-race-identity, fig.width = 10, fig.height = 10}
+plot_agree <- session_survey %>%
+  select(c(
+          "How much do you agree with the following statements about this facilitator today? - They demonstrated  deep knowledge of the content they facilitated.",
+          "How much do you agree with the following statements about this facilitator today? - They facilitated the content clearly.",
+          "How much do you agree with the following statements about this facilitator today? - They effectively built a safe learning community.",
+          "How much do you agree with the following statements about this facilitator today? - They were fully prepared for the session.",
+          "How much do you agree with the following statements about this facilitator today? - They responded to the group’s needs."
+        )) %>%
+        pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+        drop_na() %>%
+        dplyr::mutate(Question = str_remove_all(
+          Question,
+          "How much do you agree with the following statements about this facilitator today\\? - "
+        )) %>%
+        group_by(Question, Response) %>%
+        count() %>%
+        ungroup() %>%
+        group_by(Question) %>%
+        mutate(Question = str_wrap(Question, width = 30)) %>%
+        summarise(
+          n = n,
+          Response = Response,
+          Percent = n / sum(n) * 100
+        )
+
+n <- plot_agree %>% 
+  filter(Question == "They were fully prepared for\nthe session.") %>% 
+  summarise(n = sum(n)) %>%
+  pull(n)
+
+fake_plot_agree <- plot_agree %>%
+  dplyr::ungroup() %>%
+  dplyr::bind_rows(plot_agree) %>%
+  dplyr::mutate(fake_group = as.character(ntile(row_number(), 2)),
+                fake_group = stringr::str_replace_all(fake_group, c("1" = "White", 
+                                                                    "2" = "BIPOC"))) %>%
+    dplyr::group_by(Question, fake_group) %>%
+  dplyr::mutate(Percent = TeachingLab::rand_vect(5, 100, sd = 12))
+  
+ggplot(data = fake_plot_agree, aes(x = Question, y = Percent, fill = factor(Response))) +
+        geom_col() +
+        geom_text(aes(label = if_else(Percent >= 3, paste0(round(Percent), "%"), "")), 
+                  position = position_stack(vjust = 0.5),
+                  fontface = "bold") +
+        scale_fill_manual(values = c(
+          "(1) Strongly disagree" = "#040404", "(2) Disagree" = "#032E3F",
+          "(3) Neither agree nor disagree" = "#02587A", "(4) Agree" = "#0182B4", "(5) Strongly agree" = "#00ACF0"
+        )) +
+        labs(
+          fill = "", title = glue::glue("Participant Perceptions of Course Facilitation (n = {n})"),
+          x = "", y = ""
+        ) +
+        coord_flip() +
+        guides(fill = guide_legend(reverse = T)) +
+        scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+        facet_wrap( ~ fake_group) +
+        theme_tl(legend = T) +
+        theme(
+          axis.text.x = element_blank(),
+          axis.text.y = element_text(lineheight = 1.1, size = 12),
+          legend.position = "bottom",
+          plot.title = element_text(lineheight = 1.1, size = 16, face = "bold"),
+          plot.subtitle = element_text(size = 14, face = "bold"),
+          legend.key.size = unit(0.75, "cm"),
+          legend.text = element_text(size = 9),
+          strip.text = element_text(hjust = 0.5)
+        )
+```
+
+### Roles
+
+```{r session-plot-agree-roles, fig.width = 10, fig.height = 10}
+plot_agree <- session_survey %>%
+  select(c(
+          "How much do you agree with the following statements about this facilitator today? - They demonstrated  deep knowledge of the content they facilitated.",
+          "How much do you agree with the following statements about this facilitator today? - They facilitated the content clearly.",
+          "How much do you agree with the following statements about this facilitator today? - They effectively built a safe learning community.",
+          "How much do you agree with the following statements about this facilitator today? - They were fully prepared for the session.",
+          "How much do you agree with the following statements about this facilitator today? - They responded to the group’s needs."
+        )) %>%
+        pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+        drop_na() %>%
+        dplyr::mutate(Question = str_remove_all(
+          Question,
+          "How much do you agree with the following statements about this facilitator today\\? - "
+        )) %>%
+        group_by(Question, Response) %>%
+        count() %>%
+        ungroup() %>%
+        group_by(Question) %>%
+        mutate(Question = str_wrap(Question, width = 30)) %>%
+        summarise(
+          n = n,
+          Response = Response,
+          Percent = n / sum(n) * 100
+        )
+
+n <- plot_agree %>% 
+  filter(Question == "They were fully prepared for\nthe session.") %>% 
+  summarise(n = sum(n)) %>%
+  pull(n)
+
+fake_plot_agree <- plot_agree %>%
+  dplyr::ungroup() %>%
+  dplyr::bind_rows(plot_agree) %>%
+  dplyr::mutate(fake_group = as.character(ntile(row_number(), 2)),
+                fake_group = stringr::str_replace_all(fake_group, c("1" = "Teacher or specialist", 
+                                                                    "2" = "School-based coach",
+                                                                    "3" = "School-based administrator or supervisor",
+                                                                    "4" = "District/network/state-level professional or administrator"))) %>%
+    dplyr::group_by(fake_group, Question) %>%
+  dplyr::mutate(Percent = TeachingLab::rand_vect(5, 100, sd = 12))
+  
+ggplot(data = fake_plot_agree, aes(x = Question, y = Percent, fill = factor(Response))) +
+        geom_col() +
+        geom_text(aes(label = if_else(Percent >= 3, paste0(round(Percent), "%"), "")), 
+                  position = position_stack(vjust = 0.5),
+                  fontface = "bold") +
+        scale_fill_manual(values = c(
+          "(1) Strongly disagree" = "#040404", "(2) Disagree" = "#032E3F",
+          "(3) Neither agree nor disagree" = "#02587A", "(4) Agree" = "#0182B4", "(5) Strongly agree" = "#00ACF0"
+        )) +
+        labs(
+          fill = "", title = glue::glue("Participant Perceptions of Course Facilitation (n = {n})"),
+          x = "", y = ""
+        ) +
+        coord_flip() +
+        guides(fill = guide_legend(reverse = T)) +
+        scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+        facet_wrap( ~ fake_group) +
+        theme_tl(legend = T) +
+        theme(
+          axis.text.x = element_blank(),
+          axis.text.y = element_text(lineheight = 1.1, size = 12),
+          legend.position = "bottom",
+          plot.title = element_text(lineheight = 1.1, size = 16, face = "bold"),
+          plot.subtitle = element_text(size = 14, face = "bold"),
+          legend.key.size = unit(0.75, "cm"),
+          legend.text = element_text(size = 9),
+          strip.text = element_text(hjust = 0.5)
+        )
+```
+
+##
+
+Finally, here are some highlights from the textual feedback of the end of session survey
+
+### Responses to "What could have been better about today's session?"
+
+::: {.fold .o}
+<center>
+
+```{r facilitation-feedback, fig.dim = c(6.5, 4.5)}
+quote1 <- session_survey %>%
+  select(Facilitation_Feedback) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "What additional feedback do you have about their facilitation skills?") %>%
+  drop_na() %>%
+  filter(`What additional feedback do you have about their facilitation skills?` %!in% na_df) %>%
+  select(`What additional feedback do you have about their facilitation skills?`) %>%
+  filter(str_length(`What additional feedback do you have about their facilitation skills?`) > 30) %>%
+  slice_sample(n = 15) %>%
+  distinct()
+if (nrow(quote1) >= 1) {
+  quote_viz(
+            data = quote1, text_col = "What additional feedback do you have about their facilitation skills?", viz_type = "gt",
+            width = 80, align = "center",
+            print = F
+          ) %>%
+    gtsave("tab1_1.png", path = tempdir(), vheight = "800", vwidth = "700")
+} else {
+  tibble(Quotes = "No Responses at this Site") %>%
+    gt::gt() %>%
+    gt_theme_tl() %>%
+    gtsave("tab1_2.png", path = tempdir(), vheight = "800", vwidth = "700")
+}
+```
+
+</center>
+:::
+
+### Responses to "What went well in today's session?"
+
+::: {.fold .o}
+<center>
+
+```{r went-well, fig.dim = c(6.5, 4.5)}
+quote2 <- session_survey %>%
+  select(`What went well in today’s session?`) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "What went well in today’s session?") %>%
+  drop_na() %>%
+  filter(`What went well in today’s session?` %!in% na_df) %>%
+  select(`What went well in today’s session?`) %>%
+  filter(str_length(`What went well in today’s session?`) > 30) %>%
+  slice_sample(n = 15) %>%
+  distinct()
+if (nrow(quote2) >= 1) {
+  quote_viz(
+          data = quote2, text_col = "What went well in today’s session?", viz_type = "gt",
+          width = 80, align = "center",
+          print = F
+        ) %>%
+    gtsave("tab2_1.png", path = tempdir(), zoom = 4)
+} else {
+  tibble(Quotes = "No Responses at this Site") %>%
+    gt::gt() %>%
+    gt_theme_tl() %>%
+    gtsave("tab2_2.png", path = tempdir(), vheight = "800", vwidth = 700)
+}
+```
+
+</center>
+:::
+
+### Responses to "What additional feedback do you have about their facilitation skills?"
+
+::: {.fold .o}
+<center>
+
+```{r been-better, fig.dim = c(6.5, 4.5)}
+quote3 <- session_survey %>%
+  select(`What could have been better about today’s session?`) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "What could have been better about today’s session?") %>%
+  drop_na() %>%
+  filter(`What could have been better about today’s session?` %!in% na_df) %>%
+  select(`What could have been better about today’s session?`) %>%
+  filter(str_length(`What could have been better about today’s session?`) > 30) %>%
+  slice_sample(n = 15) %>%
+  distinct()
+if (nrow(quote3) >= 1) {
+  quote_viz(
+            data = quote3, text_col = "What could have been better about today’s session?", viz_type = "gt",
+            width = 80, align = "center",
+            print = F
+          ) %>%
+    gtsave("tab3_1.png", path = tempdir(), zoom = 4)
+} else {
+  tibble(Quotes = "No Responses at this Site") %>%
+    gt::gt() %>%
+    gt_theme_tl() %>%
+    gtsave("tab3_3.png", path = tempdir(), vheight = "800", vwidth = 700)
+}
+```
+
+</center>
+:::
+
+## Section 2b: End of Course Summary
+
+Participants' feedback on each course is provided below.
+
+## Comparative Analysis {.tabset .tabset-pills}
+
+### ELA/Math
+
+```{r course-plot-agree-ela-math, fig.width = 10, fig.height = 10}
+if (nrow(course_survey) >= 1) {
+  plot_agree <- course_survey %>%
+    select(c(
+            "How much do you agree with the following statements about this course? - I am satisfied with the overall quality of this course.",
+            "How much do you agree with the following statements about this course? - I am satisfied with how the course was facilitated.",
+            "How much do you agree with the following statements about this course? - The independent online work activities were well-designed to help me meet the learning targets.",
+            "How much do you agree with the following statements about this course? - I felt a sense of community with the other participants in this course. even though we were meeting virtually.",
+            "How much do you agree with the following statements about this course? - The strategies I’ve learned in this course will improve my instruction.",
+            "How much do you agree with the following statements about this course? - The strategies I’ve learned in this course will improve my coaching or supervision of teachers.",
+            "How much do you agree with the following statements about this course? - The strategies I’ve learned in the course are easy to implement.",
+            "How much do you agree with the following statements about this course? - I will apply what I have learned in this course to my practice in the next 4-6 weeks.",
+            "How much do you agree with the following statements about this course? - This course has supported me in being responsive to students' backgrounds, cultures, and points of view."
+          )) %>%
+          pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+          drop_na() %>%
+          dplyr::mutate(Question = str_remove_all(
+            Question,
+            "How much do you agree with the following statements about this course\\? - "
+          )) %>%
+          group_by(Question, Response) %>%
+          count() %>%
+          ungroup() %>%
+          group_by(Question) %>%
+          mutate(Question = str_wrap(Question, width = 30)) %>%
+          summarise(
+            n = n,
+            Response = Response,
+            Percent = n / sum(n) * 100
+          )
+  
+n <- plot_agree %>% 
+  filter(Question == "This course has supported\nme in being responsive\nto students' backgrounds,\ncultures, and points of view.") %>% 
+  summarise(n = sum(n)) %>%
+  pull(n)
+
+fake_plot_agree <- plot_agree %>%
+  dplyr::ungroup() %>%
+  dplyr::bind_rows(plot_agree) %>%
+  dplyr::mutate(fake_group = as.character(ntile(row_number(), 2)),
+                fake_group = stringr::str_replace_all(fake_group, c("1" = "ELA", 
+                                                                    "2" = "Math"))) %>%
+    dplyr::group_by(fake_group, Question) %>%
+  dplyr::mutate(Percent = TeachingLab::rand_vect(5, 100, sd = 12))
+  
+ggplot(data = fake_plot_agree, aes(x = Question, y = Percent, fill = factor(Response))) +
+  geom_col() +
+  geom_text(aes(label = if_else(Percent >= 3, paste0(round(Percent), "%"), "")), 
+            position = position_stack(vjust = 0.5),
+            fontface = "bold") +
+  scale_fill_manual(values = c(
+    "(1) Strongly disagree" = "#040404", "(2) Disagree" = "#032E3F",
+    "(3) Neither agree nor disagree" = "#02587A", "(4) Agree" = "#0182B4", "(5) Strongly agree" = "#00ACF0"
+  )) +
+  labs(
+    fill = "", title = glue::glue("Participant Perceptions of Course (n = {prettyNum(n, big.mark = ',')})"),
+    x = "", y = ""
+  ) +
+  coord_flip() +
+  guides(fill = guide_legend(reverse = T)) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  facet_wrap( ~ fake_group) +
+  theme_tl(legend = T) +
+  theme(
+    axis.text.x = element_blank(),
+    axis.text.y = element_text(lineheight = 1.1, size = 12),
+    legend.position = "bottom",
+    plot.title = element_text(lineheight = 1.1, size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 14, face = "bold"),
+    legend.key.size = unit(0.75, "cm"),
+    legend.text = element_text(size = 9),
+    strip.text = element_text(hjust = 0.5)
+  )
+} else {
+  ggplot(tibble(text = "There was no data for this site here.", x = 0, y = 0)) +
+    geom_text(aes(label = text, x, y)) +
+    theme_void()
+}
+```
+
+### Gender Identity
+
+```{r course-plot-agree-gender-identity, fig.width = 10, fig.height = 10}
+if (nrow(course_survey) >= 1) {
+  plot_agree <- course_survey %>%
+    select(c(
+            "How much do you agree with the following statements about this course? - I am satisfied with the overall quality of this course.",
+            "How much do you agree with the following statements about this course? - I am satisfied with how the course was facilitated.",
+            "How much do you agree with the following statements about this course? - The independent online work activities were well-designed to help me meet the learning targets.",
+            "How much do you agree with the following statements about this course? - I felt a sense of community with the other participants in this course. even though we were meeting virtually.",
+            "How much do you agree with the following statements about this course? - The strategies I’ve learned in this course will improve my instruction.",
+            "How much do you agree with the following statements about this course? - The strategies I’ve learned in this course will improve my coaching or supervision of teachers.",
+            "How much do you agree with the following statements about this course? - The strategies I’ve learned in the course are easy to implement.",
+            "How much do you agree with the following statements about this course? - I will apply what I have learned in this course to my practice in the next 4-6 weeks.",
+            "How much do you agree with the following statements about this course? - This course has supported me in being responsive to students' backgrounds, cultures, and points of view."
+          )) %>%
+          pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+          drop_na() %>%
+          dplyr::mutate(Question = str_remove_all(
+            Question,
+            "How much do you agree with the following statements about this course\\? - "
+          )) %>%
+          group_by(Question, Response) %>%
+          count() %>%
+          ungroup() %>%
+          group_by(Question) %>%
+          mutate(Question = str_wrap(Question, width = 30)) %>%
+          summarise(
+            n = n,
+            Response = Response,
+            Percent = n / sum(n) * 100
+          )
+  
+n <- plot_agree %>% 
+  filter(Question == "This course has supported\nme in being responsive\nto students' backgrounds,\ncultures, and points of view.") %>% 
+  summarise(n = sum(n)) %>%
+  pull(n)
+
+fake_plot_agree <- plot_agree %>%
+  dplyr::ungroup() %>%
+  dplyr::bind_rows(plot_agree) %>%
+  dplyr::mutate(fake_group = as.character(ntile(row_number(), 2)),
+                fake_group = stringr::str_replace_all(fake_group, c("1" = "Man", 
+                                                                    "2" = "Woman"))) %>%
+    dplyr::group_by(fake_group, Question) %>%
+  dplyr::mutate(Percent = TeachingLab::rand_vect(5, 100, sd = 12))
+  
+ggplot(data = fake_plot_agree, aes(x = Question, y = Percent, fill = factor(Response))) +
+  geom_col() +
+  geom_text(aes(label = if_else(Percent >= 3, paste0(round(Percent), "%"), "")), 
+            position = position_stack(vjust = 0.5),
+            fontface = "bold") +
+  scale_fill_manual(values = c(
+    "(1) Strongly disagree" = "#040404", "(2) Disagree" = "#032E3F",
+    "(3) Neither agree nor disagree" = "#02587A", "(4) Agree" = "#0182B4", "(5) Strongly agree" = "#00ACF0"
+  )) +
+  labs(
+    fill = "", title = glue::glue("Participant Perceptions of Course (n = {prettyNum(n, big.mark = ',')})"),
+    x = "", y = ""
+  ) +
+  coord_flip() +
+  guides(fill = guide_legend(reverse = T)) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  facet_wrap( ~ fake_group) +
+  theme_tl(legend = T) +
+  theme(
+    axis.text.x = element_blank(),
+    axis.text.y = element_text(lineheight = 1.1, size = 12),
+    legend.position = "bottom",
+    plot.title = element_text(lineheight = 1.1, size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 14, face = "bold"),
+    legend.key.size = unit(0.75, "cm"),
+    legend.text = element_text(size = 9),
+    strip.text = element_text(hjust = 0.5)
+  )
+} else {
+  ggplot(tibble(text = "There was no data for this site here.", x = 0, y = 0)) +
+    geom_text(aes(label = text, x, y)) +
+    theme_void()
+}
+```
+
+### LMS Engagement
+
+```{r course-plot-agree-lms-engagement, fig.width = 10, fig.height = 10}
+plot_agree <- course_survey %>%
+    select(c(
+            "How much do you agree with the following statements about this course? - I am satisfied with the overall quality of this course.",
+            "How much do you agree with the following statements about this course? - I am satisfied with how the course was facilitated.",
+            "How much do you agree with the following statements about this course? - The independent online work activities were well-designed to help me meet the learning targets.",
+            "How much do you agree with the following statements about this course? - I felt a sense of community with the other participants in this course. even though we were meeting virtually.",
+            "How much do you agree with the following statements about this course? - The strategies I’ve learned in this course will improve my instruction.",
+            "How much do you agree with the following statements about this course? - The strategies I’ve learned in this course will improve my coaching or supervision of teachers.",
+            "How much do you agree with the following statements about this course? - The strategies I’ve learned in the course are easy to implement.",
+            "How much do you agree with the following statements about this course? - I will apply what I have learned in this course to my practice in the next 4-6 weeks.",
+            "How much do you agree with the following statements about this course? - This course has supported me in being responsive to students' backgrounds, cultures, and points of view."
+          )) %>%
+          pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+          drop_na() %>%
+          dplyr::mutate(Question = str_remove_all(
+            Question,
+            "How much do you agree with the following statements about this course\\? - "
+          )) %>%
+          group_by(Question, Response) %>%
+          count() %>%
+          ungroup() %>%
+          group_by(Question) %>%
+          mutate(Question = str_wrap(Question, width = 30)) %>%
+          summarise(
+            n = n,
+            Response = Response,
+            Percent = n / sum(n) * 100
+          )
+  
+n <- plot_agree %>% 
+  filter(Question == "This course has supported\nme in being responsive\nto students' backgrounds,\ncultures, and points of view.") %>% 
+  summarise(n = sum(n)) %>%
+  pull(n)
+
+fake_plot_agree <- plot_agree %>%
+  dplyr::ungroup() %>%
+  dplyr::bind_rows(plot_agree) %>%
+  dplyr::mutate(fake_group = as.character(ntile(row_number(), 2)),
+                fake_group = stringr::str_replace_all(fake_group, c("1" = "High LMS Engagement", 
+                                                                    "2" = "Low LMS Engagement"))) %>%
+    dplyr::group_by(fake_group, Question) %>%
+  dplyr::mutate(Percent = TeachingLab::rand_vect(5, 100, sd = 12))
+  
+ggplot(data = fake_plot_agree, aes(x = Question, y = Percent, fill = factor(Response))) +
+  geom_col() +
+  geom_text(aes(label = if_else(Percent >= 3, paste0(round(Percent), "%"), "")), 
+            position = position_stack(vjust = 0.5),
+            fontface = "bold") +
+  scale_fill_manual(values = c(
+    "(1) Strongly disagree" = "#040404", "(2) Disagree" = "#032E3F",
+    "(3) Neither agree nor disagree" = "#02587A", "(4) Agree" = "#0182B4", "(5) Strongly agree" = "#00ACF0"
+  )) +
+  labs(
+    fill = "", title = glue::glue("Participant Perceptions of Course (n = {prettyNum(n, big.mark = ',')})"),
+    x = "", y = ""
+  ) +
+  coord_flip() +
+  guides(fill = guide_legend(reverse = T)) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  facet_wrap( ~ fake_group) +
+  theme_tl(legend = T) +
+  theme(
+    axis.text.x = element_blank(),
+    axis.text.y = element_text(lineheight = 1.1, size = 12),
+    legend.position = "bottom",
+    plot.title = element_text(lineheight = 1.1, size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 14, face = "bold"),
+    legend.key.size = unit(0.75, "cm"),
+    legend.text = element_text(size = 9),
+    strip.text = element_text(hjust = 0.5)
+  )
+```
+
+### Racial Identity
+
+```{r course-plot-agree-race-identity, fig.width = 10, fig.height = 10}
+if (nrow(course_survey) >= 1) {
+  plot_agree <- course_survey %>%
+    select(c(
+            "How much do you agree with the following statements about this course? - I am satisfied with the overall quality of this course.",
+            "How much do you agree with the following statements about this course? - I am satisfied with how the course was facilitated.",
+            "How much do you agree with the following statements about this course? - The independent online work activities were well-designed to help me meet the learning targets.",
+            "How much do you agree with the following statements about this course? - I felt a sense of community with the other participants in this course. even though we were meeting virtually.",
+            "How much do you agree with the following statements about this course? - The strategies I’ve learned in this course will improve my instruction.",
+            "How much do you agree with the following statements about this course? - The strategies I’ve learned in this course will improve my coaching or supervision of teachers.",
+            "How much do you agree with the following statements about this course? - The strategies I’ve learned in the course are easy to implement.",
+            "How much do you agree with the following statements about this course? - I will apply what I have learned in this course to my practice in the next 4-6 weeks.",
+            "How much do you agree with the following statements about this course? - This course has supported me in being responsive to students' backgrounds, cultures, and points of view."
+          )) %>%
+          pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+          drop_na() %>%
+          dplyr::mutate(Question = str_remove_all(
+            Question,
+            "How much do you agree with the following statements about this course\\? - "
+          )) %>%
+          group_by(Question, Response) %>%
+          count() %>%
+          ungroup() %>%
+          group_by(Question) %>%
+          mutate(Question = str_wrap(Question, width = 30)) %>%
+          summarise(
+            n = n,
+            Response = Response,
+            Percent = n / sum(n) * 100
+          )
+  
+n <- plot_agree %>% 
+  filter(Question == "This course has supported\nme in being responsive\nto students' backgrounds,\ncultures, and points of view.") %>% 
+  summarise(n = sum(n)) %>%
+  pull(n)
+
+fake_plot_agree <- plot_agree %>%
+  dplyr::ungroup() %>%
+  dplyr::bind_rows(plot_agree) %>%
+  dplyr::mutate(fake_group = as.character(ntile(row_number(), 2)),
+                fake_group = stringr::str_replace_all(fake_group, c("1" = "White", 
+                                                                    "2" = "BIPOC"))) %>%
+    dplyr::group_by(fake_group, Question) %>%
+  dplyr::mutate(Percent = TeachingLab::rand_vect(5, 100, sd = 12))
+  
+ggplot(data = fake_plot_agree, aes(x = Question, y = Percent, fill = factor(Response))) +
+  geom_col() +
+  geom_text(aes(label = if_else(Percent >= 3, paste0(round(Percent), "%"), "")), 
+            position = position_stack(vjust = 0.5),
+            fontface = "bold") +
+  scale_fill_manual(values = c(
+    "(1) Strongly disagree" = "#040404", "(2) Disagree" = "#032E3F",
+    "(3) Neither agree nor disagree" = "#02587A", "(4) Agree" = "#0182B4", "(5) Strongly agree" = "#00ACF0"
+  )) +
+  labs(
+    fill = "", title = glue::glue("Participant Perceptions of Course (n = {prettyNum(n, big.mark = ',')})"),
+    x = "", y = ""
+  ) +
+  coord_flip() +
+  guides(fill = guide_legend(reverse = T)) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  facet_wrap( ~ fake_group) +
+  theme_tl(legend = T) +
+  theme(
+    axis.text.x = element_blank(),
+    axis.text.y = element_text(lineheight = 1.1, size = 12),
+    legend.position = "bottom",
+    plot.title = element_text(lineheight = 1.1, size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 14, face = "bold"),
+    legend.key.size = unit(0.75, "cm"),
+    legend.text = element_text(size = 9),
+    strip.text = element_text(hjust = 0.5)
+  )
+} else {
+  ggplot(tibble(text = "There was no data for this site here.", x = 0, y = 0)) +
+    geom_text(aes(label = text, x, y)) +
+    theme_void()
+}
+```
+
+### Roles
+
+```{r course-plot-agree-roles, fig.width = 10, fig.height = 10}
+if (nrow(course_survey) >= 1) {
+  plot_agree <- course_survey %>%
+    select(c(
+            "How much do you agree with the following statements about this course? - I am satisfied with the overall quality of this course.",
+            "How much do you agree with the following statements about this course? - I am satisfied with how the course was facilitated.",
+            "How much do you agree with the following statements about this course? - The independent online work activities were well-designed to help me meet the learning targets.",
+            "How much do you agree with the following statements about this course? - I felt a sense of community with the other participants in this course. even though we were meeting virtually.",
+            "How much do you agree with the following statements about this course? - The strategies I’ve learned in this course will improve my instruction.",
+            "How much do you agree with the following statements about this course? - The strategies I’ve learned in this course will improve my coaching or supervision of teachers.",
+            "How much do you agree with the following statements about this course? - The strategies I’ve learned in the course are easy to implement.",
+            "How much do you agree with the following statements about this course? - I will apply what I have learned in this course to my practice in the next 4-6 weeks.",
+            "How much do you agree with the following statements about this course? - This course has supported me in being responsive to students' backgrounds, cultures, and points of view."
+          )) %>%
+          pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+          drop_na() %>%
+          dplyr::mutate(Question = str_remove_all(
+            Question,
+            "How much do you agree with the following statements about this course\\? - "
+          )) %>%
+          group_by(Question, Response) %>%
+          count() %>%
+          ungroup() %>%
+          group_by(Question) %>%
+          mutate(Question = str_wrap(Question, width = 30)) %>%
+          summarise(
+            n = n,
+            Response = Response,
+            Percent = n / sum(n) * 100
+          )
+  
+n <- plot_agree %>% 
+  filter(Question == "This course has supported\nme in being responsive\nto students' backgrounds,\ncultures, and points of view.") %>% 
+  summarise(n = sum(n)) %>%
+  pull(n)
+  
+fake_plot_agree <- plot_agree %>%
+  dplyr::ungroup() %>%
+  dplyr::bind_rows(plot_agree) %>%
+  dplyr::mutate(fake_group = as.character(ntile(row_number(), 2)),
+                fake_group = stringr::str_replace_all(fake_group, c("1" = "Teacher or specialist", 
+                                                                    "2" = "School-based coach",
+                                                                    "3" = "School-based administrator or supervisor",
+                                                                    "4" = "District/network/state-level professional or administrator",
+                                                                    "5" = "Other"))) %>%
+    dplyr::group_by(fake_group, Question) %>%
+    dplyr::mutate(Percent = TeachingLab::rand_vect(5, 100, sd = 12))
+
+ggplot(data = fake_plot_agree, aes(x = Question, y = Percent, fill = factor(Response))) +
+  geom_col() +
+  geom_text(aes(label = if_else(Percent >= 3, paste0(round(Percent), "%"), "")), 
+            position = position_stack(vjust = 0.5),
+            fontface = "bold") +
+  scale_fill_manual(values = c(
+    "(1) Strongly disagree" = "#040404", "(2) Disagree" = "#032E3F",
+    "(3) Neither agree nor disagree" = "#02587A", "(4) Agree" = "#0182B4", "(5) Strongly agree" = "#00ACF0"
+  )) +
+  labs(
+    fill = "", title = glue::glue("Participant Perceptions of Course (n = {prettyNum(n, big.mark = ',')})"),
+    x = "", y = ""
+  ) +
+  coord_flip() +
+  guides(fill = guide_legend(reverse = T)) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  facet_wrap( ~ fake_group) +
+  theme_tl(legend = T) +
+  theme(
+    axis.text.x = element_blank(),
+    axis.text.y = element_text(lineheight = 1.1, size = 12),
+    legend.position = "bottom",
+    plot.title = element_text(lineheight = 1.1, size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 14, face = "bold"),
+    legend.key.size = unit(0.75, "cm"),
+    legend.text = element_text(size = 9),
+    strip.text = element_text(hjust = 0.5)
+  )
+} else {
+  ggplot(tibble(text = "There was no data for this site here.", x = 0, y = 0)) +
+    geom_text(aes(label = text, x, y)) +
+    theme_void()
+}
+```
+
+##
+
+Several samplings of the textual feedback from the course survey are presented below.
+
+### Responses to "What went well in this course?"
+
+::: {.fold .o}
+<center>
+
+```{r course-quote-1, fig.dim = c(6.5, 4.5)}
+quote1 <- course_survey %>%
+  select(`Overall, what went well in this course?`) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "Overall, what went well in this course?") %>%
+  drop_na() %>%
+  filter(`Overall, what went well in this course?` %!in% na_df) %>%
+  select(`Overall, what went well in this course?`) %>%
+  filter(str_length(`Overall, what went well in this course?`) > 30) %>%
+  slice_sample(n = 15, replace = FALSE) %>%
+  distinct()
+if (nrow(quote1) >= 1) {
+  quote_viz(
+        data = as_tibble(quote1), 
+        text_col = "Overall, what went well in this course?", 
+        viz_type = "gt",
+        width = 80, 
+        align = "center",
+        print = F
+      ) %>%
+  gtsave("tab1_3.png", path = tempdir(), zoom = 4)
+} else {
+  tibble(Quotes = "No Responses at this Site") %>%
+    gt::gt() %>%
+    gt_theme_tl() %>%
+    gtsave("tab1_1.png", path = tempdir(), vheight = "800", vwidth = 700)
+}
+```
+
+</center>
+:::
+
+### Responses to "Overall, what could have been better in this course?"
+
+::: {.fold .o}
+<center>
+
+```{r course-quote-2, fig.dim = c(6.5, 4.5)}
+quote2 <- course_survey %>%
+  select(`Overall, what could have been better in this course?`) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "Overall, what could have been better in this course?") %>%
+  drop_na() %>%
+  filter(`Overall, what could have been better in this course?` %!in% na_df) %>%
+  filter(str_length(`Overall, what could have been better in this course?`) > 30) %>%
+  select(`Overall, what could have been better in this course?`) %>%
+  slice_sample(n = 15) %>%
+  distinct()
+if (nrow(quote2) >= 1) {
+  quote_viz(
+          data = as_tibble(quote2), 
+          text_col = "Overall, what could have been better in this course?", 
+          viz_type = "gt",
+          print = F,
+          width = 80, align = "center"
+        ) %>%
+    gtsave("tab2_3.png", path = tempdir(), zoom = 4)
+} else {
+  tibble(Quotes = "No Responses at this Site") %>%
+    gt::gt() %>%
+    gt_theme_tl() %>%
+    gtsave("tab2_2.png", path = tempdir(), vheight = "800", vwidth = 700)
+}
+```
+
+</center>
+:::
+
+### Responses to "What is the learning from this course that you are most excited about trying out?"
+
+::: {.fold .o}
+<center>
+
+```{r course-quote-3, fig.dim = c(6.5, 4.5)}
+quote3 <- course_survey %>%
+  select(`What is the learning from this course that you are most excited about trying out?`) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "What is the learning from this course that you are most excited about trying out?") %>%
+  drop_na() %>%
+  filter(`What is the learning from this course that you are most excited about trying out?` %!in% na_df) %>%
+  select(`What is the learning from this course that you are most excited about trying out?`) %>%
+  filter(str_length(`What is the learning from this course that you are most excited about trying out?`) > 30) %>%
+  slice_sample(n = 15) %>%
+  distinct()
+
+if (nrow(quote3) >= 1) {
+  quote_viz(
+          data = as_tibble(quote3), 
+          text_col = "What is the learning from this course that you are most excited about trying out?", 
+          viz_type = "gt",
+          print = F,
+          width = 80, 
+          align = "center"
+        ) %>%
+    gtsave("tab3_4.png", path = tempdir(), zoom = 4)
+} else {
+  tibble(Quotes = "No Responses at this Site") %>%
+    gt::gt() %>%
+    gt_theme_tl() %>%
+    gtsave("tab3_3.png", path = tempdir(), vheight = "800", vwidth = 700)
+}
+```
+
+</center>
+:::
+
+### Responses to "Which activities best supported your learning in this course?"
+
+::: {.fold .o}
+<center>
+
+```{r course-quote-4, fig.dim = c(6.5, 4.5)}
+quote4 <- course_survey %>%
+  select(`Which activities best supported your learning in this course?`) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "Which activities best supported your learning in this course?") %>%
+  drop_na() %>%
+  filter(`Which activities best supported your learning in this course?` %!in% na_df) %>%
+  select(`Which activities best supported your learning in this course?`) %>%
+  filter(str_length(`Which activities best supported your learning in this course?`) > 30) %>%
+  slice_sample(n = 15) %>%
+  distinct()
+if (nrow(quote4) >= 1) {
+  quote_viz(
+          data = as_tibble(quote4), text_col = "Which activities best supported your learning in this course?", viz_type = "gt",
+          print = F,
+          width = 80, align = "center"
+        ) %>%
+    gtsave("tab4_5.png", path = tempdir(), zoom = 4)
+} else {
+  tibble(Quotes = "No Responses at this Site") %>%
+    gt::gt() %>%
+    gt_theme_tl() %>%
+    gtsave("tab4_4.png", path = tempdir(), vheight = "800", vwidth = 700)
+}
+```
+
+</center>
+:::
+
+### Responses to "Feel free to leave us any additional comments, concerns, or questions."
+
+::: {.fold .o}
+<center>
+
+```{r course-quote-5, fig.dim = c(6.5, 4.5)}
+quote5 <- course_survey %>%
+  select(`Feel free to leave us any additional comments, concerns, or questions.`) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "Feel free to leave us any additional comments, concerns, or questions.") %>%
+  drop_na() %>%
+  filter(`Feel free to leave us any additional comments, concerns, or questions.` %!in% na_df) %>%
+  select(`Feel free to leave us any additional comments, concerns, or questions.`) %>%
+  filter(str_length(`Feel free to leave us any additional comments, concerns, or questions.`) > 30) %>%
+  slice_sample(n = 15) %>%
+  distinct()
+if (nrow(quote5) >= 1) {
+  quote_viz(
+          data = as_tibble(quote5), text_col = "Feel free to leave us any additional comments, concerns, or questions.", viz_type = "gt",
+          print = F,
+          width = 80, align = "center"
+        ) %>%
+    gtsave("tab5_6.png", path = tempdir(), zoom = 4)
+} else {
+  tibble(Quotes = "No Responses at this Site") %>%
+    gt::gt() %>%
+    gt_theme_tl() %>%
+    gtsave("tab5_5.png", path = tempdir(), vheight = "800", vwidth = 700)
+}
+```
+
+</center>
+:::
+
+# Section 3: Participant Knowledge (pre/post PL course)
+
+
+```{r knowledge-assessments-summary, fig.dim = c(8,8), results = 'asis'}
+# all_knowledge_assessments <- c("School Leaders: ELA",
+#                                "ELA General: Cycle of Inquiry - Complex Text",
+#                                "ELA General: Cycle of Inquiry - Speaking & Listening",
+#                                "ELA: Bootcamp - Foundational Skills Bootcamp Skills (K-2)",
+#                                "ELA: Bootcamp - General",
+#                                "ELA: CRSE PLC",
+#                                "ELA: Cycle of Inquiry - Curriculum Flex Foundational Skills",
+#                                "ELA: Guidebooks Cycle of Inquiry 1",
+#                                "ELA: Guidebooks Cycle of Inquiry 2",
+#                                "ELA: Guidebooks Diverse Learners Bootcamp - Leader",
+#                                "ELA: Guidebooks Diverse Learners Bootcamp - Teacher",
+#                                "ELA: Guidebooks Diverse Learners Bootcamp Writing",
+#                                "ELA: Guidebooks Diverse Learners Cycle of Inquiry - Fluency",
+#                                "ELA: Guidebooks Diverse Learners Cycle of Inquiry - Vocabulary",
+#                                "ELA: HQIM & Enrichment",
+#                                "ELA: School Leader Coaching Series",
+#                                "Math: Accelerating Learning",
+#                                "Math: Accelerating Learning - EIC",
+#                                "Math: Bootcamp",
+#                                "Math: Bootcamp - Curriculum Flexible",
+#                                "Math: Bootcamp - EIC",
+#                                "Math: Cycle of Inquiry I - Eliciting Student Thinking",
+#                                "Math: Cycle of Inquiry I - Eliciting Student Thinking - Curriculum Flexible",
+#                                "Math: Cycle of Inquiry II - Making Math Visible",
+#                                "Math: Cycle of Inquiry V- Sequencing and Connecting Representations")
+# 
+# plots <- purrr::map(all_knowledge_assessments, ~ 
+#       TeachingLab::fake_bar_graph_create(title = .x,
+#                                          fake_data_fun = "p_and_n",
+#                                          custom_n = 250,
+#                                          custom_n_range = 50,
+#                                          know_graph = T))
+
+# plots[[1]]
+# plots[[2]]
+# plots[[3]]
+# plots[[5]]
+# plots[[6]]
+# plots[[7]]
+# plots[[8]]
+# plots[[9]]
+# plots[[10]]
+# plots[[11]]
+# plots[[12]]
+# plots[[13]]
+# plots[[14]]
+# plots[[15]]
+# plots[[16]]
+# plots[[17]]
+# plots[[18]]
+# plots[[19]]
+# plots[[20]]
+# plots[[21]]
+# plots[[22]]
+# plots[[23]]
+# plots[[24]]
+# plots[[25]]
+TeachingLab::fake_bar_graph_create(title = "Math Bootcamp",
+                                   fake_data_fun = "p_and_n",
+                                   custom_n = 250,
+                                   custom_n_range = 50,
+                                   know_graph = T,
+                                   randomness = 1)
+```
+
+## Comparative Analysis {.tabset .tabset-pills}
+
+### Novice/Veteran Teachers
+
+```{r know-assess-nov-vet, fig.dim = c(8,8), results = 'asis'}
+TeachingLab::fake_bar_graph_create(title = "Math Bootcamp",
+                                   fake_data_fun = "p_and_n_split",
+                                   custom_n = 250,
+                                   custom_n_range = 50,
+                                   custom_p_1 = c(50, 20),
+                                   custom_p_2 = c(80, 10),
+                                   randomness = 0.1,
+                                   custom_x_axis_labels = c("Novice Teachers",
+                                                            "Veteran Teachers"),
+                                   know_graph = T)
+```
+
+### New/Returning Participants
+
+```{r know-assess-new-return, fig.dim = c(8,8), results = 'asis'}
+TeachingLab::fake_bar_graph_create(title = "Math Bootcamp",
+                                   fake_data_fun = "p_and_n_split",
+                                   custom_n = 250,
+                                   custom_n_range = 50,
+                                   custom_p_1 = c(50, 20),
+                                   custom_p_2 = c(80, 10),
+                                   randomness = 0.1,
+                                   know_graph = T)
+```
+
+### LMS Engagement
+
+```{r know-assess-lms-engage, fig.dim = c(8,8), results = 'asis'}
+TeachingLab::fake_bar_graph_create(title = "Math Bootcamp",
+                                   fake_data_fun = "p_and_n_split",
+                                   custom_n = 250,
+                                   custom_n_range = 50,
+                                   custom_p_1 = c(50, 20),
+                                   custom_p_2 = c(80, 10),
+                                   randomness = 0.1,
+                                   custom_x_axis_labels = c(" Low LMS Engagement",
+                                                            "High LMS Engagement"),
+                                   know_graph = T)
+```
+
+### Participant Feedback
+
+```{r know-assess-part-feed, fig.dim = c(8,8), results = 'asis'}
+TeachingLab::fake_bar_graph_create(title = "Math Bootcamp",
+                                   fake_data_fun = "p_and_n_split",
+                                   custom_n = 250,
+                                   custom_n_range = 50,
+                                   custom_p_1 = c(50, 20),
+                                   custom_p_2 = c(80, 10),
+                                   randomness = 0.1,
+                                   custom_x_axis_labels = c("Participants who gave negative PL feedback",
+                                                            "Participants who gave positive PL feedback"),
+                                   know_graph = T)
+```
+
+# Section 4: Participant Mindsets
+
+Overall percent of participants holding equitable mindsets.
+
+```{r mindsets-overall, fig.width = 10, fig.height = 8}
+TeachingLab::fake_bar_graph_create(title = "Percent of Participants Holding Equitable Mindsets",
+                               fake_data_fun = "p_and_n",
+                               custom_n = 1000,
+                               custom_n_range = 50)
+```
+
+## Comparative Analysis {.tabset .tabset-pills}
+
+### New/Returning Participants
+
+```{r new-returning-mindsets, fig.width = 10, fig.height = 8}
+TeachingLab::fake_bar_graph_create(title = "Percent of Participants Holding Equitable Mindsets",
+                               fake_data_fun = "p_and_n_split")
+```
+
+### Novice/Veteran Teachers
+
+```{r novice-veteran-mindsets, fig.width = 10, fig.height = 8}
+TeachingLab::fake_bar_graph_create(title = "Percent of Participants Holding Equitable Mindsets",
+                               fake_data_fun = "p_and_n_split",
+                               custom_n = 1000,
+                               custom_n_range = 50,
+                               custom_p_1 = c(50, 20),
+                               custom_p_2 = c(80, 9),
+                               randomness = 0.3,
+                               custom_x_axis_labels = c("Novice Teachers",
+                                                   "Veteran Teachers"))
+```
+
+### Participant Feedback
+
+```{r participant-feedback-mindsets, fig.width = 10, fig.height = 8}
+TeachingLab::fake_bar_graph_create(title = "Percent of Participants Holding Equitable Mindsets",
+                               fake_data_fun = "p_and_n_split",
+                               custom_n = 1000,
+                               custom_n_range = 50,
+                               custom_p_1 = c(50, 10),
+                               custom_p_2 = c(90, 9),
+                               randomness = 0.3,
+                               custom_x_axis_labels = c("Participants who gave\nnegative PL feedback",
+                                                   "Participants who gave\npositive PL feedback"))
+```
+
+### Racial Identity
+
+```{r racial-identity-mindsets, fig.width = 10, fig.height = 8}
+TeachingLab::fake_bar_graph_create(title = "Percent of Participants Holding Equitable Mindsets",
+                               fake_data_fun = "p_and_n_split",
+                               custom_n = 1000,
+                               custom_n_range = 50,
+                               custom_p_1 = c(30, 15),
+                               custom_p_2 = c(60, 15),
+                               randomness = 0.1,
+                               custom_x_axis_labels = c("BIPOC",
+                                                   "White"))
+```
+
+### LMS Engagement
+
+```{r lms-engagement-mindsets, fig.width = 10, fig.height = 8}
+TeachingLab::fake_bar_graph_create(title = "Percent of Participants Holding Equitable Mindsets",
+                               fake_data_fun = "p_and_n_split",
+                               custom_n = 1000,
+                               custom_n_range = 50,
+                               custom_p_1 = c(50, 20),
+                               custom_p_2 = c(70, 15),
+                               randomness = 0.35,
+                               custom_x_axis_labels = c(" Low Engagement",
+                                                   "High Engagement"))
+```
+
+# Section 5: Participant Practice
+
+Overall changes in participants quality of instruction.
+
+```{r part-practice-overall, fig.width = 10, fig.height = 8}
+TeachingLab::fake_line_graph_create(title = "Overall Average Changes in Participants Quality of Instruction",
+                                    x_axis = "pl",
+                                    lines = 1,
+                                    custom_n = 60,
+                                    custom_n_range = 10)
+```
+
+## Comparative Analysis {.tabset .tabset-pills}
+
+### New/Returning
+
+```{r new-returning-practice, fig.width = 10, fig.height = 8}
+TeachingLab::fake_line_graph_create(title = "Average Changes in Participants Quality of Instruction",
+                                    x_axis = "pl",
+                                    labels = c("Returning Participants",
+                                               "New Participants"),
+                                    custom_n = 60,
+                                    custom_n_range = 10)
+```
+
+### Novice/Veteran Teachers
+
+```{r novice-veteran-practice, fig.width = 10, fig.height = 8}
+TeachingLab::fake_line_graph_create(title = "Average Changes in Participants Quality of Instruction",
+                                    x_axis = "pl",
+                                    labels = c("Veteran Teachers",
+                                               "Novice Participants"),
+                                    custom_n = 60,
+                                    custom_n_range = 10)
+```
+
+### LMS Engagement
+
+```{r lms-engagement-practice, fig.width = 10, fig.height = 8}
+TeachingLab::fake_line_graph_create(title = "Average Changes in Participants Quality of Instruction",
+                                    x_axis = "pl",
+                                    labels = c("High LMS engagement",
+                                               "Low LMS engagement"),
+                                    custom_n = 60,
+                                    custom_n_range = 10)
+```
+
+### Participant Feedback
+
+```{r participant-feedback-practice, fig.width = 10, fig.height = 8}
+TeachingLab::fake_line_graph_create(title = "Average Changes in Participants Quality of Instruction<br>",
+                                    x_axis = "pl",
+                                    labels = c("Participants who gave positive TL feedback",
+                                               "Participants who gave negative TL feedback"),
+                                    custom_n = 60,
+                                    custom_n_range = 10)
+```
+
+### Mindsets Shifts
+
+```{r mindsets-shifts-practice, fig.width = 10, fig.height = 8}
+TeachingLab::fake_line_graph_create(title = "Overall Average Changes in Participants Quality of Instruction",
+                                    x_axis = "pl",
+                                    labels = c("Significant mindset shifts",
+                                               "No mindset shifts"),
+                                    custom_n = 60,
+                                    custom_n_range = 10)
+```
+
+### Knowledge Gains
+
+```{r knowledge-gains-practice, fig.width = 10, fig.height = 8}
+TeachingLab::fake_line_graph_create(title = "Average Changes in Participants Quality of Instruction",
+                                    x_axis = "pl",
+                                    labels = c("Significant knowledge gains",
+                                               "No knowledge gains"),
+                                    custom_n = 60,
+                                    custom_n_range = 10)
+```
+
+# Section 6: Student Outcomes
+
+## Section 6a: Student Learning Experiences
+
+Below is the overall percentage of students reporting positive learning environments, and subsequently the breakdown for several different constructs.
+
+```{r student-learning-overall, fig.width = 10, fig.height = 8}
+TeachingLab::fake_bar_graph_create(title = "Percentage of Students' Reporting Overall Positive Learning Environments",
+                               fake_data_fun = "p_and_n",
+                               custom_n = 1000,
+                               custom_n_range = 50)
+```
+
+## Constructs {.tabset .tabset-pills}
+
+### CRSE
+
+```{r student-learning-crse, fig.width = 10, fig.height = 8}
+TeachingLab::fake_bar_graph_create(title = "Percentage of Students Reporting CRSE",
+                               fake_data_fun = "p_and_n",
+                               custom_n = 1000,
+                               custom_n_range = 50)
+```
+
+### Teacher-student relationships
+
+```{r teacher-student, fig.width = 10, fig.height = 8}
+TeachingLab::fake_bar_graph_create(title = "Percentage of Students Reporting Good Teacher-student Relationships",
+                               fake_data_fun = "p_and_n",
+                               custom_n = 1000,
+                               custom_n_range = 50)
+```
+
+### Happiness and sense of belonging
+
+```{r happiness-belonging, fig.width = 10, fig.height = 8}
+TeachingLab::fake_bar_graph_create(title = "Percentage of Students Reporting High Levels of Happiness & Sense of Belonging",
+                               fake_data_fun = "p_and_n",
+                               custom_n = 1000,
+                               custom_n_range = 50)
+```
+
+### Being challenged
+
+```{r being-challenged, fig.width = 10, fig.height = 8}
+TeachingLab::fake_bar_graph_create(title = "Percentage of Students Reporting High Levels of Being Challenged",
+                               fake_data_fun = "p_and_n",
+                               custom_n = 1000,
+                               custom_n_range = 50)
+```
+
+### Self-Efficacy
+
+```{r self-efficacy, fig.width = 10, fig.height = 8}
+TeachingLab::fake_bar_graph_create(title = "Percentage of Students Reporting High Levels of Self-Efficacy",
+                               fake_data_fun = "p_and_n",
+                               custom_n = 1000,
+                               custom_n_range = 50)
+```
+
+When you click the following tabs the data is provided with side by side comparative analyses.
+
+## Comparative Analysis {.tabset .tabset-pills}
+
+### Mindset Shifts
+
+```{r mindset-shifts, fig.width = 10, fig.height = 8}
+TeachingLab::fake_bar_graph_create(title = "Percentage of Students Reporting Overall Positive Learning Environments",
+                               fake_data_fun = "p_and_n_split",
+                               custom_n = 1000,
+                               custom_n_range = 50,
+                               custom_p_1 = c(50, 10),
+                               custom_p_2 = c(50, 30),
+                               randomness = 0.1,
+                               custom_x_axis_labels = c("Students whose teachers\nshowed little/no mindset shifts",
+                                                   "Students whose teachers showed\nsignificant mindset shifts"))
+```
+
+### Knowledge Gains
+
+```{r knowledge-gains, fig.width = 10, fig.height = 8}
+TeachingLab::fake_bar_graph_create(title = "Percentage of Students Reporting Overall Positive Learning Environments",
+                               fake_data_fun = "p_and_n_split",
+                               custom_n = 1000,
+                               custom_n_range = 50,
+                               custom_p_1 = c(50, 10),
+                               custom_p_2 = c(50, 30),
+                               randomness = 0.1,
+                               custom_x_axis_labels = c("Students whose teachers did not\nincrease knowledge",
+                                                   "Students whose teachers significantly\nincreased knowledge"))
+```
+
+### Instructional Shifts
+
+```{r instructional-shifts, fig.width = 10, fig.height = 8}
+TeachingLab::fake_bar_graph_create(title = "Percentage of Students Reporting Overall Positive Learning Environments",
+                               fake_data_fun = "p_and_n_split",
+                               custom_n = 1000,
+                               custom_n_range = 50,
+                               custom_p_1 = c(50, 10),
+                               custom_p_2 = c(50, 30),
+                               randomness = 0.1,
+                               custom_x_axis_labels = c("Students whose teachers did not\nshift practice",
+                                                   "Students whose teachers significantly\nshifted practice"))
+```
+
+## Section 6b: Student Proficiency on Tasks
+
+The overall % of Students Demonstrating Proficiency on Grade-Level Tasks is presented below, and subsequently a comparative analysis of each of the following constructs is provided in individual tabs.
+
+```{r students-proficiency-overall}
+TeachingLab::fake_bar_graph_create(title = "Percentage of Students Demonstrating Proficiency on Grade-Level Tasks",
+                               fake_data_fun = "p_and_n",
+                               custom_n = 1000,
+                               custom_n_range = 50,
+                               custom_p_1 = c(60, 20),
+                               randomness = 0.1)
+```
+
+
+## Comparative Analysis {.tabset .tabset-pills}
+
+### ELA/Math
+
+```{r ela-math-compare, fig.width = 10, fig.height = 8}
+TeachingLab::fake_bar_graph_create(title = "Percentage of Students Demonstrating Proficiency on Grade-Level Tasks",
+                               fake_data_fun = "p_and_n_split",
+                               custom_n = 1000,
+                               custom_n_range = 50,
+                               custom_p_1 = c(50, 10),
+                               custom_p_2 = c(50, 10),
+                               randomness = 0.1,
+                               custom_x_axis_labels = c("ELA Students",
+                                                        "Math Students"))
+```
+
+### Mindset Shifts
+
+```{r mindsets-shifts2, fig.width = 10, fig.height = 8}
+TeachingLab::fake_bar_graph_create(title = "Percentage of Students Demonstrating Proficiency on Grade-Level Tasks",
+                               fake_data_fun = "p_and_n_split",
+                               custom_n = 1000,
+                               custom_n_range = 50,
+                               custom_p_1 = c(30, 5),
+                               custom_p_2 = c(50, 40),
+                               randomness = 0.5,
+                               custom_x_axis_labels = c("Students whose teachers did not\nshift mindsets & expectations",
+                                                        "Students whose teachers did shift\nmindsets & expectations"))
+```
+
+### Knowledge Gains
+
+```{r knowledge-gains2, fig.width = 10, fig.height = 8}
+TeachingLab::fake_bar_graph_create(title = "Percentage of Students Demonstrating Proficiency on Grade-Level Tasks",
+                               fake_data_fun = "p_and_n_split",
+                               custom_n = 1000,
+                               custom_n_range = 50,
+                               custom_p_1 = c(30, 5),
+                               custom_p_2 = c(50, 40),
+                               randomness = 0.35,
+                               custom_x_axis_labels = c(" Students whose teachers did not\nexperience knowledge gains",
+                                                        "Students whose teachers\nexperienced knowledge gains"))
+```
+
+### Instructional Shifts
+
+```{r instructional-shifts2, fig.width = 10, fig.height = 8}
+TeachingLab::fake_bar_graph_create(title = "Percentage of Students Demonstrating Proficiency on Grade-Level Tasks",
+                               fake_data_fun = "p_and_n_split",
+                               custom_n = 1000,
+                               custom_n_range = 50,
+                               custom_p_2 = c(30, 5),
+                               custom_p_1 = c(50, 40),
+                               randomness = 0.35,
+                               custom_x_axis_labels = c("Students whose teachers experienced\ninstructional shifts",
+                                                        " Students whose teachers did not\ninstructional shifts"))
+```
+
+### Student Learning Experiences
+
+```{r student-learning-experiences, fig.width = 10, fig.height = 8}
+TeachingLab::fake_bar_graph_create(title = "Percentage of Students Demonstrating Proficiency on Grade-Level Tasks",
+                               fake_data_fun = "p_and_n_split",
+                               custom_n = 1000,
+                               custom_n_range = 50,
+                               custom_p_1 = c(30, 5),
+                               custom_p_2 = c(50, 40),
+                               randomness = 0.35,
+                               custom_x_axis_labels = c("Students whose teachers did not report\nimproved learning experiences",
+                                                        "Students whose teachers reported\nimproved learning experiences"))
+```
+
+## Section 6c: Student Academic Achievement
+
+```{r students-at-grade-level-overall}
+TeachingLab::fake_line_graph_create(title = "Overall Percentage of Students Performing At or Above Grade Level on Standardized <br>Testing",
+                                    x_axis = "yearly",
+                                    y_axis_label = "Percent at or above",
+                                    lines = 1,
+                                    custom_n = 4100,
+                                    custom_n_range = 100)
+```
+
+
+## Comparative Analysis {.tabset .tabset-pills}
+
+### ELA/Math
+
+```{r ela-math-above-grade}
+TeachingLab::fake_line_graph_create(title = "Percentage of Students Performing At or Above Grade Level on Standardized Testing<br>",
+                                    x_axis = "yearly",
+                                    y_axis_label = "Percent at or above",
+                                    lines = 2,
+                                    labels = c("ELA",
+                                               "Math"),
+                                    custom_n = 4100,
+                                    custom_n_range = 100)
+```
+
+### Teacher Participation PL
+
+```{r teacher-participation-pl-above-grade}
+TeachingLab::fake_line_graph_create(title = "Percentage of Students Performing At or Above Grade Level on Standardized Testing<br>",
+                                    x_axis = "yearly",
+                                    y_axis_label = "Percent at or above",
+                                    lines = 2,
+                                    labels = c("Teachers who participated in TL PL",
+                                               "Teachers who did not participate in TL PL"),
+                                    custom_n = 4100,
+                                    custom_n_range = 100)
+```
+
+### Novice/Veteran Teachers
+
+```{r novice-veteran-above-grade}
+TeachingLab::fake_line_graph_create(title = "Percentage of Students Performing At or Above Grade Level on Standardized Testing<br>",
+                                    x_axis = "yearly",
+                                    y_axis_label = "Percent at or above",
+                                    lines = 2,
+                                    labels = c("Veteran Teachers",
+                                               "Novice Teachers"),
+                                    custom_n = 4100,
+                                    custom_n_range = 100)
+```

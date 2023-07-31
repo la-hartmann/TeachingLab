@@ -1,0 +1,307 @@
+---
+title: End of Session Report
+author: Teaching Lab 
+date: \today
+params:
+  logo: teachinglab_logo.png
+  cover: cover.png
+  iblue: 04abeb
+  igray: d4dbde
+documentclass: article
+fontsize: 10
+papersize: a4paper
+output: 
+  IReports::businessReport:
+    keep_tex: TRUE
+    latex_engine: xelatex
+    resetStyleFiles: FALSE
+header-includes: 
+  - \newcommand{\logo}{`r gsub("_", "\\_", params$logo)`}
+  - \newcommand{\cover}{`r gsub("_", "\\_", params$cover)`}
+  - \newcommand{\iblue}{`r params$iblue`}
+  - \newcommand{\igray}{`r params$igray`}
+include-before:
+  - \renewcommand{\contentsname}{Table of Contents}
+  - \renewcommand{\pagename}{Page}
+---
+
+
+
+```{r setup, include = FALSE}
+# packages
+library(tidyverse)
+library(gt)
+library(lubridate)
+library(TeachingLab)
+library(scales)
+library(knitr)
+
+# data
+session_survey <- readr::read_rds(here::here("Dashboards/SessionSurvey/Data/session_surveymonkey.rds")) %>%
+  dplyr::filter(Date > as.Date("2021-07-01")) %>%
+        dplyr::filter(., `Select your site (district, parish, network, or school).` == "Cleveland Metropolitan School District, OH")
+
+# settings
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, dev = "cairo_pdf", 
+                      fig.width = 7, fig.height = 5, fig.align = "center")
+na_df <- c("none", "n/a", "N/A", "N/a", "NA", "na", "none", "none.", "na.", "NA.", "N/A.", "No Response", "nothing", 
+           "nothing.", "Nothing.", "0", "nada", "Nothing", "None", "None.")
+```
+
+\maketitle
+\tableofcontents
+\addcontentsline{toc}{section}{Contents}
+\clearpage
+
+\section{Likert Ratings}
+
+Starting from October 1 there were 171 responses given by San Diego Unified School District participants, they largely gave positive feedback when asked questions about a variety of ways to assess the effectiveness of the facilitation of their courses.
+
+
+
+
+```{r}
+plot_agree <- session_survey %>%
+  select(c(
+          "How much do you agree with the following statements about this facilitator today? - They demonstrated  deep knowledge of the content they facilitated.",
+          "How much do you agree with the following statements about this facilitator today? - They facilitated the content clearly.",
+          "How much do you agree with the following statements about this facilitator today? - They effectively built a safe learning community.",
+          "How much do you agree with the following statements about this facilitator today? - They were fully prepared for the session.",
+          "How much do you agree with the following statements about this facilitator today? - They responded to the group’s needs."
+        )) %>%
+        pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+        drop_na() %>%
+        dplyr::mutate(Question = str_remove_all(
+          Question,
+          "How much do you agree with the following statements about this facilitator today\\? - "
+        )) %>%
+        group_by(Question, Response) %>%
+        count() %>%
+        ungroup() %>%
+        group_by(Question) %>%
+        mutate(Question = str_wrap(Question, width = 30)) %>%
+        summarise(
+          n = n,
+          Response = Response,
+          Percent = n / sum(n) * 100
+        )
+  
+ggplot(data = plot_agree, aes(x = Question, y = Percent, fill = factor(Response))) +
+        geom_col() +
+        geom_text(aes(label = if_else(Percent >= 3, paste0(round(Percent), "%"), "")), position = position_stack(vjust = 0.5)) +
+        scale_fill_manual(values = c(
+          "(1) Strongly disagree" = "#040404", "(2) Disagree" = "#032E3F",
+          "(3) Neither agree nor disagree" = "#02587A", "(4) Agree" = "#0182B4", "(5) Strongly agree" = "#00ACF0"
+        )) +
+        labs(
+          fill = "", title = "Participant Perceptions of Course - Likert Scale Questions",
+          x = "", y = ""#,
+          # subtitle = glue::glue("Given the filters applied there are 171 responses")
+        ) +
+        coord_flip() +
+        guides(fill = guide_legend(reverse = T)) +
+        scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+        theme_tl(legend = T) +
+        theme(
+          axis.text.x = element_blank(),
+          axis.text.y = element_text(lineheight = 1.1, size = 12),
+          legend.position = "bottom",
+          plot.title = element_text(lineheight = 1.1, size = 16, face = "bold"),
+          plot.subtitle = element_text(size = 14, face = "bold"),
+          legend.key.size = unit(0.75, "cm"),
+          legend.text = element_text(size = 9)
+        )
+```
+
+
+
+\subsection{Percent Agree and Strongly Agree}
+
+
+
+
+In summary, we see the following % agree or strongly agree with the above statements:
+
+- `r plot_agree %>% filter(Question == "They were fully prepared for\nthe session." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%")` strongly agree or agree that they were fully prepared for the session.
+- `r plot_agree %>% filter(Question == "They responded to the group’s\nneeds." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%")` strongly agree or agree that they responded to the group's needs.
+- `r plot_agree %>% filter(Question == "They facilitated the content\nclearly." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%")` strongly agree or agree that they facilitated the content clearly.
+- `r plot_agree %>% filter(Question == "They effectively built a safe\nlearning community." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%")` strongly agree or agree that they effectively built a safe learning community.
+- `r plot_agree %>% filter(Question == "They demonstrated deep\nknowledge of the content they\nfacilitated." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%")` strongly agree or agree that they demonstrated deep knowledge of the content they facilitated.
+
+
+\section{Over Time}
+
+
+
+In this section responses are illustrated on a daily basis.
+
+
+
+```{r}
+scale_adjust <- "1 day"
+session_survey %>%
+        select(
+          Date,
+          c(
+            "How much do you agree with the following statements about this facilitator today? - They demonstrated  deep knowledge of the content they facilitated.",
+            "How much do you agree with the following statements about this facilitator today? - They facilitated the content clearly.",
+            "How much do you agree with the following statements about this facilitator today? - They effectively built a safe learning community.",
+            "How much do you agree with the following statements about this facilitator today? - They were fully prepared for the session.",
+            "How much do you agree with the following statements about this facilitator today? - They responded to the group’s needs."
+          )
+        ) %>%
+        pivot_longer(!`Date`, names_to = "question", values_to = "answer") %>%
+        dplyr::mutate(question = str_remove_all(
+          question,
+          "How much do you agree with the following statements about this course\\? - "
+        )) %>%
+        # Rename with line breaks every 27 characters
+        mutate(question = gsub("(.{28,}?)\\s", "\\1\n", question)) %>%
+        drop_na(answer) %>%
+        dplyr::group_by(question, Date) %>%
+        # Group by input variable
+        mutate(`Number Agree/Disagree` = n()) %>%
+        mutate(answer = str_remove_all(answer, "\\([:digit:]\\) ")) %>%
+        mutate(
+          Rating = case_when(
+            answer %in% c("Agree", "Strongly agree") ~ "Agree/Strongly Agree",
+            answer %in% c("Neither agree nor disagree", "Disagree", "Strongly disagree") ~ "Neither/Disagree/Strongly Disagree"
+          ),
+          date_group = case_when(scale_adjust == "1 month" ~ paste0(lubridate::month(Date, label = T, abbr = F), ", ", year(Date)),
+                                 scale_adjust == "1 week" ~ paste0(year(Date), lubridate::week(Date)),
+                                 scale_adjust == "1 day" ~ paste0(lubridate::day(Date)))
+        ) %>%
+        ungroup() %>%
+        dplyr::mutate(question = str_remove_all(
+          question,
+          "How much do you agree with the\nfollowing statements about this\nfacilitator today\\? - "
+        )) %>%
+        group_by(date_group, question) %>%
+        mutate(Percent = `Number Agree/Disagree` / sum(`Number Agree/Disagree`) * 100) %>%
+        filter(Rating == "Agree/Strongly Agree") %>%
+        group_by(date_group, Rating, question) %>%
+        summarise(Percent = round(sum(Percent), 2),
+                  Date = Date) %>%
+        ggplot(aes(x = ymd(Date),
+                   y = Percent)) +
+        geom_area(color = "gray50", aes(fill = Rating), alpha = 0.6, position = position_identity()) + # position_identity is absolutely necessary here, not sure why
+        geom_ribbon(color = "transparent", aes(
+          ymin = Percent, ymax = 100,
+          fill = "Neither Agree nor Disagree/Disagree/Strongly Disagree"
+        ), alpha = 0.85) +
+        geom_line(size = 1.25, alpha = 0.9, aes(group = 1)) +
+        geom_point(size = 1, alpha = 0.9) +
+        facet_wrap(~ fct_reorder(question, .x = `Percent`, .fun = mean, .desc = T)) +
+        coord_cartesian() +
+        scale_x_date(
+          date_breaks = "3 days",
+          date_labels = "%m-%d",
+          expand = c(0, 0)
+        ) +
+        scale_y_continuous(
+          breaks = pretty_breaks(n = 5), limits = c(0, 100),
+          labels = scales::percent_format(scale = 1), expand = c(0, 0)
+        ) +
+        scale_fill_manual(values = c(rev(tl_palette(n = 2, color = "blue", theme = "dark")))) +
+        labs(x = "Date", title = "Percent that Agree/Strongly Agree") +
+        theme_bw() + # BW Panel panel elements
+        theme(
+          legend.position = "bottom",
+          legend.title = element_blank(),
+          legend.text = element_text(family = "Calibri"),
+          text = element_text(family = "Calibri", face = "bold"),
+          panel.grid.minor.x = element_blank(),
+          axis.text.x = element_text(size = 10),
+          strip.background = element_rect(fill = "white"),
+          strip.text = element_text(size = 10),
+          axis.title.x = element_blank(),
+          axis.title.y = element_blank(),
+          plot.title = element_text(hjust = 0.5, family = "Calibri", size = 16, face = "bold"),
+          axis.line = element_line(size = 1.5)
+        )
+```
+
+
+\section{Qualitative Participant Feedback}
+
+Finally responses to the following questions are presented below:
+
+- What could have been better about today's session?
+
+- What went well in today's session?
+
+- What additional feedback do you have about their facilitation skills?
+
+\subsection{What could have been better about today's session?}
+
+```{r include = F}
+session_survey %>%
+  select(`What could have been better about today’s session?`) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+  drop_na() %>%
+  filter(Response %!in% na_df) %>%
+  select(Response) %>%
+  slice(c(1:10)) %>%
+  quote_viz(
+          data = ., text_col = "Response", viz_type = "gt",
+          title = "What could have been<br>better about today’s session?",
+          width = 20, align = "center"
+        ) %>%
+    gtsave("img1.png", path = here::here("Images/2021-2022/Mathematica"))
+```
+
+
+```{r fig.height = 2}
+knitr::include_graphics(here::here("Images/2021-2022/Mathematica/img1.png"))
+```
+
+\subsection{What went well in today's session?}
+
+```{r include = F}
+session_survey %>%
+  select(`What went well in today’s session?`) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+  drop_na() %>%
+  filter(Response %!in% na_df) %>%
+  select(Response) %>%
+  slice_sample(n = 10) %>%
+  quote_viz(
+        data = ., text_col = "Response", viz_type = "gt",
+        title = "What went well in today’s session?",
+        width = 20, align = "center"
+      ) %>%
+  gtsave("img2.png", path = here::here("Images/2021-2022/Mathematica"))
+```
+
+
+```{r fig.height = 2}
+knitr::include_graphics(here::here("Images/2021-2022/Mathematica/img2.png"))
+```
+
+\subsection{What additional feedback do you have about their facilitation skills?}
+
+```{r fig.height = 2}
+session_survey %>%
+  select(Facilitation_Feedback) %>%
+  mutate(length = str_length(Facilitation_Feedback)) %>%
+  arrange(desc(length)) %>%
+  select(-length) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+  drop_na() %>%
+  filter(Response %!in% na_df) %>%
+  select(Response) %>%
+  slice_sample(n = 10) %>%
+  quote_viz(
+          data = ., text_col = "Response", viz_type = "gt",
+          title = "What additional feedback do you have<br>about their facilitation skills?",
+          width = 40, align = "center"
+        ) %>%
+    gtsave("img3.png", path = here::here("Images/2021-2022/Mathematica"))
+```
+
+```{r eval = F}
+knitr::include_graphics(here::here("Images/2021-2022/Mathematica/img3.png"))
+```
+
+
+

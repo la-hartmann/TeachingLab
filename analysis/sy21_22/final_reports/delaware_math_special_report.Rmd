@@ -1,0 +1,2838 @@
+---
+params:
+  partner: "Delaware Department of Education, DE"
+title: "Delaware Department of Education, DE - Math Report"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  TeachingLab::TLDefault:
+    css: styles.css
+    fontawesome: false
+    self_contained: true
+    thumbnails: false
+    lightbox: true
+    gallery: false
+    highlight: kate # Also can do tango
+    number_sections: false
+    includes:
+      in_header: header.html
+      after_body: footer.html
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+library(ggtext)
+library(glue)
+library(gt)
+library(here)
+library(knitr)
+library(lubridate)
+library(patchwork)
+library(rmdformats)
+library(scales)
+devtools::load_all()
+library(TeachingLab)
+library(tidyverse)
+
+### IPG Forms Read-In ###
+ipg_forms <- data.frame()
+
+### Coaching Participant Feedback Read-in ###
+coaching_participant_feedback <- data.frame()
+
+### Ongoing Coaching Feedback
+ongoing_participant_feedback <- data.frame()
+
+### End of Session Read-in ###
+session_survey <- TeachingLab::get_session_survey() |>
+  dplyr::filter(`Select your site (district, parish, network, or school).` == "Delaware Department of Education, DE" & `Select the content area for today’s professional learning session.` == "Math")
+
+### End of Course Read-in ###
+course_survey <- TeachingLab::get_course_survey() |>
+  dplyr::filter(`Select your site (district, parish, network, or school).` == "Delaware Department of Education, DE" & `Select the content area for today's professional learning session.` == "Math")
+
+### Diagnostic Educator Read-in ###
+diagnostic_survey <- TeachingLab::get_diagnostic_survey() |>
+  dplyr::filter(your_site_district_parish_network_or_school_br_br == "Delaware Department of Education, DE" & which_subject_area_do_you_teach_lead_if_you_teach_support_both_please_select_the_one_where_you_expect_to_work_with_teaching_lab_this_year_br_br == "Mathematics")
+
+### Follow Up Educator Read-in ###
+followup_educator <- TeachingLab:::get_followup_educator() |>
+  dplyr::filter(`Your site (district, parish, network, or school)` == "Delaware Department of Education, DE" & `Which subject area do you teach/ lead? If you teach/support both, please select the one for which you received support from Teaching Lab this year.` == "Mathematics")
+
+### Student Survey Read-in ###
+student_survey <- data.frame()
+
+### Knowledge Assessments Read-in ###
+knowledge_assessments <- TeachingLab::get_knowledge_assessments() |>
+  dplyr::filter(site == "Delaware Department of Education, DE" & str_detect(know_assess, "math_"))
+
+additional_crse_follow <- followup_educator |>
+  select(contains("End of the school year"),
+         `Which subject area do you teach/ lead? If you teach/support both, please select the one for which you received support from Teaching Lab this year.`) |>
+  janitor::remove_empty("rows") |>
+  rename(
+`Please rate your confidence on the following items. <br>I am able to... - Adapt instruction to meet the needs of my students` = `Please rate your confidence on the following items <strong>at the beginning of the school year </strong>and now <strong>at the end of the school year. </strong><br>0 -<em> I was/am not confident at all</em>  to <br>10 -<em> I was/am extremely confident.</em> - Adapt instruction to meet the needs of my students - End of the school year (now)`,
+`Please rate your confidence on the following items. <br>I am able to... - Identify ways that the school culture (e.g., values, norms, and practices) is different from my students’ home culture` = `Please rate your confidence on the following items <strong>at the beginning of the school year </strong>and now <strong>at the end of the school year. </strong><br>0 -<em> I was/am not confident at all</em>  to <br>10 -<em> I was/am extremely confident.</em> - Identify ways that the school culture (e.g., values, norms, and practices) is different from my students’ home culture - End of the school year (now)`,
+`Please rate your confidence on the following items. <br>I am able to... - Use my students’ prior knowledge to help them make sense of new information` = `Please rate your confidence on the following items <strong>at the beginning of the school year </strong>and now <strong>at the end of the school year. </strong><br>0 -<em> I was/am not confident at all</em>  to <br>10 -<em> I was/am extremely confident.</em> - Use my students’ prior knowledge to help them make sense of new information - End of the school year (now)`,
+`Please rate your confidence on the following items. <br>I am able to... - Revise instructional material to include a better representation of cultural groups` = `Please rate your confidence on the following items <strong>at the beginning of the school year </strong>and now <strong>at the end of the school year. </strong><br>0 -<em> I was/am not confident at all</em>  to <br>10 -<em> I was/am extremely confident.</em> - Revise instructional material to include a better representation of cultural groups - End of the school year (now)`,
+`Please rate your confidence on the following items. <br>I am able to... - Teach the curriculum to students with unfinished learning` = `Please rate your confidence on the following items <strong>at the beginning of the school year </strong>and now <strong>at the end of the school year. </strong><br>0 -<em> I was/am not confident at all</em>  to <br>10 -<em> I was/am extremely confident.</em> - Teach the curriculum to students with unfinished learning - End of the school year (now)`,
+`Please rate your confidence on the following items. <br>I am able to... - Teach the curriculum to students who are from historically marginalized groups` = `Please rate your confidence on the following items <strong>at the beginning of the school year </strong>and now <strong>at the end of the school year. </strong><br>0 -<em> I was/am not confident at all</em>  to <br>10 -<em> I was/am extremely confident.</em> - Teach the curriculum to students who are from historically marginalized groups - End of the school year (now)`)
+
+followup_educator <- followup_educator |>
+  full_join(additional_crse_follow)
+  
+additional_crse_diagnostic <- followup_educator |>
+  select(contains("Beginning of the school year"),
+         `Which subject area do you teach/ lead? If you teach/support both, please select the one for which you received support from Teaching Lab this year.`) |>
+  janitor::remove_empty("rows") |>
+  rename(
+    `please_rate_your_confidence_on_the_following_items_br_i_am_able_to_adapt_instruction_to_meet_the_needs_of_my_students` = `Please rate your confidence on the following items <strong>at the beginning of the school year </strong>and now <strong>at the end of the school year. </strong><br>0 -<em> I was/am not confident at all</em>  to <br>10 -<em> I was/am extremely confident.</em> - Adapt instruction to meet the needs of my students - Beginning of the school year`,
+`please_rate_your_confidence_on_the_following_items_br_i_am_able_to_identify_ways_that_the_school_culture_e_g_values_norms_and_practices_is_different_from_my_students_home_culture` = `Please rate your confidence on the following items <strong>at the beginning of the school year </strong>and now <strong>at the end of the school year. </strong><br>0 -<em> I was/am not confident at all</em>  to <br>10 -<em> I was/am extremely confident.</em> - Identify ways that the school culture (e.g., values, norms, and practices) is different from my students’ home culture - Beginning of the school year`,
+`please_rate_your_confidence_on_the_following_items_br_i_am_able_to_use_my_students_prior_knowledge_to_help_them_make_sense_of_new_information` = `Please rate your confidence on the following items <strong>at the beginning of the school year </strong>and now <strong>at the end of the school year. </strong><br>0 -<em> I was/am not confident at all</em>  to <br>10 -<em> I was/am extremely confident.</em> - Use my students’ prior knowledge to help them make sense of new information - Beginning of the school year`,
+`please_rate_your_confidence_on_the_following_items_br_i_am_able_to_revise_instructional_material_to_include_a_better_representation_of_cultural_groups` = `Please rate your confidence on the following items <strong>at the beginning of the school year </strong>and now <strong>at the end of the school year. </strong><br>0 -<em> I was/am not confident at all</em>  to <br>10 -<em> I was/am extremely confident.</em> - Revise instructional material to include a better representation of cultural groups - Beginning of the school year`,
+`please_rate_your_confidence_on_the_following_items_br_i_am_able_to_teach_the_curriculum_to_students_with_unfinished_learning` = `Please rate your confidence on the following items <strong>at the beginning of the school year </strong>and now <strong>at the end of the school year. </strong><br>0 -<em> I was/am not confident at all</em>  to <br>10 -<em> I was/am extremely confident.</em> - Teach the curriculum to students with unfinished learning - Beginning of the school year`,
+`please_rate_your_confidence_on_the_following_items_br_i_am_able_to_teach_the_curriculum_to_students_who_are_from_historically_marginalized_groups` = `Please rate your confidence on the following items <strong>at the beginning of the school year </strong>and now <strong>at the end of the school year. </strong><br>0 -<em> I was/am not confident at all</em>  to <br>10 -<em> I was/am extremely confident.</em> - Teach the curriculum to students who are from historically marginalized groups - Beginning of the school year`,
+ `which_subject_area_do_you_teach_lead_if_you_teach_support_both_please_select_the_one_where_you_expect_to_work_with_teaching_lab_this_year_br_br` = `Which subject area do you teach/ lead? If you teach/support both, please select the one for which you received support from Teaching Lab this year.`
+  )
+
+diagnostic_survey <- diagnostic_survey |>
+  full_join(additional_crse_diagnostic)
+
+### Knowledge Assessment Counts ###
+pre_know <- knowledge_assessments |>
+  filter(prepost == "pre") |>
+  pull(id) |>
+  unique() |>
+  length()
+
+post_know <- knowledge_assessments |>
+  filter(prepost == "post") |>
+  pull(id) |>
+  unique() |>
+  length()
+
+### Diagnostic Counts ###
+diagnostic_count <- nrow(diagnostic_survey)
+
+follow_educator_count <- nrow(followup_educator)
+###################################################################################################
+
+no_data_plot <- ggplot(tibble(text = "There was no data\nfor this site here.", x = 0, y = 0)) +
+  geom_text(aes(label = text, x, y), fontface = "bold", family = "Calibri Bold", size = 10) +
+  theme_void()
+
+theme_final_report <- function() {
+  theme_tl(legend = T) +
+    theme(
+      axis.text.x = element_blank(),
+      axis.text.y = element_text(
+        lineheight = 0.9, size = 12,
+        margin = margin(t = 0, l = 0, r = -25, b = 0)
+      ),
+      strip.text = element_text(
+        size = 14, face = "bold", family = "Calibri Bold",
+        hjust = 0.5
+      ),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      legend.position = "bottom",
+      legend.margin = margin(-30, 0, 0, 0),
+      legend.key.height = unit(1.3, "cm"),
+      legend.key.width = unit(1.3, "cm"),
+      legend.key.size = unit(0.75, "cm"),
+      legend.text = element_text(size = 11),
+      plot.title = element_text(lineheight = 1.1, size = 18, face = "bold"),
+      plot.subtitle = element_text(size = 14, face = "bold")
+    )
+}
+
+na_df <- TeachingLab::na_df
+
+## Global options
+options(max.print = "75", width = 1000)
+opts_chunk$set(
+  echo = FALSE,
+  cache = F,
+  prompt = FALSE,
+  tidy = TRUE,
+  comment = NA,
+  message = FALSE,
+  warning = FALSE
+)
+```
+
+```{=html}
+<script src="js/hideOutput.js"></script>
+```
+#### 2021-2022 End of Year Report
+
+### Background
+
+To date (`r Sys.Date() %>% format("%b %d, %Y")`), Teaching Lab has
+administered the following to participants from your school or district
+during SY21-22:
+
+-   `r format(nrow(session_survey), big.mark = ",")` complete responses
+    to the End of Session Surveys that gather participant feedback on
+    facilitation from session to session;
+
+-   `r format(nrow(course_survey), big.mark = ",")` complete responses
+    to the End of Course Surveys that gather participant feedback on
+    each PL course;
+
+-   `r pre_know` complete responses to the first Knowledge or
+    Self-Reported Practices Assessments and `r post_know` to the second
+    Knowledge or Self-Reported Practices Assessments;
+
+-   `r format(diagnostic_count, big.mark = ",")` complete responses to
+    the Baseline Diagnostic Educator Survey and
+    `r follow_educator_count` to the Follow-up Educator Survey that
+    collects information on teachers' use of curricula, mindsets,
+    self-reported practices, and school environment.
+
+Below are the results presented in various sections: Participant
+Background and Demographics Summary, Participant Perceptions,
+Participant Knowledge, Teachers' Mindsets & School Environment,
+Administrators' Mindsets & Observational Practices, Instructional
+Practice, and Student Outcomes.
+
+# Section 1: Participant Background and Demographics Summary
+
+Teaching Lab collects information on participants' gender and racial
+identity, years of experience, content area and grades taught,
+summarized below.
+
+## Gender and Racial Identity
+
+::: {.fold .o}
+<center>
+
+```{r gender-identity, fig.dim = c(6.5, 4.5)}
+if (sum(!is.na(diagnostic_survey$gender_how_do_you_identify)) >= 1) {
+  gt_percent_n(
+    df = diagnostic_survey,
+    column = "gender_how_do_you_identify",
+    custom_column_name = "Gender Identity", viz_type = sample(c("waffle", "pie", "treemap"),
+      size = 1
+    )
+  )
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+::: {.fold .o}
+<center>
+
+```{r racial-identity, fig.dim = c(6.5, 4.5)}
+race_cols <- c(
+  "how_do_you_describe_your_race_you_may_check_more_than_one_box_black_or_african_american",
+  "how_do_you_describe_your_race_you_may_check_more_than_one_box_native_american_indian_or_alaska_native",
+  "how_do_you_describe_your_race_you_may_check_more_than_one_box_native_hawaiian_or_other_pacific_islander",
+  "how_do_you_describe_your_race_you_may_check_more_than_one_box_white",
+  "how_do_you_describe_your_race_you_may_check_more_than_one_box_i_prefer_not_to_say",
+  "how_do_you_describe_your_race_you_may_check_more_than_one_box_i_prefer_to_self_describe"
+)
+### Below code adds together the length of non na responses of all of the above columns to see if there is data ###
+if (reduce(map(race_cols, ~ sum(!is.na(diagnostic_survey[[.x]]))), `+`) >= 1) {
+  diagnostic_survey |>
+    select(
+      all_of(
+        race_cols
+      )
+    ) |>
+    pivot_longer(everything()) |>
+    mutate(value = fct_lump(factor(value), 3)) |>
+    rename(`Race Identity` = value) |>
+    gt_percent_n(
+      column = "Race Identity",
+      custom_column_name = "Racial Identity",
+      viz_type = sample(c("pie", "waffle", "treemap"), size = 1)
+    )
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+::: {.fold .o}
+<center>
+
+```{r racial-identity2, fig.dim = c(6.5, 4.5)}
+if (sum(!is.na(diagnostic_survey$how_do_you_describe_your_ethnicity)) >= 1) {
+  gt_percent_n(diagnostic_survey,
+    column = "how_do_you_describe_your_ethnicity",
+    custom_column_name = "Ethnicity", viz_type = sample(c("waffle", "pie", "treemap"),
+      size = 1
+    )
+  )
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+## Years of Teaching Experience
+
+::: {.fold .o}
+<center>
+
+```{r teach-experience}
+if (sum(!is.na(diagnostic_survey$approximately_how_many_years_of_teaching_experience_do_you_have)) >= 1) {
+  n <- sum(!is.na(diagnostic_survey$approximately_how_many_years_of_teaching_experience_do_you_have))
+
+  diagnostic_survey |>
+    transmute(experience = as.numeric(approximately_how_many_years_of_teaching_experience_do_you_have)) |>
+    mutate(experience = experience - (experience %% 10)) |>
+    drop_na(experience) |>
+    group_by(experience) |>
+    count(sort = T) |>
+    ungroup() |>
+    mutate(
+      percent = round(100 * n / sum(n), 1),
+      experience = factor(experience, levels = c("0", "10", "20", "30", "40", "50")),
+      color = if_else(percent < 10, "black", "white"),
+      hjust = if_else(color == "white", 1.5, -0.5)
+    ) |>
+    ggplot(aes(experience, percent)) +
+    geom_col(aes(fill = percent)) +
+    geom_text(aes(
+      label = paste0(percent, "%"),
+      color = color, hjust = hjust
+    ),
+    fontface = "bold"
+    ) +
+    coord_flip() +
+    labs(title = glue::glue("Years of Teaching Experience (n = {n})"), x = "", y = "") +
+    scale_color_manual(values = c("black", "white")) +
+    scale_fill_continuous() +
+    scale_y_continuous(
+      labels = scales::percent_format(scale = 1),
+      breaks = scales::pretty_breaks(n = 6)
+    ) +
+    scale_x_discrete(labels = c("0-9", "10-19", "20-29", "30-39", "40-49", "50+")) +
+    ggplot2::theme(
+      axis.text = ggtext::element_markdown(size = 20),
+      axis.title = ggtext::element_markdown(size = 24)
+    ) +
+    TeachingLab::theme_tl()
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+## Content Area
+
+::: {.fold .o}
+<center>
+
+```{r content-area, fig.dim = c(6.5, 4.5)}
+if (sum(!is.na(diagnostic_survey$which_subject_area_do_you_teach_lead_if_you_teach_support_both_please_select_the_one_where_you_expect_to_work_with_teaching_lab_this_year_br_br)) >= 1) {
+  diagnostic_survey |>
+    select(`Which Subject Area do you Teach or Support?` = which_subject_area_do_you_teach_lead_if_you_teach_support_both_please_select_the_one_where_you_expect_to_work_with_teaching_lab_this_year_br_br) %>%
+    drop_na() |>
+    gt_percent_n(
+      column = "Which Subject Area do you Teach or Support?",
+      custom_column_name = "Content Area", viz_type = sample(c("waffle", "pie", "treemap"),
+        size = 1
+      )
+    )
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+## Grades
+
+::: {.fold .o}
+<center>
+
+```{r grade}
+grades <- c(
+  "what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_k",
+  "what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_1",
+  "what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_2",
+  "what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_3",
+  "what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_4",
+  "what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_5",
+  "what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_6",
+  "what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_7",
+  "what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_8",
+  "what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_9",
+  "what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_10",
+  "what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_11",
+  "what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_12"
+)
+if (reduce(map(grades, ~ sum(!is.na(diagnostic_survey[[.x]]))), `+`) >= 1) {
+  n <- diagnostic_survey |>
+    select(grades) |>
+    janitor::remove_empty("rows") |>
+    nrow()
+
+  diagnostic_survey |>
+    select(grades) |>
+    pivot_longer(everything()) |>
+    tidyr::drop_na(value) |>
+    group_by(name) |>
+    count(sort = T) |>
+    mutate(name = as.character(readr::parse_number(name))) |>
+    suppressWarnings() |>
+    mutate(name = replace_na(name, "K")) |>
+    ungroup() |>
+    mutate(
+      percent = round(100 * n / sum(n), 1),
+      name = factor(name, levels = c(
+        "K", "1", "2", "3", "4", "5",
+        "6", "7", "8", "9", "10", "11",
+        "12"
+      ))
+    ) |>
+    ggplot(aes(name, percent)) +
+    geom_col(aes(fill = percent)) +
+    geom_text(aes(
+      label = paste0(percent, "%"),
+      color = ifelse(percent < 3, "black", "white"),
+      vjust = ifelse(percent < 3, -0.5, 1.3)
+    ),
+    fontface = "bold"
+    ) +
+    labs(
+      y = "", x = "Grade",
+      title = glue::glue("Grades Taught (n = {n})"),
+      subtitle = "<i>More than one could be selected.</i>"
+    ) +
+    scale_color_manual(values = c("black", "white")) +
+    scale_fill_continuous() +
+    scale_y_continuous(
+      labels = scales::percent_format(scale = 1),
+      breaks = scales::pretty_breaks(n = 6)
+    ) +
+    theme_tl() +
+    theme(
+      axis.text = element_markdown(size = 20),
+      axis.title = element_markdown(size = 24),
+      plot.subtitle = element_markdown()
+    )
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+## Prior Experience with Teaching Lab Professional Learning
+
+::: {.fold .o}
+<center>
+
+```{r prior-experience, fig.dim = c(6.5, 4.5)}
+if (sum(!is.na(diagnostic_survey$have_you_participated_in_professional_learning_with_teaching_lab_before_br_br)) >= 1) {
+  gt_percent_n(diagnostic_survey,
+    column = "have_you_participated_in_professional_learning_with_teaching_lab_before_br_br",
+    custom_column_name = "Previous Experience with Teaching Lab", viz_type = sample(c("waffle", "pie", "treemap"),
+      size = 1
+    )
+  )
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+## Roles
+
+::: {.fold .o}
+<center>
+
+```{r roles, fig.dim = c(6.5, 4.5)}
+if (sum(!is.na(diagnostic_survey$which_of_the_following_best_describes_your_primary_role_br_br)) >= 1) {
+  gt_percent_n(
+    df = diagnostic_survey,
+    column = "which_of_the_following_best_describes_your_primary_role_br_br",
+    custom_column_name = "Primary Role",
+    viz_type = sample(c("waffle", "treemap"),
+      size = 1
+    )
+  )
+} else {
+  no_data_plot
+}
+```
+
+```{r roles2, fig.dim = c(6.5, 4.5)}
+if (sum(!is.na(diagnostic_survey$are_you_a_lab_leader)) >= 1) {
+  gt_percent_n(
+    df = diagnostic_survey,
+    column = "are_you_a_lab_leader",
+    custom_column_name = "Lab Leader",
+    viz_type = sample(c("waffle", "pie", "treemap"),
+      size = 1
+    )
+  )
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+# Section 2: Participant Perceptions
+
+Teaching Lab collects participant feedback on facilitation from session
+to session and then on the entire course once it has concluded. Below
+are results for both.
+
+## Section 2a: End of Session Summary
+
+Participants' aggregate feedback on each session is provided below.
+
+::: {.fold .o}
+<center>
+
+```{r session-plot-agree, fig.width = 10, fig.height = 12}
+if (sum(!is.na(session_survey$`How much do you agree with the following statements about this facilitator today? - They demonstrated  deep knowledge of the content they facilitated.`)) >= 1) {
+  ### Get agree per question for end of session survey ###
+  plot_agree <- session_survey |>
+    rename(math_ela = `Select the content area for today’s professional learning session.`) |>
+    filter(math_ela %in% c("ELA", "Math")) |>
+    select(c(
+      math_ela,
+      "How much do you agree with the following statements about this facilitator today? - They demonstrated  deep knowledge of the content they facilitated.",
+      "How much do you agree with the following statements about this facilitator today? - They facilitated the content clearly.",
+      "How much do you agree with the following statements about this facilitator today? - They effectively built a safe learning community.",
+      "How much do you agree with the following statements about this facilitator today? - They were fully prepared for the session.",
+      "How much do you agree with the following statements about this facilitator today? - They responded to the group’s needs."
+    )) |>
+    pivot_longer(!math_ela, names_to = "Question", values_to = "Response") |>
+    drop_na() |>
+    dplyr::mutate(Question = str_remove_all(
+      Question,
+      "How much do you agree with the following statements about this facilitator today\\? - "
+    )) |>
+    group_by(Question, Response, math_ela) |>
+    count() |>
+    ungroup() |>
+    group_by(Question, math_ela) |>
+    mutate(Question = str_wrap(Question, width = 30)) |>
+    summarise(
+      n = n,
+      Response = Response,
+      Percent = n / sum(n) * 100
+    )
+
+  ### Calculate agree/strongly agree per each question ###
+  prepared_agree <- plot_agree |>
+    agree_strongly_agree(question = "They were fully prepared for\nthe session.")
+  responded_agree <- plot_agree |>
+    agree_strongly_agree(question = "They responded to the group’s\nneeds.")
+  facilitated_agree <- plot_agree |>
+    agree_strongly_agree(question = "They facilitated the content\nclearly.")
+  effectively_agree <- plot_agree |>
+    agree_strongly_agree(question = "They effectively built a safe\nlearning community.")
+  demonstrated_agree <- plot_agree |>
+    agree_strongly_agree(question = "They demonstrated deep\nknowledge of the content they\nfacilitated.")
+
+  ### Calculate n size ###
+  n_size_agree <- session_survey |>
+    filter(`Select the content area for today’s professional learning session.` %in% c("Math", "ELA")) |>
+    group_by(math_ela = `Select the content area for today’s professional learning session.`) |>
+    count(sort = T)
+
+  ### Make ggplot of session survey agree percent ###
+  plot_agree |>
+    group_by(Question, Response) |>
+    summarise(Percent = weighted.mean(Percent, n)) |>
+    ggplot(aes(x = Question, y = Percent, fill = factor(Response))) +
+    geom_col(color = NA, width = 0.95) +
+    geom_text(aes(
+      label = if_else(Percent >= 10, paste0(round(Percent), "%"), ""),
+      color = Response
+    ),
+    position = position_stack(vjust = 0.5),
+    fontface = "bold"
+    ) +
+    scale_fill_manual(values = c(
+      "(1) Strongly disagree" = "#040404", "(2) Disagree" = "#032E3F",
+      "(3) Neither agree nor disagree" = "#02587A", "(4) Agree" = "#0182B4", "(5) Strongly agree" = "#00ACF0"
+    )) +
+    scale_color_manual(values = c(
+      "(1) Strongly disagree" = "white", "(2) Disagree" = "white",
+      "(3) Neither agree nor disagree" = "black", "(4) Agree" = "black", "(5) Strongly agree" = "black"
+    )) +
+    labs(
+      fill = "", title = glue::glue("Participant Perceptions of Course Facilitation (n = {format(sum(n_size_agree$n), big.mark = ',')})"),
+      x = "", y = ""
+    ) +
+    coord_flip() +
+    guides(
+      fill = guide_legend(reverse = T),
+      color = "none"
+    ) +
+    scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+    theme_final_report()
+} else {
+  prepared_agree <- "There is no data to show the % that"
+  responded_agree <- "There is no data to show the % that"
+  facilitated_agree <- "There is no data to show the % that"
+  effectively_agree <- "There is no data to show the % that"
+  demonstrated_agree <- "There is no data to show the % that"
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+In summary, we see the following % agree or strongly agree with the
+above statements:
+
+-   `r paste0(mean(as.numeric(str_remove_all(prepared_agree, "%"))), "%")`
+    strongly agree or agree that the facilitators were fully prepared
+    for the session.
+-   `r paste0(mean(as.numeric(str_remove_all(responded_agree, "%"))), "%")`
+    strongly agree or agree that the facilitators responded to the
+    group's needs.
+-   `r paste0(mean(as.numeric(str_remove_all(facilitated_agree, "%"))), "%")`
+    strongly agree or agree that the facilitators facilitated the
+    content clearly.
+-   `r paste0(mean(as.numeric(str_remove_all(effectively_agree, "%"))), "%")`
+    strongly agree or agree that the facilitators effectively built a
+    safe learning community.
+-   `r paste0(mean(as.numeric(str_remove_all(demonstrated_agree, "%"))), "%")`
+    strongly agree or agree that the facilitators demonstrated deep
+    knowledge of the content they facilitated.
+
+Here, by visualizing ratings of strongly agree/agree in blue areas, and
+all other ratings in black areas we visualize feedback over time (If
+there is just one point of feedback this appears as a dot).
+
+::: {.fold .o}
+<center>
+
+```{r}
+if (sum(!is.na(session_survey$`How much do you agree with the following statements about this facilitator today? - They demonstrated  deep knowledge of the content they facilitated.`)) >= 1) {
+  plot_ts <- session_survey |>
+    select(
+      Date,
+      c(
+        "How much do you agree with the following statements about this facilitator today? - They demonstrated  deep knowledge of the content they facilitated.",
+        "How much do you agree with the following statements about this facilitator today? - They facilitated the content clearly.",
+        "How much do you agree with the following statements about this facilitator today? - They effectively built a safe learning community.",
+        "How much do you agree with the following statements about this facilitator today? - They were fully prepared for the session.",
+        "How much do you agree with the following statements about this facilitator today? - They responded to the group’s needs."
+      )
+    ) |>
+    pivot_longer(!`Date`, names_to = "question", values_to = "answer") |>
+    dplyr::mutate(question = str_remove_all(
+      question,
+      "How much do you agree with the following statements about this course\\? - "
+    )) |>
+    # Rename with line breaks every 27 characters
+    mutate(question = gsub("(.{28,}?)\\s", "\\1\n", question)) |>
+    drop_na(answer) |>
+    dplyr::group_by(question, Date) |>
+    # Group by input variable
+    mutate(`Number Agree/Disagree` = n()) |>
+    mutate(answer = str_remove_all(answer, "\\([:digit:]\\) ")) |>
+    mutate(
+      Rating = case_when(
+        answer %in% c("Agree", "Strongly agree") ~ "Agree/Strongly Agree",
+        answer %in% c("Neither agree nor disagree", "Disagree", "Strongly disagree") ~ "Neither/Disagree/Strongly Disagree"
+      ),
+      date_group = lubridate::month(Date)
+    ) |>
+    ungroup() |>
+    dplyr::mutate(question = str_remove_all(
+      question,
+      "How much do you agree with the\nfollowing statements about this\nfacilitator today\\? -"
+    )) |>
+    group_by(date_group, question) |>
+    mutate(Percent = `Number Agree/Disagree` / sum(`Number Agree/Disagree`) * 100) |>
+    filter(Rating == "Agree/Strongly Agree") |>
+    group_by(date_group, Rating, question) |>
+    summarise(
+      Percent = round(sum(Percent), 2),
+      Date = Date
+    )
+
+  plot_ts |>
+    ggplot(aes(
+      x = ymd(Date),
+      y = Percent
+    )) +
+    geom_area(color = "gray50", aes(fill = Rating), alpha = 0.6, position = position_identity()) + # position_identity is absolutely necessary here, not sure why
+    geom_ribbon(color = "transparent", aes(
+      ymin = Percent, ymax = 100,
+      fill = "Neither Agree nor Disagree/Disagree/Strongly Disagree"
+    ), alpha = 0.85) +
+    geom_line(size = 1.25, alpha = 0.9, aes(group = 1)) +
+    geom_point(size = 1, alpha = 0.9) +
+    facet_wrap(~ fct_reorder(question, .x = `Percent`, .fun = mean, .desc = T),
+      scales = "free"
+    ) +
+    coord_cartesian() +
+    scale_x_date(
+      date_breaks = "1 month",
+      date_labels = "%b",
+      limits = c(min(as.Date(plot_ts$Date)), max(as.Date(plot_ts$Date))),
+      expand = c(0, 0)
+    ) +
+    scale_y_continuous(
+      breaks = pretty_breaks(n = 5), limits = c(0, 100),
+      labels = scales::percent_format(scale = 1), expand = c(0, 0)
+    ) +
+    scale_fill_manual(values = c(rev(tl_palette(n = 2, color = "blue", theme = "dark")))) +
+    labs(x = "Date", title = glue::glue("Percent that Agree/Strongly Agree (n = {sum(n_size_agree$n, na.rm = T)})")) +
+    theme_bw() + # BW Panel panel elements
+    theme(
+      legend.position = "bottom",
+      legend.title = element_blank(),
+      legend.text = element_text(family = "Calibri"),
+      text = element_text(family = "Calibri", face = "bold"),
+      panel.grid.minor.x = element_blank(),
+      axis.text.x = element_text(size = 10),
+      strip.background = element_rect(fill = "white"),
+      strip.text = element_text(size = 10),
+      axis.title.x = element_blank(),
+      axis.title.y = element_blank(),
+      plot.title = element_text(hjust = 0.5, family = "Calibri", size = 16, face = "bold"),
+      axis.line = element_line(size = 1.5)
+    )
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+Finally, here are some highlights from the textual feedback of the end
+of session survey
+
+### Responses to "What could have been better about today's session?"
+
+::: {.fold .o}
+<center>
+
+```{r facilitation-feedback, fig.dim = c(6.5, 4.5), eval = T}
+quote1 <- session_survey |>
+  select(Facilitation_Feedback) |>
+  pivot_longer(everything(), names_to = "Question", values_to = "What could have been better about today’s session?") |>
+  drop_na() |>
+  filter(`What could have been better about today’s session?` %!in% na_df) |>
+  filter(str_length(`What could have been better about today’s session?`) > 30) |>
+  conditional_slice_sample(max = 15) |>
+  distinct(`What could have been better about today’s session?`)
+if (nrow(quote1) >= 1) {
+  TeachingLab::quote_viz(
+    data = quote1,
+    viz_type = "gt",
+    print = F,
+    n = 5,
+    width = 80,
+    align = "center"
+  ) |>
+    gtsave("tab1_1.png", path = tempdir(), vheight = "800", vwidth = "700")
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+### Responses to "What went well in today's session?"
+
+::: {.fold .o}
+<center>
+
+```{r went-well, fig.dim = c(6.5, 4.5), eval = T}
+quote2 <- session_survey |>
+  select(`What went well in today’s session?`) |>
+  pivot_longer(everything(), names_to = "Question", values_to = "What went well in today’s session?") |>
+  drop_na() |>
+  filter(`What went well in today’s session?` %!in% na_df) |>
+  filter(str_length(`What went well in today’s session?`) > 30) |>
+  conditional_slice_sample(max = 15) |>
+  distinct(`What went well in today’s session?`)
+if (nrow(quote2) >= 1) {
+  quote_viz(
+    data = quote2,
+    viz_type = "gt",
+    print = F,
+    n = 5,
+    width = 80,
+    align = "center"
+  ) |>
+    gtsave("tab2_1.png", path = tempdir(), zoom = 4)
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+### Responses to "What additional feedback do you have about their facilitation skills?"
+
+::: {.fold .o}
+<center>
+
+```{r been-better, fig.dim = c(6.5, 4.5), eval = T}
+quote3 <- session_survey |>
+  select(`What could have been better about today’s session?`) |>
+  pivot_longer(everything(), names_to = "Question", values_to = "What could have been better about today’s session?") |>
+  drop_na() |>
+  filter(`What could have been better about today’s session?` %!in% na_df) |>
+  filter(str_length(`What could have been better about today’s session?`) > 30) |>
+  conditional_slice_sample(max = 15) |>
+  distinct(`What could have been better about today’s session?`)
+if (nrow(quote3) >= 1) {
+  quote_viz(
+    data = quote3,
+    viz_type = "gt",
+    print = F,
+    n = 5,
+    width = 80,
+    align = "center"
+  ) |>
+    gtsave("tab3_1.png", path = tempdir(), zoom = 4)
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+## Section 2b: End of Course Summary
+
+Participants' feedback on each course is provided below.
+
+::: {.fold .o}
+<center>
+
+```{r course-plot-agree, fig.width = 10, fig.height = 12}
+if (nrow(course_survey) >= 1) {
+  plot_agree <- course_survey |>
+    mutate(math_ela = ifelse(`Select the content area for today's professional learning session.` == "Math",
+      "Math",
+      "ELA"
+    )) |>
+    select(
+      math_ela,
+      c(
+        "How much do you agree with the following statements about this course? - I am satisfied with the overall quality of this course.",
+        "How much do you agree with the following statements about this course? - I am satisfied with how the course was facilitated.",
+        "How much do you agree with the following statements about this course? - The independent online work activities were well-designed to help me meet the learning targets.",
+        "How much do you agree with the following statements about this course? - I felt a sense of community with the other participants in this course. even though we were meeting virtually.",
+        "How much do you agree with the following statements about this course? - The strategies I’ve learned in this course will improve my instruction.",
+        "How much do you agree with the following statements about this course? - The strategies I’ve learned in this course will improve my coaching or supervision of teachers.",
+        "How much do you agree with the following statements about this course? - The strategies I’ve learned in the course are easy to implement.",
+        "How much do you agree with the following statements about this course? - I will apply what I have learned in this course to my practice in the next 4-6 weeks.",
+        "How much do you agree with the following statements about this course? - This course has supported me in being responsive to students' backgrounds, cultures, and points of view."
+      )
+    ) |>
+    pivot_longer(!math_ela, names_to = "Question", values_to = "Response") |>
+    drop_na() |>
+    dplyr::mutate(Question = str_remove_all(
+      Question,
+      "How much do you agree with the following statements about this course\\? - "
+    )) |>
+    group_by(Question, Response, math_ela) |>
+    count() |>
+    ungroup() |>
+    group_by(Question, math_ela) |>
+    mutate(Question = str_wrap(Question, width = 30)) |>
+    summarise(
+      n = n,
+      Response = Response,
+      Percent = n / sum(n) * 100
+    )
+
+  ### Calculate agree/strongly agree per each question ###
+  quality_agree <- plot_agree |>
+    agree_strongly_agree(question = "I am satisfied with the\noverall quality of this\ncourse.")
+  facilitated_agree <- plot_agree |>
+    agree_strongly_agree(question = "I am satisfied with how the\ncourse was facilitated.")
+  four_six_agree <- plot_agree |>
+    agree_strongly_agree(question = "I will apply what I have\nlearned in this course to\nmy practice in the next 4-6\nweeks.")
+  community_agree <- plot_agree |>
+    agree_strongly_agree(question = "I felt a sense of community\nwith the other participants\nin this course. even though we\nwere meeting virtually.")
+  online_agree <- plot_agree |>
+    agree_strongly_agree(question = "The independent online work\nactivities were well-designed\nto help me meet the learning\ntargets.")
+  implement_agree <- plot_agree |>
+    agree_strongly_agree(question = "The strategies I’ve learned\nin the course are easy to\nimplement.")
+  improve_supervision_agree <- plot_agree |>
+    agree_strongly_agree(question = "The strategies I’ve learned\nin this course will improve\nmy coaching or supervision of\nteachers.")
+  improve_instruction_agree <- plot_agree |>
+    agree_strongly_agree(question = "The strategies I’ve learned\nin this course will improve my\ninstruction.")
+  supported_agree <- plot_agree |>
+    agree_strongly_agree(question = "This course has supported\nme in being responsive\nto students' backgrounds,\ncultures, and points of view.")
+
+  ### Calculate n size ###
+  n_size_agree <- course_survey |>
+    mutate(math_ela = ifelse(`Select the content area for today's professional learning session.` == "Math",
+      "Math",
+      "ELA"
+    )) |>
+    group_by(math_ela) |>
+    count()
+
+  plot_agree |>
+    group_by(Question, Response) |>
+    summarise(Percent = round(weighted.mean(Percent, n))) |>
+    ggplot(aes(x = Question, y = Percent, fill = factor(Response))) +
+    geom_col(color = NA) +
+    geom_text(aes(
+      label = if_else(Percent >= 10, paste0(round(Percent), "%"), ""),
+      color = Response
+    ),
+    position = position_stack(vjust = 0.5),
+    fontface = "bold"
+    ) +
+    scale_fill_manual(values = c(
+      "(1) Strongly disagree" = "#040404", "(2) Disagree" = "#032E3F",
+      "(3) Neither agree nor disagree" = "#02587A", "(4) Agree" = "#0182B4", "(5) Strongly agree" = "#00ACF0"
+    )) +
+    scale_color_manual(values = c(
+      "(1) Strongly disagree" = "white", "(2) Disagree" = "white",
+      "(3) Neither agree nor disagree" = "black", "(4) Agree" = "black", "(5) Strongly agree" = "black"
+    )) +
+    labs(
+      fill = "", title = glue::glue("Participant Perceptions of Course (n = {nrow(course_survey)})"),
+      x = "", y = ""
+    ) +
+    coord_flip() +
+    guides(
+      fill = guide_legend(reverse = T),
+      color = "none"
+    ) +
+    scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+    theme_final_report()
+} else {
+  facilitated_agree <- "There is no data to show the % that"
+  community_agree <- "There is no data to show the % that"
+  four_six_agree <- "There is no data to show the % that"
+  online_agree <- "There is no data to show the % that"
+  implement_agree <- "There is no data to show the % that"
+  improve_supervision_agree <- "There is no data to show the % that"
+  improve_instruction_agree <- "There is no data to show the % that"
+  supported_agree <- "There is no data to show the % that"
+
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+In summary, we see the following % agree or strongly agree with the
+above statements:
+
+-   `r paste0(mean(as.numeric(str_remove_all(facilitated_agree, "%"))), "%")`
+    strongly agree or agree that they were satisfied with how the course
+    was facilitated.
+-   `r paste0(mean(as.numeric(str_remove_all(community_agree, "%"))), "%")`
+    strongly agree or agree that they felt a sense of community with the
+    other participants in the course even though they were meeting
+    virtually.
+-   `r paste0(mean(as.numeric(str_remove_all(four_six_agree, "%"))), "%")`
+    strongly agree or agree that they will apply what they have learned
+    in the course to their practice in the next 4-6 weeks.
+-   `r paste0(mean(as.numeric(str_remove_all(online_agree, "%"))), "%")`
+    strongly agree or agree that the independent online work activities
+    were well-designed to help me meet learning targets.
+-   `r paste0(mean(as.numeric(str_remove_all(implement_agree, "%"))), "%")`
+    strongly agree or agree that the strategies I've learned in the
+    course are easy to implement.
+-   `r paste0(mean(as.numeric(str_remove_all(improve_supervision_agree, "%"))), "%")`
+    strongly agree or agree that they've learned in this course will
+    improve my supervision of teachers.
+-   `r paste0(mean(as.numeric(str_remove_all(improve_instruction_agree, "%"))), "%")`
+    strongly agree or agree that they've learned in this course will
+    improve my instruction.
+-   `r paste0(mean(as.numeric(str_remove_all(supported_agree, "%"))), "%")`
+    strongly agree or agree that the course has supported me in being
+    responsive to students' backgrounds, cultures, and points of view.
+
+Here, by visualizing ratings of strongly agree/agree in blue areas, and
+all other ratings in black areas we visualize feedback over time (If
+there is just one point of feedback this appears as a dot).
+
+::: {.fold .o}
+<center>
+
+```{r fig.width = 10, fig.height = 10}
+plot_ts <- course_survey |>
+  select(
+    date_created,
+    c(
+      "How much do you agree with the following statements about this course? - I am satisfied with the overall quality of this course.",
+      "How much do you agree with the following statements about this course? - I am satisfied with how the course was facilitated.",
+      "How much do you agree with the following statements about this course? - The independent online work activities were well-designed to help me meet the learning targets.",
+      "How much do you agree with the following statements about this course? - I felt a sense of community with the other participants in this course. even though we were meeting virtually.",
+      "How much do you agree with the following statements about this course? - The strategies I’ve learned in this course will improve my instruction.",
+      "How much do you agree with the following statements about this course? - The strategies I’ve learned in this course will improve my coaching or supervision of teachers.",
+      "How much do you agree with the following statements about this course? - The strategies I’ve learned in the course are easy to implement.",
+      "How much do you agree with the following statements about this course? - I will apply what I have learned in this course to my practice in the next 4-6 weeks.",
+      "How much do you agree with the following statements about this course? - This course has supported me in being responsive to students' backgrounds, cultures, and points of view."
+    )
+  ) |>
+  pivot_longer(!`date_created`, names_to = "question", values_to = "answer") |>
+  dplyr::mutate(question = str_remove_all(
+    question,
+    "How much do you agree with the following statements about this course\\? - "
+  )) |>
+  # Rename with line breaks every 27 characters
+  mutate(question = gsub("(.{28,}?)\\s", "\\1\n", question)) |>
+  drop_na(answer) |>
+  dplyr::group_by(question, date_created) |>
+  # Group by input variable
+  mutate(`Number Agree/Disagree` = n()) |>
+  mutate(answer = str_remove_all(answer, "\\([:digit:]\\) ")) |>
+  mutate(
+    Rating = case_when(
+      answer %in% c("Agree", "Strongly agree") ~ "Agree/Strongly Agree",
+      answer %in% c("Neither agree nor disagree", "Disagree", "Strongly disagree") ~ "Neither/Disagree/Strongly Disagree"
+    ),
+    date_group = lubridate::month(date_created)
+  ) |>
+  ungroup() |>
+  group_by(date_group, question) |>
+  mutate(Percent = `Number Agree/Disagree` / sum(`Number Agree/Disagree`) * 100) |>
+  filter(Rating == "Agree/Strongly Agree") |>
+  group_by(date_group, Rating, question) |>
+  summarise(
+    Percent = round(sum(Percent), 2),
+    date_created = date_created
+  )
+
+n <- nrow(course_survey)
+
+if (nrow(plot_ts) >= 1) {
+  plot_ts |>
+    ggplot(aes(
+      x = ymd(date_created),
+      y = Percent
+    )) +
+    geom_area(color = "gray50", aes(fill = Rating), alpha = 0.6, position = position_identity()) + # position_identity is absolutely necessary here, not sure why
+    geom_ribbon(color = "transparent", aes(
+      ymin = Percent, ymax = 100,
+      fill = "Neither Agree nor Disagree/Disagree/Strongly Disagree"
+    ), alpha = 0.85) +
+    geom_line(size = 1.25, alpha = 0.9, aes(group = 1)) +
+    geom_point(size = 1, alpha = 0.9) +
+    facet_wrap(~ fct_reorder(question, .x = `Percent`, .fun = mean, .desc = T),
+      scales = "free"
+    ) +
+    coord_cartesian() +
+    scale_x_date(
+      date_breaks = "1 month",
+      date_labels = "%b",
+      limits = c(min(as.Date(plot_ts$date_created)), max(as.Date(plot_ts$date_created))),
+      expand = c(0, 0)
+    ) +
+    scale_y_continuous(
+      breaks = pretty_breaks(n = 5), limits = c(0, 100),
+      labels = scales::percent_format(scale = 1), expand = c(0, 0)
+    ) +
+    scale_fill_manual(values = c(rev(tl_palette(n = 2, color = "blue", theme = "dark")))) +
+    labs(x = "Date", title = glue::glue("Percent that Agree/Strongly Agree (n = {n})")) +
+    theme_bw() + # BW Panel panel elements
+    theme(
+      legend.position = "bottom",
+      legend.title = element_blank(),
+      legend.text = element_text(family = "Calibri"),
+      text = element_text(family = "Calibri", face = "bold"),
+      panel.grid.minor.x = element_blank(),
+      axis.text.x = element_text(size = 10),
+      strip.background = element_rect(fill = "white"),
+      strip.text = element_text(size = 10),
+      axis.title.x = element_blank(),
+      axis.title.y = element_blank(),
+      plot.title = element_text(hjust = 0.5, family = "Calibri", size = 16, face = "bold"),
+      axis.line = element_line(size = 1.5)
+    )
+} else {
+  ggplot(tibble(text = "There was no data for this site here.", x = 0, y = 0)) +
+    geom_text(aes(label = text, x, y)) +
+    theme_void()
+}
+```
+
+</center>
+:::
+
+Several samplings of the textual feedback from the course survey are
+presented below.
+
+### Responses to "What went well in this course?"
+
+::: {.fold .o}
+<center>
+
+```{r course-quote-1, fig.dim = c(6.5, 4.5), eval = T}
+quote1 <- course_survey |>
+  select(`Overall, what went well in this course?`) |>
+  pivot_longer(everything(), names_to = "Question", values_to = "Overall, what went well in this course?") |>
+  drop_na() |>
+  filter(`Overall, what went well in this course?` %!in% na_df) |>
+  filter(str_length(`Overall, what went well in this course?`) > 30) |>
+  conditional_slice_sample(max = 15) |>
+  distinct(`Overall, what went well in this course?`)
+if (nrow(quote1) >= 1) {
+  quote_viz(
+    data = quote1,
+    viz_type = "gt",
+    print = F,
+    n = 5,
+    width = 80,
+    align = "center"
+  ) |>
+    gtsave("tab1_3.png", path = tempdir(), zoom = 4)
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+### Responses to "Overall, what could have been better in this course?"
+
+::: {.fold .o}
+<center>
+
+```{r course-quote-2, fig.dim = c(6.5, 4.5), eval = T}
+quote2 <- course_survey |>
+  select(`Overall, what could have been better in this course?`) |>
+  pivot_longer(everything(), names_to = "Question", values_to = "Overall, what could have been better in this course?") |>
+  drop_na() |>
+  filter(`Overall, what could have been better in this course?` %!in% na_df) |>
+  filter(str_length(`Overall, what could have been better in this course?`) > 30) |>
+  conditional_slice_sample(max = 15) |>
+  distinct(`Overall, what could have been better in this course?`)
+if (nrow(quote2) >= 1) {
+  quote_viz(
+    data = quote2,
+    viz_type = "gt",
+    print = F,
+    n = 5,
+    width = 80,
+    align = "center"
+  ) |>
+    gtsave("tab2_3.png", path = tempdir(), zoom = 4)
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+### Responses to "What is the learning from this course that you are most excited about trying out?"
+
+::: {.fold .o}
+<center>
+
+```{r course-quote-3, fig.dim = c(6.5, 4.5), eval = T}
+quote3 <- course_survey |>
+  select(`What is the learning from this course that you are most excited about trying out?`) |>
+  pivot_longer(everything(), names_to = "Question", values_to = "What is the learning from this course that you are most excited about trying out?") |>
+  drop_na() |>
+  filter(`What is the learning from this course that you are most excited about trying out?` %!in% na_df) |>
+  filter(str_length(`What is the learning from this course that you are most excited about trying out?`) > 30) |>
+  conditional_slice_sample(max = 15) |>
+  distinct(`What is the learning from this course that you are most excited about trying out?`)
+
+if (nrow(quote3) >= 1) {
+  quote_viz(
+    data = quote3,
+    viz_type = "gt",
+    print = F,
+    n = 5,
+    width = 80,
+    align = "center"
+  ) |>
+    gtsave("tab3_4.png", path = tempdir(), zoom = 4)
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+### Responses to "Which activities best supported your learning in this course?"
+
+::: {.fold .o}
+<center>
+
+```{r course-quote-4, fig.dim = c(6.5, 4.5), eval = T}
+quote4 <- course_survey |>
+  select(`Which activities best supported your learning in this course?`) |>
+  pivot_longer(everything(), names_to = "Question", values_to = "Which activities best supported your learning in this course?") |>
+  drop_na() |>
+  filter(`Which activities best supported your learning in this course?` %!in% na_df) |>
+  filter(str_length(`Which activities best supported your learning in this course?`) > 30) |>
+  conditional_slice_sample(max = 15) |>
+  distinct(`Which activities best supported your learning in this course?`)
+if (nrow(quote4) >= 1) {
+  quote_viz(
+    data = quote4,
+    viz_type = "gt",
+    print = F,
+    n = 5,
+    width = 80,
+    align = "center"
+  ) |>
+    gtsave("tab4_5.png", path = tempdir(), zoom = 4)
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+### Responses to "Feel free to leave us any additional comments, concerns, or questions."
+
+::: {.fold .o}
+<center>
+
+```{r course-quote-5, fig.dim = c(6.5, 4.5), eval = T}
+quote5 <- course_survey |>
+  select(`Feel free to leave us any additional comments, concerns, or questions.`) |>
+  pivot_longer(everything(), names_to = "Question", values_to = "Feel free to leave us any additional comments, concerns, or questions.") |>
+  drop_na() |>
+  filter(`Feel free to leave us any additional comments, concerns, or questions.` %!in% na_df) |>
+  filter(str_length(`Feel free to leave us any additional comments, concerns, or questions.`) > 30) |>
+  conditional_slice_sample(max = 15) |>
+  distinct(`Feel free to leave us any additional comments, concerns, or questions.`)
+if (nrow(quote5) >= 1) {
+  quote_viz(
+    data = quote5,
+    viz_type = "gt",
+    print = F,
+    n = 5,
+    width = 80,
+    align = "center"
+  ) |>
+    gtsave("tab5_6.png", path = tempdir(), zoom = 4)
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+## Section 2c: Final Feedback
+
+### Final Qualitative Feedback - Overall, what did you gain from the professional learning you received from Teaching Lab this year?
+
+::: {.fold .o}
+<center>
+
+```{r final-feedback-1, fig.dim = c(6.5, 4.5)}
+quote_final <- followup_educator |>
+  select(`Overall, what did you gain from the professional learning you received from Teaching Lab this year?`) |>
+  pivot_longer(everything(), names_to = "Question", values_to = "Overall, what did you gain from the professional learning you received from Teaching Lab this year?") |>
+  drop_na() |>
+  filter(`Overall, what did you gain from the professional learning you received from Teaching Lab this year?` %!in% na_df) |>
+  filter(str_length(`Overall, what did you gain from the professional learning you received from Teaching Lab this year?`) > 30) |>
+  conditional_slice_sample(max = 15) |>
+  distinct(`Overall, what did you gain from the professional learning you received from Teaching Lab this year?`)
+if (nrow(quote_final) >= 1) {
+  quote_viz(
+    data = quote_final,
+    viz_type = "gt",
+    print = F,
+    n = 5,
+    width = 80,
+    align = "center"
+  ) |>
+    gtsave("tab_final_1.png", path = tempdir(), zoom = 4)
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+### Final Qualitative Feedback - Overall, what could have improved about the professional learning you received from Teaching Lab this year?
+
+::: {.fold .o}
+<center>
+
+```{r final-feedback-2, fig.dim = c(6.5, 4.5)}
+quote_final <- followup_educator |>
+  select(`Overall, what could have improved about the professional learning you received from Teaching Lab this year?`) |>
+  pivot_longer(everything(), names_to = "Question", values_to = "Overall, what could have improved about the professional learning you received from Teaching Lab this year?") |>
+  drop_na() |>
+  filter(`Overall, what could have improved about the professional learning you received from Teaching Lab this year?` %!in% na_df) |>
+  filter(str_length(`Overall, what could have improved about the professional learning you received from Teaching Lab this year?`) > 30) |>
+  conditional_slice_sample(max = 15) |>
+  distinct(`Overall, what could have improved about the professional learning you received from Teaching Lab this year?`)
+if (nrow(quote_final) >= 1) {
+  quote_viz(
+    data = quote_final,
+    viz_type = "gt",
+    print = F,
+    n = 5,
+    width = 80,
+    align = "center"
+  ) |>
+    gtsave("tab_final_2.png", path = tempdir(), zoom = 4)
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+### Teachers' Top Professional Learning Needs
+
+::: {.fold .o}
+<center>
+
+```{r final-feedback-3, fig.width = 10, fig.height = 12}
+if (nrow(followup_educator) >= 1) {
+  future_activities <- followup_educator |>
+    select(
+      `In what activities would you want to invest your time and effort in future professional learning experiences? Please select your top two options. - Developing effective professional communities with peers`,
+      `In what activities would you want to invest your time and effort in future professional learning experiences? Please select your top two options. - Unpacking curriculum`,
+      `In what activities would you want to invest your time and effort in future professional learning experiences? Please select your top two options. - Implementing effective, evidence-based instructional practices`,
+      `In what activities would you want to invest your time and effort in future professional learning experiences? Please select your top two options. - Teaching from a culturally responsive lens`,
+      `In what activities would you want to invest your time and effort in future professional learning experiences? Please select your top two options. - Supporting diverse student learners, including: English Learners, students with disabilities, and students with unfinished learning`,
+      `In what activities would you want to invest your time and effort in future professional learning experiences? Please select your top two options. - Becoming a facilitator for peer professional learning`
+    ) |>
+    summarise(across(everything(), ~ round(100 * sum(!is.na(.x)) / sum(is.na(.x))))) |>
+    pivot_longer(everything()) |>
+    mutate(name = str_wrap(str_remove_all(name, "In what activities would you want to invest your time and effort in future professional learning experiences\\? Please select your top two options\\. - "),
+      width = 30
+    ))
+
+  n_size_future <- nrow(followup_educator)
+
+  future_activities |>
+    ggplot(aes(x = name, y = value, fill = name)) +
+    geom_col(color = NA) +
+    labs(
+      x = "",
+      y = "",
+      subtitle = "Participants could select up to two options",
+      title = glue::glue("Teachers’ Top Professional Learning Needs (n = {n_size_future})")
+    ) +
+    scale_y_continuous(labels = label_percent(scale = 1)) +
+    scale_fill_manual(values = tl_palette(color = "blue", n = length(unique(future_activities$name)))) +
+    coord_flip() +
+    theme_tl() +
+    theme(
+      plot.title = element_text(lineheight = 1.1, size = 18, face = "bold"),
+      plot.subtitle = element_text(face = "italic"),
+      axis.text.y = element_text(size = 12),
+      axis.text.x = element_text(size = 12)
+    )
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+# Section 3: Participant Knowledge (pre/post PL course)
+
+## Section 3a: Summary Information
+
+::: {.fold .o}
+<center>
+
+```{r knowledge-assessments-summary, fig.dim = c(8,8)}
+unique_tables <- unique(knowledge_assessments$know_assess)
+
+n_know_size <- knowledge_assessments |>
+  dplyr::filter(prepost == "post") |>
+  dplyr::group_by(id, know_assess) |>
+  dplyr::count() |>
+  dplyr::ungroup() |>
+  dplyr::count() |>
+  dplyr::first() >= 5
+
+if (nrow(knowledge_assessments) == 0) {
+  n_know_size <- T # True so it can recognize there are no tables to make
+}
+
+# Same but slightly faster method for saving image files to display in next chunk
+if (n_know_size) {
+  if (length(unique_tables) > 0) {
+    for (i in 1:length(unique_tables)) {
+      TeachingLab::know_assess_summary(knowledge_assessments, unique_tables[i])
+    }
+
+    knitr::include_graphics(list.files(here::here("images/report_summary_images"), full.names = T))
+  } else {
+    no_data_plot
+  }
+} else {
+  ggplot(tibble(text = "No data to show as n < 5", x = 0, y = 0)) +
+    geom_text(aes(label = text, x, y),
+      fontface = "bold",
+      size = 10, family = "Calibri Bold"
+    ) +
+    theme_void()
+}
+```
+
+</center>
+:::
+
+# Section 4: Teachers' Mindsets & School Environment
+
+Teaching Lab administers a Diagnostic Educator Survey in the fall and a
+Follow-up Educator Survey in the spring. The results are below.
+
+## Section 4a: Teachers - Use of Curricula (Math)
+
+::: {.fold .o}
+<center>
+
+```{r use-of-curricula-teachers-math, fig.width = 12, fig.height = 12}
+### Math Teacher Curricula ###
+teacher_curricula_use_math_1 <- c(
+  "how_often_do_you_use_the_following_curricula_for_your_instruction_on_average_engage_ny_eureka",
+  "how_often_do_you_use_the_following_curricula_for_your_instruction_on_average_illustrative_mathematics",
+  "how_often_do_you_use_the_following_curricula_for_your_instruction_on_average_zearn",
+  "how_often_do_you_use_the_following_curricula_for_your_instruction_on_average_curricula_i_create_myself_2",
+  "how_often_do_you_use_the_following_curricula_for_your_instruction_on_average_curricula_my_school_or_district_has_created_2",
+  "how_often_do_you_use_the_following_curricula_for_your_instruction_on_average_another_published_math_curriculum_please_specify_below"
+)
+
+teacher_curricula_use_math_2 <- c(
+  "How often do you use the following curricula for your instruction on average? - EngageNY/Eureka",
+  "How often do you use the following curricula for your instruction on average? - Illustrative Mathematics",
+  "How often do you use the following curricula for your instruction on average? - Zearn",
+  "How often do you use the following curricula for your instruction on average? - Curricula I create myself_2",
+  "How often do you use the following curricula for your instruction on average? - Curricula my school or district has created_2",
+  "How often do you use the following curricula for your instruction on average? - Another published Math curriculum (please specify below)"
+)
+
+if (sum(!is.na(diagnostic_survey$how_often_do_you_use_the_following_curricula_for_your_instruction_on_average_engage_ny_eureka)) >= 1) {
+  n1 <- diagnostic_survey |>
+    select(all_of(teacher_curricula_use_math_1)) |>
+    janitor::remove_empty("rows") |>
+    nrow()
+
+  n2 <- followup_educator |>
+    select(all_of(teacher_curricula_use_math_2)) |>
+    janitor::remove_empty("rows") |>
+    nrow()
+
+  plot_data_1 <- diagnostic_survey |>
+    select(all_of(teacher_curricula_use_math_1)) |>
+    pivot_longer(everything()) |>
+    filter(value != "Never") |>
+    mutate(name = str_remove_all(name, c("how_often_do_you_use_the_following_curricula_for_your_instruction_on_average_|_2"))) |>
+    mutate(name = html_wrap(str_to_sentence(str_replace_all(name, "_", " ")), n = 30)) |>
+    tidyr::drop_na(value) |>
+    group_by(value, name) |> # Group by both name and value
+    summarise(n = n()) |> # Get n of union of subgroup
+    group_by(name) |> # Group by just value
+    mutate(percent = 100 * (n / sum(n))) |> # Get percent of value within name
+    # String replacement so axis text doesn't get crowded
+    mutate(
+      value = str_replace_all(
+        value,
+        "More than three times week",
+        "More than<br>three times<br>a week"
+      ),
+      value = str_replace_all(
+        value,
+        "Three times a week",
+        "Three times<br>a week"
+      ),
+      value = str_replace_all(
+        value,
+        "More than three times a week",
+        "More than<br>three times<br>a week"
+      ),
+      value = str_replace_all(
+        value,
+        "Once a week",
+        "Once a<br>week"
+      ),
+      value = str_replace_all(
+        value,
+        "Twice a week",
+        "Twice a<br>week"
+      ),
+      value = factor(value, levels = c(
+        "Never",
+        "Once a<br>week",
+        "Twice a<br>week",
+        "Three times<br>a week",
+        "More than<br>three times<br>a week"
+      ))
+    ) |>
+    group_by(name, value) |>
+    summarise(n = sum(n)) |>
+    ungroup() |>
+    group_by(name) |>
+    mutate(
+      percent = round(100 * n / sum(n), 2),
+      text = ifelse(value == "Once a<br>week", "white", "black")
+    ) |>
+    ungroup()
+
+  plot_data_2 <- followup_educator |>
+    select(all_of(teacher_curricula_use_math_2)) |>
+    pivot_longer(everything()) |>
+    filter(value != "Never") |>
+    mutate(name = str_remove_all(name, c("How often do you use the following curricula for your instruction on average\\? - |_2"))) |>
+    mutate(name = html_wrap(name, n = 40)) |>
+    tidyr::drop_na(value) |>
+    group_by(value, name) |> # Group by both name and value
+    summarise(n = n()) |> # Get n of union of subgroup
+    group_by(name) |> # Group by just value
+    mutate(percent = 100 * (n / sum(n))) |> # Get percent of value within name
+    # String replacement so axis text doesn't get crowded
+    mutate(
+      value = str_replace_all(
+        value,
+        "Three times a week",
+        "Three times<br>a week"
+      ),
+      value = str_replace_all(
+        value,
+        "More than three times a week",
+        "More than<br>three times<br>a week"
+      ),
+      value = str_replace_all(
+        value,
+        "Once a week",
+        "Once a<br>week"
+      ),
+      value = str_replace_all(
+        value,
+        "Twice a week",
+        "Twice a<br>week"
+      ),
+      value = factor(value, levels = c(
+        "Never",
+        "Once a<br>week",
+        "Twice a<br>week",
+        "Three times<br>a week",
+        "More than<br>three times<br>a week"
+      ))
+    ) |>
+    group_by(name, value) |>
+    summarise(n = sum(n)) |>
+    ungroup() |>
+    group_by(name) |>
+    mutate(
+      percent = round(100 * n / sum(n), 2),
+      text = as.character(ifelse(value == "Once a<br>week", "white", "black"))
+    ) |>
+    ungroup()
+
+  plot_data_final <- plot_data_1 |>
+    mutate(prepost = paste0("Pre (n = ", n1, ")")) |>
+    full_join(plot_data_2 |> mutate(prepost = paste0("Post (n = ", n2, ")"))) |>
+    mutate(
+      name = str_replace_all(name, c(
+        "Illustrative mathematics" = "Illustrative Mathematics",
+        "Engage ny eureka" = "EngageNY/Eureka",
+        "Curricula my school or district has<br>created" = "Curricula my school or<br>district has created",
+        "Curricula I create myself" = "Curricula I Create Myself",
+        "Curricula i create myself" = "Curricula I Create Myself"
+      )),
+      name = TeachingLab::string_replace(name, "Another published", "Another published ELA curriculum (please<br>specify below)"),
+      prepost = factor(prepost, levels = c(
+        paste0("Pre (n = ", n1, ")"),
+        paste0("Post (n = ", n2, ")")
+      ))
+    ) |>
+    filter(name != "Other (please specify)")
+
+  plot_data_final |>
+    ggplot(aes(x = name, y = percent, fill = value)) +
+    geom_col(position = position_stack(reverse = F)) +
+    geom_richtext(aes(
+      label = paste0(round(percent), "%"),
+      color = text,
+      group = value
+    ),
+    size = 4.25, lineheight = 0.5,
+    fill = NA, label.color = NA,
+    position = position_stack(vjust = 0.5, reverse = F),
+    fontface = "bold"
+    ) +
+    facet_wrap(~prepost) +
+    labs(
+      x = "", y = "",
+      title = "Average Use of Curricula",
+      subtitle = glue::glue("<i>Note: Participants could select more than one answer."),
+      fill = ""
+    ) +
+    guides(
+      fill = guide_legend(override.aes = list(size = 10), reverse = T),
+      color = "none"
+    ) +
+    coord_flip() +
+    scale_x_discrete(labels = c(
+      "Another Published<br>Math Curriculum",
+      "Curricula I Create Myself",
+      "Curricula My School or<br>District has Created",
+      "Engage NY/Eureka",
+      "Illustrative Mathematics",
+      "Zearn"
+    )) +
+    scale_y_continuous(
+      labels = scales::percent_format(scale = 1),
+      expand = c(0, 0),
+      breaks = NULL
+    ) +
+    scale_fill_manual(values = tl_palette(color = "blue", n = 4)) +
+    scale_color_manual(values = c("black", "white")) +
+    theme_tl(legend = T) +
+    theme(
+      axis.text.x = element_markdown(family = "Calibri", size = 10, lineheight = 0.7),
+      axis.text.y = element_markdown(size = 14, family = "Calibri"),
+      strip.text = element_markdown(
+        family = "Calibri Bold", size = 15,
+        face = "bold",
+        hjust = 0.5,
+        margin = margin(5, -20, 5, -20)
+      ),
+      axis.title = element_markdown(family = "Calibri", size = 22),
+      plot.title = element_markdown(family = "Calibri Bold", size = 32, face = "bold"),
+      plot.subtitle = element_markdown(family = "Calibri"),
+      legend.position = "bottom",
+      legend.text = element_markdown()
+    )
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+## Section 4b: Teachers - Mindsets
+
+Teachers responded to items about the recognition of race and culture
+and holding high expectations for all students.
+
+<center>
+
+```{r mindsets-overall, fig.dim = c(6, 6)}
+#### Mindsets Column Names ####
+teacher_mindsets <- c(
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_am_color_blind_when_it_comes_to_my_teaching_i_don_t_think_of_my_students_in_terms_of_their_race_or_ethnicity",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_the_gap_in_the_achievement_among_students_of_different_races_is_about_poverty_not_race",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_think_about_my_own_background_and_experiences_and_how_those_affect_my_instruction",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_try_to_keep_in_mind_the_limits_of_my_students_ability_and_give_them_assignments_that_i_know_they_can_do_so_that_they_do_not_become_discouraged",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_before_students_are_asked_to_engage_in_complex_learning_tasks_they_need_to_have_a_solid_grasp_of_basic_skills",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_it_is_not_fair_to_ask_students_who_are_struggling_with_english_to_take_on_challenging_academic_assignments",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_teachers_should_provide_all_students_the_opportunity_to_work_with_grade_level_texts_and_tasks",
+  "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_adapt_instruction_to_meet_the_needs_of_my_students",
+  "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_identify_ways_that_the_school_culture_e_g_values_norms_and_practices_is_different_from_my_students_home_culture",
+  "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_use_my_students_prior_knowledge_to_help_them_make_sense_of_new_information",
+  "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_revise_instructional_material_to_include_a_better_representation_of_cultural_groups",
+  "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_teach_the_curriculum_to_students_with_unfinished_learning",
+  "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_teach_the_curriculum_to_students_who_are_from_historically_marginalized_groups"
+)
+
+teacher_mindsets_2 <- c(
+  "To what extent do you agree or disagree with the following statements? - I am color blind when it comes to my teaching - I don’t think of my students in terms of their race or ethnicity.",
+  "To what extent do you agree or disagree with the following statements? - The gap in the achievement among students of different races is about poverty, not race.",
+  "To what extent do you agree or disagree with the following statements? - I think about my own background and experiences and how those affect my instruction.",
+  "To what extent do you agree or disagree with the following statements? - I try to keep in mind the limits of my students’ ability and give them assignments that I know they can do so that they do not become discouraged.",
+  "To what extent do you agree or disagree with the following statements? - Before students are asked to engage in complex learning tasks, they need to have a solid grasp of basic skills.",
+  "To what extent do you agree or disagree with the following statements? - It is not fair to ask students who are struggling with English to take on challenging academic assignments.",
+  "To what extent do you agree or disagree with the following statements? - Teachers should provide all students the opportunity to work with grade-level texts and tasks.",
+  "Please rate your confidence on the following items. <br>I am able to... - Adapt instruction to meet the needs of my students",
+  "Please rate your confidence on the following items. <br>I am able to... - Identify ways that the school culture (e.g., values, norms, and practices) is different from my students’ home culture",
+  "Please rate your confidence on the following items. <br>I am able to... - Use my students’ prior knowledge to help them make sense of new information",
+  "Please rate your confidence on the following items. <br>I am able to... - Revise instructional material to include a better representation of cultural groups",
+  "Please rate your confidence on the following items. <br>I am able to... - Teach the curriculum to students with unfinished learning",
+  "Please rate your confidence on the following items. <br>I am able to... - Teach the curriculum to students who are from historically marginalized groups"
+)
+
+equitable_questions <- c(
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_am_color_blind_when_it_comes_to_my_teaching_i_don_t_think_of_my_students_in_terms_of_their_race_or_ethnicity",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_the_gap_in_the_achievement_among_students_of_different_races_is_about_poverty_not_race",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_think_about_my_own_background_and_experiences_and_how_those_affect_my_instruction"
+)
+
+equitable_questions_2 <- c(
+  "To what extent do you agree or disagree with the following statements? - I am color blind when it comes to my teaching - I don’t think of my students in terms of their race or ethnicity.",
+  "To what extent do you agree or disagree with the following statements? - The gap in the achievement among students of different races is about poverty, not race.",
+  "To what extent do you agree or disagree with the following statements? - I think about my own background and experiences and how those affect my instruction."
+)
+
+high_expectations_questions <- c(
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_try_to_keep_in_mind_the_limits_of_my_students_ability_and_give_them_assignments_that_i_know_they_can_do_so_that_they_do_not_become_discouraged",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_before_students_are_asked_to_engage_in_complex_learning_tasks_they_need_to_have_a_solid_grasp_of_basic_skills",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_it_is_not_fair_to_ask_students_who_are_struggling_with_english_to_take_on_challenging_academic_assignments",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_teachers_should_provide_all_students_the_opportunity_to_work_with_grade_level_texts_and_tasks"
+)
+
+high_expectations_questions_2 <- c(
+  "To what extent do you agree or disagree with the following statements? - I try to keep in mind the limits of my students’ ability and give them assignments that I know they can do so that they do not become discouraged.",
+  "To what extent do you agree or disagree with the following statements? - Before students are asked to engage in complex learning tasks, they need to have a solid grasp of basic skills.",
+  "To what extent do you agree or disagree with the following statements? - It is not fair to ask students who are struggling with English to take on challenging academic assignments.",
+  "To what extent do you agree or disagree with the following statements? - Teachers should provide all students the opportunity to work with grade-level texts and tasks."
+)
+
+crse_questions <- c(
+  "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_adapt_instruction_to_meet_the_needs_of_my_students",
+  "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_identify_ways_that_the_school_culture_e_g_values_norms_and_practices_is_different_from_my_students_home_culture",
+  "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_use_my_students_prior_knowledge_to_help_them_make_sense_of_new_information",
+  "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_revise_instructional_material_to_include_a_better_representation_of_cultural_groups",
+  "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_teach_the_curriculum_to_students_with_unfinished_learning",
+  "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_teach_the_curriculum_to_students_who_are_from_historically_marginalized_groups"
+)
+
+crse_questions_2 <- c(
+  "Please rate your confidence on the following items. <br>I am able to... - Adapt instruction to meet the needs of my students",
+  "Please rate your confidence on the following items. <br>I am able to... - Identify ways that the school culture (e.g., values, norms, and practices) is different from my students’ home culture",
+  "Please rate your confidence on the following items. <br>I am able to... - Use my students’ prior knowledge to help them make sense of new information",
+  "Please rate your confidence on the following items. <br>I am able to... - Revise instructional material to include a better representation of cultural groups",
+  "Please rate your confidence on the following items. <br>I am able to... - Teach the curriculum to students with unfinished learning",
+  "Please rate your confidence on the following items. <br>I am able to... - Teach the curriculum to students who are from historically marginalized groups"
+)
+
+if (sum(!is.na(diagnostic_survey$to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_am_color_blind_when_it_comes_to_my_teaching_i_don_t_think_of_my_students_in_terms_of_their_race_or_ethnicity)) >= 1) {
+  mindsets_data_1 <- diagnostic_survey |>
+    rename(math_ela = which_subject_area_do_you_teach_lead_if_you_teach_support_both_please_select_the_one_where_you_expect_to_work_with_teaching_lab_this_year_br_br) |>
+    select(math_ela, all_of(teacher_mindsets))
+
+  mindsets_data_2 <- followup_educator |>
+    rename(math_ela = `Which subject area do you teach/ lead? If you teach/support both, please select the one for which you received support from Teaching Lab this year.`) |>
+    select(math_ela, all_of(teacher_mindsets_2))
+
+  mindsets_count_1 <- mindsets_data_1 |>
+    pivot_longer(!math_ela) |>
+    group_by(name, math_ela) |>
+    summarise(value = sum(!is.na(value))) |>
+    drop_na(math_ela)
+
+  mindsets_count_2 <- mindsets_data_2 |>
+    pivot_longer(!math_ela) |>
+    group_by(name, math_ela) |>
+    summarise(value = sum(!is.na(value))) |>
+    drop_na(math_ela)
+  
+  math_max_1 <- max(mindsets_count_1$value[mindsets_count_1$math_ela == "Mathematics"], na.rm = T)
+  math_max_1 <- ifelse(math_max_1 < 0, 0, math_max_1)
+  ela_max_1 <- max(mindsets_count_1$value[mindsets_count_1$math_ela == "ELA/Literacy"], na.rm = T)
+  ela_max_1 <- ifelse(ela_max_1 < 0, 0, ela_max_1)
+  math_max_2 <- max(mindsets_count_2$value[mindsets_count_2$math_ela == "Mathematics"], na.rm = T)
+  math_max_2 <- ifelse(math_max_2 < 0, 0, math_max_2)
+  ela_max_2 <- max(mindsets_count_2$value[mindsets_count_2$math_ela == "ELA/Literacy"], na.rm = T)
+  ela_max_2 <- ifelse(ela_max_2 < 0, 0, ela_max_2)
+
+  mindsets_n_1 <- paste0("n = ", format(math_max_1 + ela_max_1, big.mark = ","))
+  mindsets_n_2 <- paste0("n = ", format(math_max_2 + ela_max_2, big.mark = ","))
+
+  mindsets_initial <- mindsets_data_1 |>
+    TeachingLab::tl_summary_table(
+      summarise = T,
+      grouping = "summarise",
+      save = F,
+      n_size_single = mindsets_n_1,
+      prepost = T,
+      rename = F
+    ) |>
+    rename(Pre = Percent)
+
+  mindsets_followup <- mindsets_data_2 |>
+    TeachingLab::tl_summary_table(
+      summarise = T,
+      grouping = "summarise",
+      save = F,
+      n_size_single = mindsets_n_2,
+      prepost = T,
+      rename = T
+    ) |>
+    rename(Post = Percent)
+
+  mindsets_final <- mindsets_initial |>
+    left_join(mindsets_followup)
+
+  mindsets_final |>
+    gt::gt() |>
+    gt::fmt_markdown(columns = c(` `)) |>
+    gt::fmt_percent(
+      columns = c(Pre, Post),
+      decimals = 0,
+      scale_values = F
+    ) |>
+    gt::data_color(
+      columns = c(Pre, Post),
+      colors = scales::col_bin(
+        palette = c(
+          TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+        ),
+        domain = c(0, 100),
+        bins = c(0, 39, 79, 100)
+      )
+    ) |>
+    gt::cols_align(
+      align = "left",
+      columns = ` `
+    ) |>
+    gt::tab_footnote(
+      footnote = mindsets_n_1,
+      locations = cells_column_labels("Pre")
+    ) |>
+    gt::tab_footnote(
+      footnote = mindsets_n_2,
+      locations = cells_column_labels("Post")
+    ) |>
+    gt::sub_missing(missing_text = "No data") |>
+    TeachingLab::gt_theme_tl(align = "left") |>
+    gtsave("teacher_mindsets.png", path = tempdir(), zoom = 4)
+} else {
+  no_data_plot
+}
+```
+
+</center>
+
+
+#### Recognizing Race and Culture Items
+
+::: {.fold .o}
+<center>
+
+```{r equitable-mindsets-items, fig.dim = c(9, 6)}
+if (exists("mindsets_data_1")) {
+  equitable_count_1 <- mindsets_data_1 |>
+    select(all_of(equitable_questions)) |>
+    summarise(across(everything(), ~ sum(!is.na(.x)))) |>
+    pivot_longer(everything())
+
+  equitable_count_2 <- mindsets_data_2 |>
+    select(all_of(equitable_questions_2)) |>
+    summarise(across(everything(), ~ sum(!is.na(.x)))) |>
+    pivot_longer(everything())
+
+  equitable_n_1 <- mean(equitable_count_1$value)
+  equitable_n_2 <- mean(equitable_count_2$value)
+
+  equitable_initial <- TeachingLab::tl_summary_table(
+    data = mindsets_data_1,
+    grouping = "equitable",
+    summarise = F,
+    save = F,
+    n_size_single = equitable_n_1,
+    explain = F,
+    prepost = T,
+    rename = F
+  ) |>
+    rename(Pre = Percent)
+
+  equitable_followup <- TeachingLab::tl_summary_table(
+    data = mindsets_data_2,
+    grouping = "equitable",
+    summarise = F,
+    save = F,
+    n_size_single = equitable_n_2,
+    explain = F,
+    prepost = T,
+    rename = T
+  ) |>
+    rename(Post = Percent)
+
+  equitable_initial |>
+    mutate(Post = equitable_followup$Post) |>
+    gt::gt() |>
+    gt::fmt_markdown(columns = c(` `, Question)) |>
+    gt::fmt_percent(
+      columns = c(Pre, Post),
+      decimals = 0,
+      scale_values = F
+    ) |>
+    gt::data_color(
+      columns = c(Pre, Post),
+      colors = scales::col_bin(
+        palette = c(
+          TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+        ),
+        domain = c(0, 100),
+        bins = c(0, 39, 79, 100)
+      )
+    ) |>
+    gt::cols_align(
+      align = "left",
+      columns = ` `
+    ) |>
+    gt::tab_footnote(
+      footnote = format(equitable_n_1, big.mark = ","),
+      locations = cells_column_labels("Pre")
+    ) |>
+    gt::tab_footnote(
+      footnote = equitable_n_2,
+      locations = cells_column_labels("Post")
+    ) |>
+    gt::sub_missing(missing_text = "No data") |>
+    TeachingLab::gt_theme_tl(align = "left") |>
+    gtsave("recognizing.png", path = tempdir(), zoom = 4)
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+#### High Expectations Items
+
+::: {.fold .o}
+<center>
+
+```{r high-expectations-items, fig.dim = c(9, 6)}
+if (exists("mindsets_data_1")) {
+  high_expectations_count_1 <- mindsets_data_1 |>
+    select(all_of(high_expectations_questions)) |>
+    summarise(across(everything(), ~ sum(!is.na(.x)))) |>
+    pivot_longer(everything())
+  high_expectations_count_2 <- mindsets_data_2 |>
+    select(all_of(high_expectations_questions_2)) |>
+    summarise(across(everything(), ~ sum(!is.na(.x)))) |>
+    pivot_longer(everything())
+
+  high_expectations_n_1 <- max(high_expectations_count_1$value)
+  high_expectations_n_2 <- max(high_expectations_count_2$value)
+
+  high_expectations_initial <- TeachingLab::tl_summary_table(
+    data = mindsets_data_1,
+    grouping = "high_expectations",
+    summarise = F,
+    save = F,
+    n_size_single = equitable_n_1,
+    explain = F,
+    prepost = T,
+    rename = F
+  ) |>
+    rename(Pre = Percent)
+
+  high_expectations_followup <- TeachingLab::tl_summary_table(
+    data = mindsets_data_2,
+    grouping = "high_expectations",
+    summarise = F,
+    save = F,
+    n_size_single = equitable_n_1,
+    explain = F,
+    prepost = T,
+    rename = T
+  ) |>
+    rename(Post = Percent)
+
+  high_expectations_initial |>
+    mutate(Post = high_expectations_followup$Post) |>
+    gt::gt() |>
+    gt::fmt_markdown(columns = c(` `, Question)) |>
+    gt::fmt_percent(
+      columns = c(Pre, Post),
+      decimals = 0,
+      scale_values = F
+    ) |>
+    gt::data_color(
+      columns = c(Pre, Post),
+      colors = scales::col_bin(
+        palette = c(
+          TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+        ),
+        domain = c(0, 100),
+        bins = c(0, 39, 79, 100)
+      )
+    ) |>
+    gt::cols_align(
+      align = "left",
+      columns = ` `
+    ) |>
+    gt::tab_footnote(
+      footnote = format(high_expectations_n_1, big.mark = ","),
+      locations = cells_column_labels("Pre")
+    ) |>
+    gt::tab_footnote(
+      footnote = high_expectations_n_2,
+      locations = cells_column_labels("Post")
+    ) |>
+    gt::sub_missing(missing_text = "No data") |>
+    TeachingLab::gt_theme_tl(align = "left") |>
+    gtsave("high_expectations.png", path = tempdir(), zoom = 4)
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+Teachers also responded to six items about self-confidence in their
+ability to engage in culturally responsive and sustaining education
+(CRSE) practices on a scale from 0 (not at all confident) to 10
+(extremely confident). Responses were averaged across items. Higher
+scores correspond to higher self confidence.
+
+#### Culturally Responsive and Sustaining Education Self-Efficacy Items
+
+::: {.fold .o}
+<center>
+
+```{r crse-items, fig.dim = c(6, 6)}
+if (sum(!is.na(diagnostic_survey$please_rate_your_confidence_on_the_following_items_br_i_am_able_to_adapt_instruction_to_meet_the_needs_of_my_students)) >= 1) {
+  crse_data_1 <- diagnostic_survey |>
+    select(all_of(crse_questions))
+
+  crse_data_2 <- followup_educator |>
+    select(all_of(crse_questions_2))
+
+  crse_count_1 <- mindsets_data_1 |>
+    select(all_of(crse_questions)) |>
+    summarise(across(everything(), ~ sum(!is.na(.x)))) |>
+    pivot_longer(everything())
+  crse_count_2 <- mindsets_data_2 |>
+    select(all_of(crse_questions_2)) |>
+    summarise(across(everything(), ~ sum(!is.na(.x)))) |>
+    pivot_longer(everything())
+
+  crse_n_1 <- max(crse_count_1$value)
+  crse_n_2 <- max(crse_count_2$value)
+
+
+
+  crse_initial <- TeachingLab::tl_summary_table(
+    data = crse_data_1,
+    grouping = "crse",
+    summarise = T,
+    save = F,
+    n_size_single = crse_n,
+    explain = F,
+    prepost = T,
+    rename = F
+  ) |>
+    rename(Pre = Percent)
+
+  crse_followup <- TeachingLab::tl_summary_table(
+    data = crse_data_2,
+    grouping = "crse",
+    summarise = T,
+    save = F,
+    n_size_single = crse_n,
+    explain = F,
+    prepost = T,
+    rename = T
+  ) |>
+    rename(Post = Percent)
+
+  crse_initial |>
+    mutate(
+      Post = crse_followup$Post,
+      Question = str_replace_all(Question, "e g", "e\\.g\\.")
+    ) |>
+    gt::gt() |>
+    gt::fmt_markdown(columns = c(` `, Question)) |>
+    gt::fmt_percent(
+      columns = c(Pre, Post),
+      decimals = 0,
+      scale_values = F
+    ) |>
+    gt::data_color(
+      columns = c(Pre, Post),
+      colors = scales::col_bin(
+        palette = c(
+          TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+        ),
+        domain = c(0, 100),
+        bins = c(0, 39, 79, 100)
+      )
+    ) |>
+    gt::cols_align(
+      align = "left",
+      columns = ` `
+    ) |>
+    gt::tab_footnote(
+      footnote = format(crse_n_1, big.mark = ","),
+      locations = cells_column_labels("Pre")
+    ) |>
+    gt::tab_footnote(
+      footnote = format(crse_n_2, big.mark = ","),
+      locations = cells_column_labels("Post")
+    ) |>
+    gt::sub_missing(missing_text = "No data") |>
+    TeachingLab::gt_theme_tl(align = "left") |>
+    gtsave("crse.png", path = tempdir(), zoom = 4)
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+## Section 4d: Educators' Perceptions of School Culture and Climate
+
+Teachers responded to items about their school environment.
+
+::: {.fold .o}
+<center>
+
+```{r teacher-school-environment, fig.width = 9, fig.height = 6}
+### School Environment Columns ###
+teacher_school_environment <- c(
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_trust_my_fellow_teachers_in_the_school",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_feel_connected_to_my_fellow_teachers_in_the_school",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_have_influence_over_the_professional_learning_that_i_receive_through_my_school_or_district",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_am_confident_that_i_am_implementing_the_curriculum_in_a_way_that_maximizes_positive_impact_for_student_learning_br_note_we_are_referring_to_the_curriculum_that_teaching_lab_will_provide_support_on_only"
+)
+
+teacher_school_environment_2 <- c(
+  "To what extent do you agree or disagree with the following statements? - I trust my fellow teachers in the school.",
+  "To what extent do you agree or disagree with the following statements? - I feel connected to my fellow teachers in the school.",
+  "To what extent do you agree or disagree with the following statements? - I have influence over the professional learning that I receive through my school or district.",
+  "To what extent do you agree or disagree with the following statements? - I am confident that I am implementing the curriculum in a way that maximizes positive impact for student learning. <br>Note: We are referring to the curriculum that Teaching Lab will provide support on only."
+)
+
+if (sum(!is.na(diagnostic_survey$to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_trust_my_fellow_teachers_in_the_school)) >= 1) {
+  n1 <- diagnostic_survey |>
+    group_by(which_subject_area_do_you_teach_lead_if_you_teach_support_both_please_select_the_one_where_you_expect_to_work_with_teaching_lab_this_year_br_br) |>
+    count()
+
+  n2 <- followup_educator |>
+    group_by(`Which subject area do you teach/ lead? If you teach/support both, please select the one for which you received support from Teaching Lab this year.`) |>
+    count()
+
+  #### School Environment Overall Average ####
+  teacher_school_environment_average_1 <- diagnostic_survey |>
+    select(all_of(teacher_school_environment),
+      subject_area = which_subject_area_do_you_teach_lead_if_you_teach_support_both_please_select_the_one_where_you_expect_to_work_with_teaching_lab_this_year_br_br
+    ) |>
+    pivot_longer(!subject_area) |>
+    drop_na(value) |>
+    group_by(value, subject_area) |>
+    count(sort = T) |>
+    ungroup() |>
+    group_by(subject_area) |>
+    mutate(value = readr::parse_number(as.character(value))) |>
+    summarise(average = round(weighted.mean(x = value, w = n), digits = 2))
+
+  teacher_school_environment_average_2 <- followup_educator |>
+    select(all_of(teacher_school_environment_2),
+      subject_area = `Which subject area do you teach/ lead? If you teach/support both, please select the one for which you received support from Teaching Lab this year.`
+    ) |>
+    pivot_longer(!subject_area) |>
+    drop_na(value) |>
+    group_by(value, subject_area) |>
+    count(sort = T) |>
+    ungroup() |>
+    group_by(subject_area) |>
+    mutate(value = readr::parse_number(as.character(value))) |>
+    summarise(average = round(weighted.mean(x = value, w = n), digits = 2))
+
+  plot_data_1 <- diagnostic_survey |>
+    select(all_of(teacher_school_environment),
+      subject_area = which_subject_area_do_you_teach_lead_if_you_teach_support_both_please_select_the_one_where_you_expect_to_work_with_teaching_lab_this_year_br_br
+    ) |>
+    pivot_longer(!subject_area) |>
+    mutate(name = str_remove_all(name, c("to_what_extent_do_you_agree_or_disagree_with_the_following_statements_"))) |>
+    mutate(
+      name = str_to_sentence(str_replace_all(name, "_", " ")),
+      name = str_replace_all(name, " i ", " I ")
+    ) |>
+    tidyr::drop_na(value) |>
+    group_by(value, name, subject_area) |> # Group by both name and value
+    count(sort = T) |> # Get n of union of subgroup
+    group_by(name, subject_area) |> # Group by just value
+    mutate(percent = 100 * (n / sum(n))) |> # Get percent of value within name
+    mutate(
+      value = str_remove_all(value, "[:digit:]- "),
+      value = factor(value, levels = c(
+        "Strongly disagree",
+        "Disagree",
+        "Neither agree nor disagree",
+        "Agree",
+        "Strongly agree"
+      ))
+    )
+
+  plot_data_2 <- followup_educator |>
+    select(all_of(teacher_school_environment_2),
+      subject_area = `Which subject area do you teach/ lead? If you teach/support both, please select the one for which you received support from Teaching Lab this year.`
+    ) |>
+    pivot_longer(!subject_area) |>
+    mutate(name = str_remove_all(name, c("To what extent do you agree or disagree with the\\sfollowing statements\\? - |\\."))) |>
+    tidyr::drop_na(value) |>
+    group_by(value, name, subject_area) |> # Group by both name and value
+    count(sort = T) |> # Get n of union of subgroup
+    group_by(name, subject_area) |> # Group by just value
+    mutate(percent = 100 * (n / sum(n))) |> # Get percent of value within name
+    mutate(
+      value = str_remove_all(value, "[:digit:]- "),
+      value = factor(value, levels = c(
+        "Strongly disagree",
+        "Disagree",
+        "Neither agree nor disagree",
+        "Agree",
+        "Strongly agree"
+      )),
+      name = str_replace_all(name, c("I am confident that I am implementing the curriculum in a way that maximizes positive impact for student learning <br>Note: We are referring to the curriculum that Teaching Lab will provide support on only" = "I am confident that I am implementing the curriculum in a way that maximizes positive impact for student learning br note we are referring to the curriculum that teaching lab will provide support on only"))
+    )
+
+  plot_data_final <- plot_data_1 |>
+    mutate(prepost = "Pre") |>
+    full_join(plot_data_2 |> mutate(prepost = "Post")) |>
+    mutate(prepost = factor(prepost, levels = c("Pre", "Post"))) |>
+    filter(value %in% c("Agree", "Strongly agree")) |>
+    group_by(name, prepost, subject_area) |>
+    summarise(percent = round(sum(round(percent), na.rm = T))) |>
+    mutate(name = str_replace_all(name, " br ", " "))
+
+  school_environment_df <- plot_data_final |>
+    group_by(name, prepost) |>
+    summarise(percent = mean(percent)) |>
+    ungroup() |>
+    pivot_wider(names_from = "prepost", values_from = "percent")
+    
+    if ("Post" %!in% names(school_environment_df)) {
+      school_environment_df <- school_environment_df |>
+        mutate(Post = NA_integer_)
+    }
+  
+  school_environment_df |>
+    gt() |>
+    tab_header(title = md("**Educators’ Perceptions of School Culture and Climates**")) |>
+    cols_label(
+      `Pre` = "Pre % Agree/Strongly Agree",
+      `Post` = "Post % Agree/Strongly Agree",
+      name = ""
+    ) |>
+    fmt_percent(c(Pre, Post),
+      decimals = 0,
+      scale_values = F
+    ) |>
+    gt::data_color(
+      columns = c(Pre, Post),
+      colors = scales::col_bin(
+        palette = c(
+          TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+        ),
+        domain = c(0, 100),
+        bins = c(0, 39, 79, 100)
+      )
+    ) |>
+    gt::cols_align(
+      align = "left",
+      columns = name
+    ) |>
+    sub_missing(missing_text = "No data") |>
+    gt::tab_footnote(
+      footnote = format(sum(n1$n, na.rm = T), big.mark = ","),
+      locations = cells_column_labels("Pre")
+    ) |>
+    gt::tab_footnote(
+      footnote = sum(n2$n, na.rm = T),
+      locations = cells_column_labels("Post")
+    ) |>
+    gt::sub_missing(missing_text = "No data") |>
+    TeachingLab::gt_theme_tl(align = "left") |>
+    gtsave("school_environment.png", path = tempdir(), zoom = 4)
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+# Section 5: Administrators' Mindsets & Observational Practices
+
+Teaching Lab administers a Diagnostic Educator Survey in the fall and a
+Follow-up Educator Survey in the spring. The results are below.
+
+## Section 5a: Administrators - Mindsets
+
+Administrators responded to items about the recognition of race and
+culture and holding high expectations for all students.
+
+::: {.fold .o}
+<center>
+
+```{r administrator-mindsets, fig.width = 6, fig.height = 6}
+### Administrator Mindsets Columns ###
+administrator_mindsets <- c(
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_teachers_should_be_color_blind_when_it_comes_to_their_teaching_they_shouldnt_think_of_students_in_terms_of_their_race_or_ethnicity",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_the_gap_in_the_achievement_among_students_of_different_races_is_about_poverty_not_race_2",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_think_about_my_own_background_and_experiences_and_how_those_affect_my_instructional_leadership",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_teachers_should_try_to_keep_in_mind_the_limits_of_students_ability_and_give_them_assignments_that_they_know_they_can_do_so_that_they_do_not_become_discouraged",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_before_students_are_asked_to_engage_in_complex_learning_tasks_they_need_to_have_a_solid_grasp_of_basic_skills_2",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_it_is_not_fair_to_ask_students_who_are_struggling_with_english_to_take_on_challenging_academic_assignments_2",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_teachers_should_provide_all_students_the_opportunity_to_work_with_grade_level_texts_and_tasks_2",
+  "please_rate_the_extent_to_which_you_believe_you_can_support_teachers_in_the_following_areas_br_i_believe_i_can_directly_or_indirectly_support_teachers_to_adapt_instruction_to_meet_the_needs_of_their_students",
+  "please_rate_the_extent_to_which_you_believe_you_can_support_teachers_in_the_following_areas_br_i_believe_i_can_directly_or_indirectly_support_teachers_to_identify_ways_that_the_school_culture_e_g_values_norms_and_practices_is_different_from_their_students_home_culture",
+  "please_rate_the_extent_to_which_you_believe_you_can_support_teachers_in_the_following_areas_br_i_believe_i_can_directly_or_indirectly_support_teachers_to_use_their_students_prior_knowledge_to_help_them_make_sense_of_new_information",
+  "please_rate_the_extent_to_which_you_believe_you_can_support_teachers_in_the_following_areas_br_i_believe_i_can_directly_or_indirectly_support_teachers_to_revise_instructional_material_to_include_a_better_representation_of_cultural_groups",
+  "please_rate_the_extent_to_which_you_believe_you_can_support_teachers_in_the_following_areas_br_i_believe_i_can_directly_or_indirectly_support_teachers_to_teach_the_curriculum_to_students_with_unfinished_learning",
+  "please_rate_the_extent_to_which_you_believe_you_can_support_teachers_in_the_following_areas_br_i_believe_i_can_directly_or_indirectly_support_teachers_to_teach_the_curriculum_to_students_who_are_from_historically_marginalized_groups"
+)
+
+administrator_mindsets_2 <- c(
+  "To what extent do you agree or disagree with the following statements? - Teachers should be color blind when it comes to their teaching - they shouldn't think of students in terms of their race or ethnicity.",
+  "To what extent do you agree or disagree with the following statements? - The gap in the achievement among students of different races is about poverty, not race._2",
+  "To what extent do you agree or disagree with the following statements? - I think about my own background and experiences and how those affect my instructional leadership.",
+  "To what extent do you agree or disagree with the following statements? - Teachers should try to keep in mind the limits of students’ ability and give them assignments that they know they can do so that they do not become discouraged.",
+  "To what extent do you agree or disagree with the following statements? - Before students are asked to engage in complex learning tasks, they need to have a solid grasp of basic skills._2",
+  "To what extent do you agree or disagree with the following statements? - It is not fair to ask students who are struggling with English to take on challenging academic assignments._2",
+  "To what extent do you agree or disagree with the following statements? - Teachers should provide all students the opportunity to work with grade-level texts and tasks._2",
+  "Please rate your confidence on the following items. <br>I am able to... - Adapt instruction to meet the needs of my students",
+  "Please rate your confidence on the following items. <br>I am able to... - Identify ways that the school culture (e.g., values, norms, and practices) is different from my students’ home culture",
+  "Please rate your confidence on the following items. <br>I am able to... - Use my students’ prior knowledge to help them make sense of new information",
+  "Please rate your confidence on the following items. <br>I am able to... - Revise instructional material to include a better representation of cultural groups",
+  "Please rate your confidence on the following items. <br>I am able to... - Teach the curriculum to students with unfinished learning",
+  "Please rate your confidence on the following items. <br>I am able to... - Teach the curriculum to students who are from historically marginalized groups"
+)
+
+if (sum(!is.na(diagnostic_survey$to_what_extent_do_you_agree_or_disagree_with_the_following_statements_teachers_should_be_color_blind_when_it_comes_to_their_teaching_they_shouldnt_think_of_students_in_terms_of_their_race_or_ethnicity))) {
+  n1 <- diagnostic_survey |>
+    select(all_of(administrator_mindsets)) |>
+    janitor::remove_empty("rows") |>
+    nrow()
+
+  n2 <- followup_educator |>
+    select(all_of(administrator_mindsets_2)) |>
+    janitor::remove_empty("rows") |>
+    nrow()
+
+  mindsets_data_1 <- diagnostic_survey |>
+    rename(math_ela = which_subject_area_do_you_teach_lead_if_you_teach_support_both_please_select_the_one_where_you_expect_to_work_with_teaching_lab_this_year_br_br) |>
+    select(math_ela, all_of(administrator_mindsets))
+
+  mindsets_data_2 <- followup_educator |>
+    rename(math_ela = `Which subject area do you teach/ lead? If you teach/support both, please select the one for which you received support from Teaching Lab this year.`) |>
+    select(math_ela, all_of(administrator_mindsets_2))
+
+  mindsets_initial <- mindsets_data_1 |>
+    TeachingLab::tl_summary_table(
+      summarise = T,
+      grouping = "summarise",
+      save = F,
+      n_size_single = mindsets_n_1,
+      prepost = T,
+      rename = F,
+      admin = T
+    ) |>
+    rename(Pre = Percent)
+
+  mindsets_followup <- mindsets_data_2 |>
+    TeachingLab::tl_summary_table(
+      summarise = T,
+      grouping = "summarise",
+      save = F,
+      n_size_single = mindsets_n,
+      prepost = T,
+      rename = T,
+      admin = T
+    ) |>
+    rename(Post = Percent) |>
+    print()
+
+  mindsets_final <- mindsets_initial |>
+    left_join(mindsets_followup)
+
+  mindsets_final |>
+    gt::gt() |>
+    gt::fmt_markdown(columns = c(` `)) |>
+    gt::fmt_percent(
+      columns = c(Pre, Post),
+      decimals = 0,
+      scale_values = F
+    ) |>
+    gt::data_color(
+      columns = c(Pre, Post),
+      colors = scales::col_bin(
+        palette = c(
+          TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+        ),
+        domain = c(0, 100),
+        bins = c(0, 39, 79, 100)
+      )
+    ) |>
+    gt::cols_align(
+      align = "left",
+      columns = ` `
+    ) |>
+    gt::tab_footnote(
+      footnote = n1,
+      locations = cells_column_labels("Pre")
+    ) |>
+    gt::tab_footnote(
+      footnote = n2,
+      locations = cells_column_labels("Post")
+    ) |>
+    TeachingLab::gt_theme_tl(align = "left") |>
+    gtsave("mindsets_admin.png", path = tempdir(), zoom = 4)
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+### Administrators - Recognizing Race & Culture
+
+::: {.fold .o}
+<center>
+
+```{r admin-recognizing-mindsets, fig.width = 9, fig.height = 6}
+if (sum(!is.na(diagnostic_survey$to_what_extent_do_you_agree_or_disagree_with_the_following_statements_teachers_should_be_color_blind_when_it_comes_to_their_teaching_they_shouldnt_think_of_students_in_terms_of_their_race_or_ethnicity))) {
+  equitable_questions_admin <- administrator_mindsets[1:3]
+  equitable_questions_admin_2 <- administrator_mindsets_2[1:3]
+  equitable_count_1 <- mindsets_data_1 |>
+    select(all_of(equitable_questions_admin)) |>
+    summarise(across(everything(), ~ sum(!is.na(.x)))) |>
+    pivot_longer(everything())
+
+  equitable_count_2 <- mindsets_data_2 |>
+    select(all_of(equitable_questions_admin_2)) |>
+    summarise(across(everything(), ~ sum(!is.na(.x)))) |>
+    pivot_longer(everything())
+
+  equitable_n_1 <- max(equitable_count_1$value, na.rm = T)
+  equitable_n_2 <- max(equitable_count_2$value, na.rm = T)
+
+  equitable_initial <- TeachingLab::tl_summary_table(
+    data = mindsets_data_1,
+    grouping = "equitable",
+    summarise = F,
+    save = F,
+    n_size_single = equitable_n_1,
+    explain = F,
+    prepost = T,
+    admin = T,
+    rename = F
+  ) |>
+    rename(Pre = Percent)
+
+  equitable_followup <- TeachingLab::tl_summary_table(
+    data = mindsets_data_2,
+    grouping = "equitable",
+    summarise = F,
+    save = F,
+    n_size_single = equitable_n_2,
+    explain = F,
+    prepost = T,
+    rename = T,
+    admin = T
+  ) |>
+    rename(Post = Percent)
+
+  equitable_initial |>
+    mutate(Post = equitable_followup$Post) |>
+    gt::gt() |>
+    gt::fmt_markdown(columns = c(` `, Question)) |>
+    gt::fmt_percent(
+      columns = c(Pre, Post),
+      decimals = 0,
+      scale_values = F
+    ) |>
+    gt::data_color(
+      columns = c(Pre, Post),
+      colors = scales::col_bin(
+        palette = c(
+          TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+        ),
+        domain = c(0, 100),
+        bins = c(0, 39, 79, 100)
+      )
+    ) |>
+    gt::cols_align(
+      align = "left",
+      columns = ` `
+    ) |>
+    gt::tab_footnote(
+      footnote = format(equitable_n_1, big.mark = ","),
+      locations = cells_column_labels("Pre")
+    ) |>
+    gt::tab_footnote(
+      footnote = equitable_n_2,
+      locations = cells_column_labels("Post")
+    ) |>
+    TeachingLab::gt_theme_tl(align = "left") |>
+    gtsave("recognizing_admin.png", path = tempdir(), zoom = 4)
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+### Administrators - High Expectations
+
+::: {.fold .o}
+<center>
+
+```{r admin-high-expectations, fig.width = 9, fig.height = 6}
+if (sum(!is.na(diagnostic_survey$to_what_extent_do_you_agree_or_disagree_with_the_following_statements_teachers_should_be_color_blind_when_it_comes_to_their_teaching_they_shouldnt_think_of_students_in_terms_of_their_race_or_ethnicity))) {
+  high_expectations_admin <- administrator_mindsets[4:7]
+  high_expectations_admin_2 <- administrator_mindsets_2[4:7]
+
+  high_expectations_count_1 <- mindsets_data_1 |>
+    select(all_of(high_expectations_admin)) |>
+    summarise(across(everything(), ~ sum(!is.na(.x)))) |>
+    pivot_longer(everything())
+  high_expectations_count_2 <- mindsets_data_2 |>
+    select(all_of(high_expectations_admin_2)) |>
+    summarise(across(everything(), ~ sum(!is.na(.x)))) |>
+    pivot_longer(everything())
+
+  high_expectations_n_1 <- max(high_expectations_count_1$value, na.rm = T)
+  high_expectations_n_2 <- max(high_expectations_count_2$value, na.rm = T)
+
+  high_expectations_initial <- TeachingLab::tl_summary_table(
+    data = mindsets_data_1,
+    grouping = "high_expectations",
+    summarise = F,
+    save = F,
+    n_size_single = equitable_n_1,
+    explain = F,
+    prepost = T,
+    rename = F,
+    admin = T
+  ) |>
+    rename(Pre = Percent)
+
+  high_expectations_followup <- TeachingLab::tl_summary_table(
+    data = mindsets_data_2,
+    grouping = "high_expectations",
+    summarise = F,
+    save = F,
+    n_size_single = equitable_n_1,
+    explain = F,
+    prepost = T,
+    rename = T,
+    admin = T
+  ) |>
+    rename(Post = Percent)
+
+  high_expectations_initial |>
+    mutate(Post = high_expectations_followup$Post) |>
+    gt::gt() |>
+    gt::fmt_markdown(columns = c(` `, Question)) |>
+    gt::fmt_percent(
+      columns = c(Pre, Post),
+      decimals = 0,
+      scale_values = F
+    ) |>
+    gt::data_color(
+      columns = c(Pre, Post),
+      colors = scales::col_bin(
+        palette = c(
+          TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+        ),
+        domain = c(0, 100),
+        bins = c(0, 39, 79, 100)
+      )
+    ) |>
+    gt::cols_align(
+      align = "left",
+      columns = ` `
+    ) |>
+    gt::tab_footnote(
+      footnote = format(high_expectations_n_1, big.mark = ","),
+      locations = cells_column_labels("Pre")
+    ) |>
+    gt::tab_footnote(
+      footnote = high_expectations_n_2,
+      locations = cells_column_labels("Post")
+    ) |>
+    gt::sub_missing(missing_text = "No data") |>
+    TeachingLab::gt_theme_tl(align = "left") |>
+    gtsave("high_expectations_admin.png", path = tempdir(), zoom = 4)
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+### Administrators - Culturally Responsive and Sustaining Education Self-Efficacy Items
+
+::: {.fold .o}
+<center>
+
+```{r admin-crse, fig.width = 7, fig.height = 7}
+if (sum(!is.na(diagnostic_survey$to_what_extent_do_you_agree_or_disagree_with_the_following_statements_teachers_should_be_color_blind_when_it_comes_to_their_teaching_they_shouldnt_think_of_students_in_terms_of_their_race_or_ethnicity))) {
+  crse_admin <- administrator_mindsets[8:13]
+  crse_admin_2 <- administrator_mindsets_2[8:13]
+
+  crse_data_1 <- diagnostic_survey |>
+    select(all_of(crse_admin))
+
+  crse_data_2 <- followup_educator |>
+    select(all_of(crse_admin_2))
+
+  crse_count_1 <- mindsets_data_1 |>
+    select(all_of(crse_admin)) |>
+    summarise(across(everything(), ~ sum(!is.na(.x)))) |>
+    pivot_longer(everything())
+  crse_count_2 <- mindsets_data_2 |>
+    select(all_of(crse_admin_2)) |>
+    summarise(across(everything(), ~ sum(!is.na(.x)))) |>
+    pivot_longer(everything())
+
+  crse_n_1 <- max(crse_count_1$value, na.rm = T)
+  crse_n_2 <- max(crse_count_2$value, na.rm = T)
+
+
+
+  crse_initial <- TeachingLab::tl_summary_table(
+    data = crse_data_1,
+    grouping = "crse",
+    summarise = T,
+    save = F,
+    n_size_single = crse_n,
+    explain = F,
+    prepost = T,
+    rename = F,
+    admin = T
+  ) |>
+    rename(Pre = Percent) |>
+    mutate(Question = str_replace_all(Question, "<br>", " "))
+
+  crse_followup <- TeachingLab::tl_summary_table(
+    data = crse_data_2,
+    grouping = "crse",
+    summarise = T,
+    save = F,
+    n_size_single = crse_n,
+    explain = F,
+    prepost = T,
+    rename = T,
+    admin = T
+  ) |>
+    rename(Post = Percent) |>
+    mutate(Question = str_replace_all(Question, "<br>", " "))
+
+  crse_initial |>
+    mutate(
+      Post = crse_followup$Post,
+      Question = str_remove_all(Question, "Please rate the extent to which you believe you can support teachers in the following areas br ")
+    ) |>
+    gt::gt() |>
+    gt::fmt_markdown(columns = c(` `, Question)) |>
+    gt::fmt_percent(
+      columns = c(Pre, Post),
+      decimals = 0,
+      scale_values = F
+    ) |>
+    gt::data_color(
+      columns = c(Pre, Post),
+      colors = scales::col_bin(
+        palette = c(
+          TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+        ),
+        domain = c(0, 100),
+        bins = c(0, 39, 79, 100)
+      )
+    ) |>
+    gt::cols_align(
+      align = "left",
+      columns = ` `
+    ) |>
+    gt::tab_footnote(
+      footnote = format(crse_n_1, big.mark = ","),
+      locations = cells_column_labels("Pre")
+    ) |>
+    gt::tab_footnote(
+      footnote = format(crse_n_2, big.mark = ","),
+      locations = cells_column_labels("Post")
+    ) |>
+    gt::sub_missing(missing_text = "No data") |>
+    TeachingLab::gt_theme_tl(align = "left") |>
+    gtsave("crse_admin.png", path = tempdir(), zoom = 4)
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+## Section 5b: Administrators - Observational Practices
+
+Administrators responded to items about the focus of their observational
+practices.
+
+::: {.fold .o}
+<center>
+
+```{r administrator-observational, fig.width = 9, fig.height = 6}
+### Administrator Observational Practices Column ###
+administrator_observational_practices <- c(
+  "how_often_does_your_observation_of_teacher_practice_focus_on_the_following_whether_the_lesson_is_focused_on_a_high_quality_text_or_task",
+  "how_often_does_your_observation_of_teacher_practice_focus_on_the_following_whether_the_questions_and_tasks_address_the_analytical_thinking_required_by_the_grade_level_standards",
+  "how_often_does_your_observation_of_teacher_practice_focus_on_the_following_whether_all_students_have_opportunities_to_engage_in_the_work_of_the_lesson"
+)
+
+administrator_observational_practices_2 <- c(
+  "How often does your observation of teacher practice focus on the following? - Whether the lesson is focused on a high-quality text or task.",
+  "How often does your observation of teacher practice focus on the following? - Whether the questions and tasks address the analytical thinking required by the grade-level standards.",
+  "How often does your observation of teacher practice focus on the following? - Whether all students have opportunities to engage in the work of the lesson."
+)
+
+if (sum(!is.na(diagnostic_survey$how_often_does_your_observation_of_teacher_practice_focus_on_the_following_whether_the_lesson_is_focused_on_a_high_quality_text_or_task))) {
+  
+  n1 <- diagnostic_survey |>
+    select(all_of(administrator_observational_practices)) |>
+    janitor::remove_empty("rows") |>
+    nrow()
+
+  n2 <- followup_educator |>
+    select(all_of(administrator_observational_practices_2)) |>
+    janitor::remove_empty("rows") |>
+    nrow()
+
+  #### Admin Observational Overall Average
+  administrator_observational_average <- diagnostic_survey |>
+    select(all_of(administrator_observational_practices)) |>
+    pivot_longer(everything()) |>
+    drop_na(value) |>
+    group_by(value) |>
+    count(sort = T) |>
+    ungroup() |>
+    mutate(value = readr::parse_number(as.character(value))) |>
+    summarise(average = round(weighted.mean(x = value, w = n), digits = 2))
+
+  administrator_observational_average_2 <- followup_educator |>
+    select(all_of(administrator_observational_practices_2)) |>
+    pivot_longer(everything()) |>
+    drop_na(value) |>
+    group_by(value) |>
+    count(sort = T) |>
+    ungroup() |>
+    mutate(value = readr::parse_number(as.character(value))) |>
+    summarise(average = round(weighted.mean(x = value, w = n), digits = 2))
+
+  plot_data_1 <- diagnostic_survey |>
+    select(all_of(administrator_observational_practices)) |>
+    pivot_longer(everything()) |>
+    mutate(
+      name = str_remove_all(name, c("how_often_does_your_observation_of_teacher_practice_focus_on_the_following_")),
+      name = str_replace_all(name, "_", " ")
+    ) |>
+    tidyr::drop_na(value) |>
+    group_by(value, name) |> # Group by both name and value
+    summarise(n = n()) |> # Get n of union of subgroup
+    group_by(name) |> # Group by just value
+    mutate(percent = 100 * (n / sum(n))) |> # Get percent of value within name
+    mutate(
+      value = str_remove_all(value, "[:digit:]- ")
+    )
+
+  plot_data_2 <- followup_educator |>
+    select(all_of(administrator_observational_practices_2)) |>
+    pivot_longer(everything()) |>
+    mutate(
+      name = str_remove_all(name, c("How often does your observation of teacher practice focus on the following\\? - ")),
+      name = str_replace_all(name, "-", " ")
+    ) |>
+    tidyr::drop_na(value) |>
+    group_by(value, name) |> # Group by both name and value
+    summarise(n = n()) |> # Get n of union of subgroup
+    group_by(name) |> # Group by just value
+    mutate(percent = 100 * (n / sum(n))) |> # Get percent of value within name
+    mutate(
+      value = str_remove_all(value, "[:digit:]- ")
+    )
+
+  plot_data_final <- plot_data_1 |>
+    mutate(prepost = "Pre") |>
+    full_join(plot_data_2 |> mutate(prepost = "Post")) |>
+    mutate(
+      prepost = factor(prepost, levels = c("Pre", "Post")),
+      name = str_to_sentence(str_remove_all(name, "\\.$"))
+    ) |>
+    filter(value %in% c("Very often", "Almost always")) |>
+    group_by(name, prepost) |>
+    summarise(percent = sum(percent, na.rm = T)) |>
+    ungroup() |>
+    pivot_wider(names_from = "prepost", values_from = "percent") |>
+    rename(` ` = name)
+  
+  if ("Post" %!in% plot_data_final) {
+    plot_data_final <- plot_data_final |>
+      mutate(Post = NA_integer_)
+  }
+
+  plot_data_final |>
+    gt() |>
+    tab_header(title = md("**Shifts in Observation Practices of Coaches, Leaders, and Administrators**")) |>
+    cols_label(
+      `Pre` = "Pre % Very Often/Almost Always",
+      `Post` = "Post % Very Often/Almost Always"
+    ) |>
+    fmt_percent(c(Pre, Post),
+      decimals = 0,
+      scale_values = F
+    ) |>
+    gt::data_color(
+      columns = c(Pre, Post),
+      colors = scales::col_bin(
+        palette = c(
+          TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+        ),
+        domain = c(0, 100),
+        bins = c(0, 39, 79, 100)
+      )
+    ) |>
+    gt::cols_align(
+      align = "left",
+      columns = ` `
+    ) |>
+    gt::tab_footnote(
+      footnote = format(n1, big.mark = ","),
+      locations = cells_column_labels("Pre")
+    ) |>
+    gt::tab_footnote(
+      footnote = n2,
+      locations = cells_column_labels("Post")
+    ) |>
+    gt::sub_missing(missing_text = "No data") |>
+    TeachingLab::gt_theme_tl(align = "left") |>
+    gtsave("observations_admin.png", path = tempdir(), zoom = 4)
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::

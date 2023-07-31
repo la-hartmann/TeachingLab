@@ -1,0 +1,217 @@
+---
+title: "Teaching Lab Course Report"
+params:
+  plot_ts: NA
+  plot_agree: NA
+  agree_plot_n: NA
+  quote1: NA
+  quote2: NA
+  quote3: NA
+  quote4: NA
+  quote5: NA
+  subtitle: NA
+subtitle: "Report on `r params$subtitle`"
+output: 
+  pdf_document:
+    latex_engine: xelatex
+    dev: cairo_pdf
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, warning = F, message = F)
+library(tidyverse)
+library(TeachingLab)
+library(tidytext)
+library(bookdown)
+library(webshot)
+webshot::install_phantomjs()
+```
+
+<!-- \fontspec{calibri} -->
+
+# Quantitative Data
+
+## Overall
+
+```{r fig.width = 10, fig.height = 10}
+ggplot(data = params$plot_agree, aes(x = Question, y = Percent, fill = factor(Response))) +
+        geom_col() +
+        geom_text(aes(label = if_else(Percent >= 3, paste0(round(Percent), "%"), "")), position = position_stack(vjust = 0.5)) +
+        scale_fill_manual(values = c(
+          "(1) Strongly disagree" = "#040404", "(2) Disagree" = "#032E3F",
+          "(3) Neither agree nor disagree" = "#02587A", "(4) Agree" = "#0182B4", "(5) Strongly agree" = "#00ACF0"
+        )) +
+        labs(
+          fill = "", title = "Participant Perceptions of Course - Likert Scale Questions",
+          x = "", y = "",
+          subtitle = glue::glue("Given the filters applied there are {params$agree_plot_n} responses")
+        ) +
+        coord_flip() +
+        guides(fill = guide_legend(reverse = T)) +
+        scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+        theme_tl(legend = T) +
+        theme(
+          axis.text.x = element_blank(),
+          axis.text.y = element_text(lineheight = 1.1, size = 12),
+          legend.position = "bottom",
+          plot.title = element_text(lineheight = 1.1, size = 16, face = "bold"),
+          plot.subtitle = element_text(size = 14, face = "bold"),
+          legend.key.size = unit(0.75, "cm"),
+          legend.text = element_text(size = 9)
+        )
+```
+
+\newpage
+
+In summary, we see the following % agree or strongly agree with the above statements:
+
+- `r params$plot_agree %>% filter(Question == "I am satisfied with how the\ncourse was facilitated." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%")` strongly agree or agree that they were satisfied with how the course was facilitated.
+- `r params$plot_agree %>% filter(Question == "I am satisfied with the\noverall quality of this\ncourse." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%")` strongly agree or agree that they responded to the group's needs.
+- `r params$plot_agree %>% filter(Question == "I felt a sense of community\nwith the other participants\nin this course. even though we\nwere meeting virtually." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%")` strongly agree or agree that they felt a sense of community with the other participants in the course even though they were meeting virtually.
+- `r params$plot_agree %>% filter(Question == "I will apply what I have\nlearned in this course to\nmy practice in the next 4-6\nweeks." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%")` strongly agree or agree that they will apply what they have learned in the course to their practice in the next 4-6 weeks.
+- `r params$plot_agree %>% filter(Question == "The independent online work\nactivities were well-designed\nto help me meet the learning\ntargets." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%")` strongly agree or agree that the independent online work activities were well-designed to help me meet learning targets.
+- `r params$plot_agree %>% filter(Question == "The strategies I’ve learned\nin the course are easy to\nimplement." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%")` strongly agree or agree that the strategies I’ve learned in the course are easy to implement.
+- `r params$plot_agree %>% filter(Question == "The strategies I’ve learned\nin this course will improve\nmy coaching or supervision of\nteachers." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%")` strongly agree or agree that they facilitated the content clearly.
+- `r params$plot_agree %>% filter(Question == "The strategies I’ve learned\nin this course will improve my\ninstruction." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%")` strongly agree or agree that they've learned in this course will improve my instruction.
+- `r params$plot_agree %>% filter(Question == "This course has supported\nme in being responsive\nto students' backgrounds,\ncultures, and points of view." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%")` strongly agree or agree that the course has supported me in being responsive to students' backgrounds, cultures, and points of view.
+
+## Over Time
+
+Here by visualizing ratings of strongly agree/agree in blue areas, and all other ratings in black areas we visualize feedback over time (If there is just one point of feedback this appears as a dot).
+
+```{r fig.width = 10, fig.height = 10}
+params$plot_ts %>%
+        ggplot(aes(x = ymd(date_created),
+                   y = Percent)) +
+        geom_area(color = "gray50", aes(fill = Rating), alpha = 0.6, position = position_identity()) + # position_identity is absolutely necessary here, not sure why
+        geom_ribbon(color = "transparent", aes(
+          ymin = Percent, ymax = 100,
+          fill = "Neither Agree nor Disagree/Disagree/Strongly Disagree"
+        ), alpha = 0.85) +
+        geom_line(size = 1.25, alpha = 0.9, aes(group = 1)) +
+        geom_point(size = 1, alpha = 0.9) +
+        facet_wrap(~ fct_reorder(question, .x = `Percent`, .fun = mean, .desc = T)) +
+        coord_cartesian() +
+        scale_x_date(
+          date_breaks = case_when(as.integer(diff(range(as.Date(params$plot_ts$date_created)))) >= 30 ~ "1 month",
+                                 as.integer(diff(range(as.Date(params$plot_ts$date_created)))) >= 14 & as.integer(diff(range(as.Date(params$plot_ts$date_created)))) < 30 ~ "1 week",
+                                 as.integer(diff(range(as.Date(params$plot_ts$date_created)))) < 14 ~ "1 day"),
+          date_labels = case_when(as.integer(diff(range(as.Date(params$plot_ts$date_created)))) >= 30 ~ "%b",
+                                 as.integer(diff(range(as.Date(params$plot_ts$date_created)))) >= 14 & as.integer(diff(range(as.Date(params$plot_ts$date_created)))) < 30 ~ "%W",
+                                 as.integer(diff(range(as.Date(params$plot_ts$date_created)))) < 14 ~ "%d"),
+          limits = c(min(as.Date(params$plot_ts$date_created)), max(as.Date(params$plot_ts$date_created))),
+          expand = c(0, 0)
+        ) +
+        scale_y_continuous(
+          breaks = pretty_breaks(n = 5), limits = c(0, 100),
+          labels = scales::percent_format(scale = 1), expand = c(0, 0)
+        ) +
+        scale_fill_manual(values = c(rev(tl_palette(n = 2, color = "blue", theme = "dark")))) +
+        labs(x = "Date", title = "Percent that Agree/Strongly Agree") +
+        theme_bw() + # BW Panel panel elements
+        theme(
+          legend.position = "bottom",
+          legend.title = element_blank(),
+          legend.text = element_text(family = "Calibri"),
+          text = element_text(family = "Calibri", face = "bold"),
+          panel.grid.minor.x = element_blank(),
+          axis.text.x = element_text(size = 10),
+          strip.background = element_rect(fill = "white"),
+          strip.text = element_text(size = 10),
+          axis.title.x = element_blank(),
+          axis.title.y = element_blank(),
+          plot.title = element_text(hjust = 0.5, family = "Calibri", size = 16, face = "bold"),
+          axis.line = element_line(size = 1.5)
+        )
+```
+
+# Qualitative Data
+
+Finally responses to the following questions are presented below:
+
+- Overall, what went well in the course?
+
+- What is the learning from this course that you are most excited about trying out?
+
+- What additional feedback do you have about their facilitation skills?
+
+- Which activities best supported your learning in this course?
+
+- Feel free to leave us any additional comments, concerns, or questions.
+
+## Quotes from "Overall, what went well in the course?"
+
+```{r fig.width = 8}
+if (nrow(as_tibble(params$quote1)) >= 1) { 
+  quote_viz(
+        data = as_tibble(params$quote1), text_col = "Response", viz_type = "gt",
+        title = "Overall, what went well in the course?",
+        width = 40, align = "left"
+      ) %>%
+  gtsave("img1.png", path = tempdir())
+} else {
+  tibble("There were no comments to display here.") %>% quote_viz(title = "Nothing", width = 40) %>% gtsave("nothing_image.png", path = tempdir())
+}
+```
+
+## Quotes from "Overall, what could have been better in this course?"
+
+```{r fig.width = 8}
+if (nrow(as_tibble(params$quote2)) >= 1) { 
+  quote_viz(
+        data = as_tibble(params$quote2), text_col = "Response", viz_type = "gt",
+        title = "Overall, what could have been better in this course?",
+        width = 40, align = "left"
+      ) %>%
+  gtsave("img2.png", path = tempdir())
+} else {
+  tibble("There were no comments to display here.") %>% quote_viz(title = "Nothing", width = 40) %>% gtsave("nothing_image.png", path = tempdir())
+}
+```
+
+## Quotes from "What is the learning from this course that you are most excited about trying out?"
+
+```{r fig.width = 8}
+if (nrow(as_tibble(params$quote3)) >= 1) { 
+  quote_viz(
+        data = as_tibble(params$quote3), text_col = "Response", viz_type = "gt",
+        title = "What is the learning from this course that you are most excited about trying out?",
+        width = 40, align = "left"
+      ) %>%
+  gtsave("img3.png", path = tempdir())
+} else {
+  tibble("There were no comments to display here.") %>% quote_viz(title = "Nothing", width = 40) %>% gtsave("nothing_image.png", path = tempdir())
+}
+```
+
+## Quotes from "Which activities best supported your learning in this course?"
+
+```{r fig.width = 8}
+if (nrow(as_tibble(params$quote4)) >= 1) {
+  quote_viz(
+        data = as_tibble(params$quote4), text_col = "Response", viz_type = "gt",
+        title = "Which activities best supported your learning in this course?",
+        width = 40, align = "left"
+      ) %>%
+  gtsave("img4.png", path = tempdir())
+} else {
+  tibble("There were no comments to display here.") %>% quote_viz(title = "Nothing", width = 40) %>% gtsave("nothing_image.png", path = tempdir())
+}
+```
+
+## Quotes from "Feel free to leave us any additional comments, concerns, or questions."
+
+
+```{r fig.width = 8}
+if (nrow(as_tibble(params$quote5)) >= 1) {
+  quote_viz(
+        data = as_tibble(params$quote5), text_col = "Response", viz_type = "gt",
+        title = "Feel free to leave us any additional comments, concerns, or questions.",
+        width = 40, align = "left"
+      ) %>%
+  gtsave("img5.png", path = tempdir())
+} else {
+  tibble("There were no comments to display here.") %>% quote_viz(title = "Nothing", width = 40) %>% gtsave("nothing_image.png", path = tempdir())
+}
+```
+

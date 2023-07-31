@@ -1,0 +1,90 @@
+---
+title: "Untitled"
+author: "Duncan Gates"
+date: "7/12/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F)
+library(googlesheets4)
+library(tidyverse)
+```
+
+# ELA
+
+```{r}
+read_sheet("https://docs.google.com/spreadsheets/d/1cELGsuEjXsb1e5oRdtdYof-Ul7jfdBXMOTYbIYd7nS4/edit#gid=0") %>%
+    filter(`Content area` == "ELA") %>%
+    select(`Course Title (from PM-facing Course Catalog)`) %>%
+    mutate(`Course Title (from PM-facing Course Catalog)` = str_trim(str_remove_all(`Course Title (from PM-facing Course Catalog)`, "ELA:"))) %>%
+    distinct() %>%
+    drop_na() -> ELA
+
+ELA %>% clipr::write_clip()
+```
+
+# Math
+
+```{r}
+read_sheet("https://docs.google.com/spreadsheets/d/1cELGsuEjXsb1e5oRdtdYof-Ul7jfdBXMOTYbIYd7nS4/edit#gid=0") %>%
+    filter(`Content area` == "Math") %>%
+    select(`Course Title (from PM-facing Course Catalog)`) %>%
+    mutate(`Course Title (from PM-facing Course Catalog)` = str_trim(str_remove_all(`Course Title (from PM-facing Course Catalog)`, "Math:"))) %>%
+    distinct() %>%
+    drop_na() -> Math
+
+Math %>% clipr::write_clip()
+```
+
+# School Leaders
+
+```{r}
+read_sheet("https://docs.google.com/spreadsheets/d/1cELGsuEjXsb1e5oRdtdYof-Ul7jfdBXMOTYbIYd7nS4/edit#gid=0") %>%
+    filter(`Content area` == "School Leaders") %>%
+    select(`Course Title (from PM-facing Course Catalog)`) %>%
+    mutate(`Course Title (from PM-facing Course Catalog)` = str_trim(str_remove_all(`Course Title (from PM-facing Course Catalog)`, "ELA:"))) %>%
+    distinct() %>%
+    drop_na() -> SCHOOL
+
+SCHOOL %>% clipr::write_clip()
+```
+
+# Lab Leaders
+
+```{r}
+read_sheet("https://docs.google.com/spreadsheets/d/1cELGsuEjXsb1e5oRdtdYof-Ul7jfdBXMOTYbIYd7nS4/edit#gid=0") %>%
+    filter(`Content area` == "Lab Leaders") %>%
+    select(`Course Title (from PM-facing Course Catalog)`) %>%
+    mutate(`Course Title (from PM-facing Course Catalog)` = str_trim(str_remove_all(`Course Title (from PM-facing Course Catalog)`, "ELA:"))) %>%
+    distinct() %>%
+    drop_na() -> LAB
+
+LAB %>% clipr::write_clip()
+```
+
+# HQPL Fellowship
+
+```{r}
+read_sheet("https://docs.google.com/spreadsheets/d/1cELGsuEjXsb1e5oRdtdYof-Ul7jfdBXMOTYbIYd7nS4/edit#gid=0") %>%
+    filter(`Content area` == "HQPL Fellowship") %>%
+    select(`Course Title (from PM-facing Course Catalog)`) %>%
+    distinct() %>%
+    drop_na() -> HQPL
+
+HQPL %>% clipr::write_clip()
+```
+
+# HQIM Fellowship
+
+```{r}
+read_sheet("https://docs.google.com/spreadsheets/d/1cELGsuEjXsb1e5oRdtdYof-Ul7jfdBXMOTYbIYd7nS4/edit#gid=0") %>%
+    filter(`Content area` == "HQIM Fellowship") %>%
+    select(`Course Title (from PM-facing Course Catalog)`) %>%
+    mutate(`Course Title (from PM-facing Course Catalog)` = str_trim(str_remove_all(`Course Title (from PM-facing Course Catalog)`, "ELA:"))) %>%
+    distinct() %>%
+    drop_na() -> HQIM
+
+HQIM %>% clipr::write_clip()
+```
+

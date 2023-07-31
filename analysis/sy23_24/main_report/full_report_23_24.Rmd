@@ -1,0 +1,838 @@
+---
+title: 'Teaching Lab Report'
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  TeachingLab::TLDefault:
+    theme: null
+    mathjax: null
+    css: styles.css
+    fontawesome: true
+    self_contained: true
+    thumbnails: false
+    lightbox: true
+    gallery: false
+    highlight: kate # Also can do tango
+    number_sections: false
+    includes:
+      in_header: header.html
+      after_body: footer.html
+runtime: shiny
+---
+
+```{r echo = F}
+library(shiny)
+shiny::selectInput(
+  inputId = "siteSelect",
+  label = "Please choose a site",
+  selected = "",
+  choices = all_sites <- c(
+    "All Sites",
+    "AR_Arkansas DOE",
+    "CA_San Diego",
+    "CA_Silver Giving",
+    "CA_West Contra Costa_Murphy ES",
+    "CA_West Contra Costa_WCCUSD",
+    "DE_DE Department of Education",
+    "IL_Chicago Public Schools_Aggregate",
+    "IL_Chicago Public Schools_Network 12",
+    "IL_Chicago Public Schools_Network 4",
+    "IL_Chicago Public Schools_Network 7",
+    "IL_Kankakee District 111",
+    "LA_Calcasieu Parish",
+    "LA_Jefferson Davis Parish",
+    # "LA_Pointe Coupee Parish",
+    "NM_NM Public Education Department",
+    "NY_Amistad Dual Language",
+    "NY_Channel View School for Research",
+    "NY_D9",
+    "NY_D10_10X386",
+    "NY_D27",
+    "NY_ESMT_IS190",
+    "NY_Fannie Lou Hamer",
+    "OH_Cleveland Metro School District",
+    "TN_McNairy County Schools",
+    "TX_Essence Preparatory Public School",
+    "TX_RAISE Rice University",
+    "US_City Year",
+    "US_Digital Nest",
+    "US_Open Enrollment",
+    "VT_Danville School",
+    "VT_Orleans Central Supervisory Union",
+    "WI_WI DPI"
+  )
+)
+
+site_reactive <- reactive({
+  input$siteSelect
+})
+
+output$title <- renderText({paste0('Teaching Lab End of Year Report: ', site_reactive())})
+```
+
+
+```{r setup, include=FALSE}
+na_df <- c("N.A", "N.A.", "n/a", "N/a", "N/A", "N/A", "N/A.", "na", "Na", "NA", "na.", "NA.", "No Response", "none", "None", "NONE", "none.", "None.", "nothing", "Nothing", "NOTHING", "nothing.", "Nothing.", "response", "Response", NA)
+library(ggforce)
+library(ggfx)
+library(ggtext)
+library(glue)
+library(grid)
+library(gt)
+library(here)
+library(knitr)
+library(lubridate)
+library(patchwork)
+library(png)
+library(qualtRics)
+library(rmdformats)
+library(scales)
+library(TeachingLab)
+library(tidyverse)
+update_data <- FALSE
+
+### Student Survey Read-In ###
+student_survey <- reactive({
+  TeachingLab::get_student_survey(update = update_data, year = "22_23") |>
+    TeachingLab::neg_cond_filter(
+      if_not_this = "All Sites",
+      filter_this = input$siteSelect,
+      dat_filter = site
+    ) |>
+    mutate(race = if_else(ethnicity == "Yes", "Hispanic/Latino", race))
+})
+
+### IPG Forms Read-In ###
+ipg_forms <- reactive({
+  TeachingLab::get_ipg_forms(update = update_data, year = "22_23") |>
+    TeachingLab::neg_cond_filter(
+      if_not_this = "All Sites",
+      filter_this = input$siteSelect,
+      dat_filter = site
+    ) |>
+    dplyr::filter(site != "MA_DESE") |>
+    dplyr::mutate(
+      direct_to_ts_obs = as.character(direct_to_ts_obs),
+      not_direct_to_ts = as.character(not_direct_to_ts)
+    )
+})
+
+ipg_forms_direct_to_ts <- reactive({
+  ipg_forms() |>
+  dplyr::filter(site %in% c(
+    "IL_Chicago Public Schools_Network 7",
+    "IL_Chicago Public Schools_Network 4",
+    "IL_Chicago Public Schools_Network 12",
+    "CPS Aggregate",
+    "NY_D9",
+    "NY_D11",
+    "AR_Arkansas DOE"
+  ) & !is.na(direct_to_ts_obs))
+})
+
+ipg_forms_not_direct_to_ts <- reactive({
+  ipg_forms() |>
+  dplyr::filter(!site %in% c(
+    "IL_Chicago Public Schools_Network 7",
+    "IL_Chicago Public Schools_Network 4",
+    "IL_Chicago Public Schools_Network 12",
+    "CPS Aggregate",
+    "NY_D9",
+    "NY_D11",
+    "AR_Arkansas DOE"
+  ) & !is.na(not_direct_to_ts))
+})
+
+section_6_eval <- reactive({
+  nrow(ipg_forms()) >= 1
+})
+ipg_count <- reactive({
+  nrow(ipg_forms())
+})
+
+### Educator Survey Read-In ###
+educator_survey <- reactive({
+  ed_survey <- TeachingLab::get_diagnostic_survey(update = update_data, year = "22_23") |>
+    TeachingLab::neg_cond_filter(
+      if_not_this = "All Sites",
+      filter_this = input$siteSelect,
+      dat_filter = site
+    ) |>
+    dplyr::filter(site != "MA_DESE")
+
+  if (input$siteSelect != "NM_NM Public Education Department") {
+    ed_survey <- ed_survey |>
+      select(-c(`ts_crse_after_7/30_5`:`ts_crse_after_7/30_9`))
+  }
+  
+  ed_survey
+})
+
+ed_survey_vars <- c(
+  "gender",
+  "race_1", "race_2", "race_3", "race_4", "race_5",
+  "ethnicity",
+  "teaching_experience",
+  "content_area",
+  paste0("grade_level_", 1:17),
+  "tl_pl_participation",
+  "role",
+  "lab_leader"
+)
+section_1_eval <- reactive({
+  purrr::reduce(purrr::map(ed_survey_vars, ~ sum(!is.na(educator_survey()[[.x]]))), `+`) >= 1
+})
+section_4_eval <- reactive({
+  sum(!is.na(educator_survey()$mindsets_ts_1_1)) >= 1
+})
+section_5_eval <- reactive({
+  sum(!is.na(educator_survey()$non_ts_mindsets_1)) >= 1
+})
+
+diagnostic_count <- reactive({
+  nrow(educator_survey())
+})
+
+### Follow-up Educator Survey Read-In ###
+followup_educator <- reactive({
+  fl_ed <- TeachingLab::get_followup_educator(update = update_data, year = "22_23") |>
+    TeachingLab::neg_cond_filter(
+      if_not_this = "All Sites",
+      filter_this = input$siteSelect,
+      dat_filter = site
+    ) |>
+    dplyr::filter(site != "MA_DESE")
+
+  if (input$siteSelect != "NM_NM Public Education Department") {
+    fl_ed <- fl_ed |>
+      select(-c(`ts_crse_after_7/30_5`:`ts_crse_after_7/30_9`))
+  }
+  
+  fl_ed
+})
+
+followup_count <- reactive({
+  nrow(followup_educator())
+})
+
+### Knowledge Assessments Read-In ###
+knowledge_assessments <- reactive({
+  TeachingLab::get_knowledge_assessments(update = update_data, year = "22_23") |>
+    TeachingLab::neg_cond_filter(
+      if_not_this = "All Sites",
+      filter_this = input$siteSelect,
+      dat_filter = site
+    ) |>
+    dplyr::filter(site != "MA_DESE")
+})
+section_3_eval <- reactive({
+  dplyr::if_else(nrow(knowledge_assessments()) >= 1, TRUE, FALSE)
+})
+
+pre_know <- reactive({
+  nrow(knowledge_assessments() |> dplyr::filter(prepost == "pre"))
+})
+post_know <- reactive({
+  nrow(knowledge_assessments() |> dplyr::filter(prepost == "post"))
+})
+
+### End of Session Feedback Read In ###
+session_survey <- reactive({
+  TeachingLab::get_session_survey(update = update_data, year = "22_23") |>
+    TeachingLab::neg_cond_filter(
+      if_not_this = "All Sites",
+      filter_this = input$siteSelect,
+      dat_filter = site
+    ) |>
+    dplyr::filter(site != "MA_DESE") |>
+    mutate(
+      race = case_when(
+        ethnicity == "Hispanic or Latino" ~ "Hispanic/Latino",
+        (!is.na(race_1) & !is.na(race_2)) |
+          (!is.na(race_1) & !is.na(race_3)) |
+          (!is.na(race_1) & !is.na(race_4)) |
+          (!is.na(race_1) & !is.na(race_5)) |
+          (!is.na(race_2) & !is.na(race_3)) |
+          (!is.na(race_2) & !is.na(race_4)) |
+          (!is.na(race_2) & !is.na(race_5)) |
+          (!is.na(race_3) & !is.na(race_4)) |
+          (!is.na(race_3) & !is.na(race_5)) |
+          (!is.na(race_4) & !is.na(race_5)) ~ "More than one race",
+        race_1 == "Asian" ~ "Asian",
+        race_2 == "Black or African American" ~ "Black or African American",
+        race_3 == "Native American or Indian" ~ "Native American or Indian",
+        race_5 == "White" ~ "White",
+        race_6 == "Prefer not to say" ~ "Other",
+        race_7 == "I prefer to self describe" ~ "Other"
+      ),
+      content_area = if_else(!content_area %in% c("Math", "ELA"), "Other", content_area)
+    )
+})
+section_2a_eval <- reactive({
+  nrow(session_survey()) >= 1
+})
+
+### End of Course Feedback Read In ###
+course_survey <-
+  reactive({
+    TeachingLab::get_course_survey(update = update_data, year = "22_23") |>
+      TeachingLab::neg_cond_filter(
+        if_not_this = "All Sites",
+        filter_this = input$siteSelect,
+        dat_filter = site
+      ) |>
+      dplyr::filter(site != "MA_DESE") |>
+      dplyr::mutate(
+        race = dplyr::case_when(
+          ethnicity == "Hispanic or Latino" ~ "Hispanic/Latino",
+          (!is.na(race_1) & !is.na(race_2)) |
+            (!is.na(race_1) & !is.na(race_3)) |
+            (!is.na(race_1) & !is.na(race_4)) |
+            (!is.na(race_1) & !is.na(race_5)) |
+            (!is.na(race_2) & !is.na(race_3)) |
+            (!is.na(race_2) & !is.na(race_4)) |
+            (!is.na(race_2) & !is.na(race_5)) |
+            (!is.na(race_3) & !is.na(race_4)) |
+            (!is.na(race_3) & !is.na(race_5)) |
+            (!is.na(race_4) & !is.na(race_5)) ~ "More than one race",
+          race_1 == "Asian" ~ "Asian",
+          race_2 == "Black or African American" ~ "Black or African American",
+          race_3 == "Native American or Indian" ~ "Native American or Indian",
+          race_5 == "White" ~ "White",
+          race_6 == "Prefer not to say" ~ "Other",
+          race_7 == "I prefer to self describe" ~ "Other"
+        ),
+        content_area = dplyr::if_else(!content_area %in% c("Math", "ELA"), "Other", content_area)
+      )
+  })
+section_2b_eval <- reactive({
+  nrow(course_survey()) >= 1
+})
+
+### Ongoing Coaching Feedback Read In ###
+ongoing_coaching <-
+  reactive({
+    TeachingLab::get_ongoing_coaching(update = update_data, year = "22_23") |>
+      TeachingLab::neg_cond_filter(
+        if_not_this = "All Sites",
+        filter_this = input$siteSelect,
+        dat_filter = site
+      ) |>
+      dplyr::filter(site != "MA_DESE") |>
+      dplyr::mutate(
+        race = dplyr::case_when(
+          ethnicity == "Hispanic or Latino" ~ "Hispanic/Latino",
+          (!is.na(race_1) & !is.na(race_2)) |
+            (!is.na(race_1) & !is.na(race_3)) |
+            (!is.na(race_1) & !is.na(race_4)) |
+            (!is.na(race_1) & !is.na(race_5)) |
+            (!is.na(race_2) & !is.na(race_3)) |
+            (!is.na(race_2) & !is.na(race_4)) |
+            (!is.na(race_2) & !is.na(race_5)) |
+            (!is.na(race_3) & !is.na(race_4)) |
+            (!is.na(race_3) & !is.na(race_5)) |
+            (!is.na(race_4) & !is.na(race_5)) ~ "More than one race",
+          race_1 == "Asian" ~ "Asian",
+          race_2 == "Black or African American" ~ "Black or African American",
+          race_3 == "Native American or Indian" ~ "Native American or Indian",
+          race_5 == "White" ~ "White",
+          race_6 == "Prefer not to say" ~ "Other",
+          race_7 == "I prefer to self describe" ~ "Other"
+        ),
+        content_area = dplyr::if_else(!content_area %in% c("Math", "ELA"), "Other", content_area)
+      )
+  })
+section_2c_eval <- reactive({
+  nrow(ongoing_coaching()) >= 1
+})
+
+### End of Coaching Feedback Read In ###
+end_coaching <-
+  reactive({
+    TeachingLab::get_end_coaching(update = update_data, year = "22_23") |>
+      TeachingLab::neg_cond_filter(
+        if_not_this = "All Sites",
+        filter_this = input$siteSelect,
+        dat_filter = site
+      ) |>
+      dplyr::filter(site != "MA_DESE") |>
+      dplyr::mutate(
+        race = dplyr::case_when(
+          ethnicity == "Hispanic or Latino" ~ "Hispanic/Latino",
+          (!is.na(race_1) & !is.na(race_2)) |
+            (!is.na(race_1) & !is.na(race_3)) |
+            (!is.na(race_1) & !is.na(race_4)) |
+            (!is.na(race_1) & !is.na(race_5)) |
+            (!is.na(race_2) & !is.na(race_3)) |
+            (!is.na(race_2) & !is.na(race_4)) |
+            (!is.na(race_2) & !is.na(race_5)) |
+            (!is.na(race_3) & !is.na(race_4)) |
+            (!is.na(race_3) & !is.na(race_5)) |
+            (!is.na(race_4) & !is.na(race_5)) ~ "More than one race",
+          race_1 == "Asian" ~ "Asian",
+          race_2 == "Black or African American" ~ "Black or African American",
+          race_3 == "Native American or Indian" ~ "Native American or Indian",
+          race_5 == "White" ~ "White",
+          race_6 == "Prefer not to say" ~ "Other",
+          race_7 == "I prefer to self describe" ~ "Other"
+        ),
+        content_area = dplyr::if_else(!content_area %in% c("Math", "ELA"), "Other", content_area)
+      )
+  })
+section_2d_eval <- reactive({
+  nrow(end_coaching()) >= 1
+})
+
+### Mid/End Year Contact Lead ###
+contact_lead <-
+  reactive({
+    qualtRics::fetch_survey(
+      surveyID = "SV_cTJGFaslXUpKVgi",
+      verbose = FALSE,
+      include_display_order = FALSE,
+      force_request = update_data
+    ) |>
+      dplyr::filter(Finished == TRUE) |>
+      TeachingLab::neg_cond_filter(
+        if_not_this = "All Sites",
+        filter_this = input$siteSelect,
+        dat_filter = site
+      ) |>
+      dplyr::mutate(
+        content_area = dplyr::coalesce(
+          content_area_1,
+          content_area_2,
+          content_area_3
+        ),
+        content_area = stringr::str_remove_all(content_area, "\\/Literacy")
+      ) |>
+      dplyr::mutate(dplyr::across(where(is.factor), ~ dplyr::na_if(as.character(.x), "NA")))
+  })
+section_2e_eval <- reactive({
+  nrow(contact_lead()) >= 1
+})
+section_8_eval <- reactive({
+  sum(!is.na(contact_lead()$future_pl_location)) >= 1
+})
+
+if (!exists("sw_graded")) {
+sw_graded <- googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/15ixca0QKloZtYLcmj_9Uc20zdQ5FE6pSVj3EBamLoiI/edit?pli=1#gid=0",
+      sheet = "Student Work Scores"
+    ) |>
+      dplyr::mutate(`Grade Band` = stringr::str_replace_all(`Grade Band`, "Other", "K-2")) |>
+      dplyr::filter(!is.na(`Submitted By`)) |>
+      dplyr::filter(Site != "MA_DESE")
+}
+
+### Student Work Grades ###
+student_work_grades <-
+  reactive({
+    sw_graded <- sw_graded |>
+      TeachingLab::neg_cond_filter(
+        if_not_this = "All Sites",
+        filter_this = input$siteSelect,
+        dat_filter = Site
+      )
+
+    if (input$siteSelect == "IL_Chicago Public Schools_Aggregate") {
+      sw_graded <- sw_graded |>
+        dplyr::filter(Site != "IL_Chicago Public Schools_Network 4")
+    }
+    sw_graded
+  })
+
+section_7_eval <- reactive({
+  nrow(student_survey()) >= 1 | nrow(student_work_grades()) >= 1
+})
+
+student_work_count <- reactive({
+  student_work_grades() |>
+  dplyr::filter((Legible == "New Version" | Legible == "Yes") & !is.null(`Submitted Grade/s`)) |>
+  dplyr::select(`Submitted Grade/s`, `Student Work File`) |>
+  tidyr::drop_na(`Submitted Grade/s`) |>
+  dplyr::mutate(`Submitted Grade/s` = as.character(`Submitted Grade/s`)) |>
+  tidyr::separate_rows(`Submitted Grade/s`, sep = ", ") |>
+  nrow()
+})
+
+###################################################################################################
+
+## Global options
+options(max.print = "75", width = 1000)
+opts_chunk$set(
+  echo = FALSE,
+  cache = FALSE,
+  prompt = FALSE,
+  tidy = TRUE,
+  comment = NA,
+  message = FALSE,
+  warning = FALSE,
+  out.extra = 'class="plot"'
+)
+```
+
+```{=html}
+<script src="js/hideOutput.js"></script>
+```
+
+### Background
+
+Teaching Lab collects a variety of data to understand the impact of its
+PL for educators and students. Please see this
+[resource](https://docs.google.com/presentation/d/1Vo844M0_Au8bqfeK5-hPdFh30oGRjzjCxwm6vctemQ8/edit#slide=id.g1165a219667_0_182)
+for a visual overview of our evaluation framework. Additionally, the
+[narrative](https://docs.google.com/document/d/19yDyFCx1KeSPHlD9SLvLfG76FRGdfChL1hnCo_dV1zQ/edit)
+of our evaluation plan provides more details.
+
+To date (`r Sys.Date() |> format("%b %d, %Y")`), Teaching Lab has
+collected the following data during SY22-23:
+
+```{r session-survey-collection, results = 'asis'}
+final_sec_intro <- reactive({
+  counts <- list()
+  if (nrow(session_survey()) >= 1) {
+    sec2_intro <- "Participant Perceptions"
+    counts$p1 <- paste0("- ", format(nrow(session_survey()), big.mark = ","), " complete responses to the End of Session Survey section of the survey that gathers participant feedback on facilitation from session to session;")
+  }
+  if (nrow(course_survey()) >= 1) {
+    sec2_intro <- "Participant Perceptions"
+    counts$p2 <- paste0("- ", format(nrow(course_survey()), big.mark = ","), " complete responses to the End of Course Survey section of the survey that gathers participant feedback on each PL course;")
+  }
+  if (nrow(ongoing_coaching()) >= 1) {
+    sec2_intro <- "Participant Perceptions"
+    counts$p3 <- paste0("- ", format(nrow(ongoing_coaching()), big.mark = ","), " complete responses to the Ongoing Coaching section of the survey that gathers participant feedback on each Coaching session;\n")
+  }
+  if (nrow(end_coaching()) >= 1) {
+    sec2_intro <- "Participant Perceptions"
+    counts$p4 <- paste0("- ", format(nrow(end_coaching()), big.mark = ","), " complete responses to the End of Coaching section of the survey that gathers participant feedback on each Coaching performance;")
+  }
+  if (sum(nrow(session_survey()), nrow(course_survey()), nrow(ongoing_coaching()), nrow(end_coaching())) == 0) {
+    sec2_intro <- NA
+  }
+  if (pre_know() >= 1) {
+    sec3_intro <- "Participant Knowledge"
+    counts$p5 <- paste0("- ", pre_know(), " complete responses to the first Knowledge or Self-Reported Practices Assessments and ", post_know(), " to the second Knowledge or Self-Reported Practices Assessments;")
+  } else {
+    sec3_intro <- NA
+  }
+  if (diagnostic_count() >= 1) {
+    sec1_intro <- "Participant Background and Demographics Summary"
+    sec4_intro <- "Teachers' Mindsets & School Environment"
+    sec5_intro <- "School Leaders' Mindsets & Observational Practices"
+    counts$p6 <- paste0("- ", format(diagnostic_count(), big.mark = ","), " complete responses to the Baseline Diagnostic Educator Survey that collects information on teachers' use of curricula, mindsets, self-reported practices, and school environment & ", format(followup_count(), big.mark = ","), " responses to the Follow-up Educator Survey.")
+  } else {
+    sec1_intro <- NA
+    sec4_intro <- NA
+    sec5_intro <- NA
+  }
+  if (ipg_count() >= 1) {
+    sec6_intro <- "Instructional Practice"
+    counts$p7 <- paste0("- ", format(ipg_count(), big.mark = ","), " observations of classroom instruction.")
+  } else {
+    sec6_intro <- NA
+  }
+  if (student_work_count() >= 1) {
+    sec7_intro <- "Student Outcomes"
+    counts$p8 <- paste0("- ", format(student_work_count(), big.mark = ","), " high quality samples of student work.")
+  } else {
+    sec7_intro <- NA
+  }
+  if (sum(!is.na(contact_lead()$future_pl_location))) {
+    sec8_intro <- "Partnership Opportunities Moving Forward"
+  } else {
+    sec8_intro <- NA
+  }
+  
+  inline_sections <- na.omit(c(
+    sec1_intro,
+    sec2_intro,
+    sec3_intro,
+    sec4_intro,
+    sec5_intro,
+    sec6_intro,
+    sec7_intro,
+    sec8_intro
+  ))
+  final_sec_intro <- glue::glue_collapse(inline_sections, ", ", last = " and ")
+  
+  list(counts = counts, final_sec_intro = final_sec_intro)
+})
+e
+output$counts <- renderUI({
+  # counts <- final_sec_intro()[grep('p', names(final_sec_intro()))]
+  final_counts <- final_sec_intro()$counts
+  test <- purrr::map_chr(1:length(final_counts), ~ final_counts[[.x]])
+  HTML(paste(test, collapse = "</br>"))
+})
+
+output$final_sec_intro <- renderText({
+  final_sec_intro()$final_sec_intro
+})
+```
+
+`r htmlOutput("counts")`
+
+Below we have compiled the results in various sections:
+
+`r textOutput("final_sec_intro")`.
+
+```{r section-1, results = 'asis'}
+# output$section1 <- renderUI({
+#   if (section_1_eval() == TRUE) {
+#   HTML(paste0("# Section 1: Participant Background and Demographics Summary",
+#   "<br/>",
+#   "This section provides a demographic and background summary on participants."))
+#   } else {
+#     ""
+#   }
+# })
+# 
+# htmlOutput("section1")
+```
+
+# Section 1: Participant Background and Demographics Summary
+
+This section provides a demographic and background summary on participants.
+
+## Gender and Racial Identity
+
+
+```{r section-1-gts, fig.dim = c(6.5, 4.5), fig.align = 'center', results = 'asis'}
+output$gender_plot <- renderPlot({
+  gender_plot <- TeachingLab::gt_percent_n(
+    df = educator_survey(),
+    column = "gender",
+    custom_column_name = "Gender Identity", 
+    viz_type = sample(c("waffle", "pie", "treemap"), size = 1)
+  )
+  gender_plot
+})
+
+plotOutput("gender_plot")
+```
+
+## Racial Identity
+
+```{r section-2-gts, fig.dim = c(6.5, 4.5), fig.align = 'center', results = 'asis'}
+race_cols <- c("race_1", "race_2", "race_3", "race_4", "race_5", "race_6", "race_7")
+
+output$race_plot <- renderPlot({
+  race_plot <- educator_survey() |>
+    select(
+      all_of(
+        race_cols
+      )
+    ) |>
+    pivot_longer(everything()) |>
+    mutate(value = fct_lump(factor(value), 3)) |>
+    rename(`Race Identity` = value) |>
+    gt_percent_n(
+      column = "Race Identity",
+      custom_column_name = "Racial Identity",
+      viz_type = sample(c("pie", "waffle", "treemap"), size = 1)
+    )
+  race_plot
+})
+
+plotOutput("race_plot")
+```
+
+
+```{r section-3-gts, fig.dim = c(6.5, 4.5), fig.align = 'center', results = 'asis'}
+# render_gt({
+# if (sum(!is.na(educator_survey()$ethnicity)) >= 1) {
+#   ethnicity_gt <- gt_percent_n(
+#     educator_survey()[!str_detect(educator_survey()$ethnicity, "NA"), ],
+#     column = "ethnicity",
+#     custom_column_name = "Ethnicity", viz_type = sample(c("pie", "waffle", "treemap"),
+#       size = 1
+#     )
+#   )
+# 
+#   print(ethnicity_gt)
+# 
+#   cat("\n")
+# }
+# })
+# 
+# renderPlot({
+# if (sum(!is.na(educator_survey()$teaching_experience)) >= 1) {
+#   n <- sum(!is.na(educator_survey()$teaching_experience[!str_detect(educator_survey()$teaching_experience, "NA")]))
+# 
+#   teaching_experience_plot <- educator_survey() |>
+#     drop_na(teaching_experience) |>
+#     dplyr::filter(!str_detect(teaching_experience, "NA")) |>
+#     dplyr::mutate(teaching_experience = na.omit(teaching_experience)) |>
+#     group_by(teaching_experience) |>
+#     count(sort = T) |>
+#     ungroup() |>
+#     mutate(
+#       percent = round(100 * n / sum(n), 1),
+#       color = if_else(percent < 10, "black", "white"),
+#       hjust = if_else(color == "white", 1.5, -0.5)
+#     ) |>
+#     ggplot(aes(teaching_experience, percent)) +
+#     geom_col(aes(fill = percent)) +
+#     geom_text(
+#       aes(
+#         label = paste0(percent, "%"),
+#         color = color, hjust = hjust
+#       ),
+#       fontface = "bold"
+#     ) +
+#     coord_flip() +
+#     labs(title = glue::glue("Years of Teaching Experience (n = {format(n, big.mark = ',')})"), x = "", y = "") +
+#     scale_color_manual(values = c("black", "white")) +
+#     scale_fill_continuous() +
+#     scale_y_continuous(
+#       labels = scales::percent_format(scale = 1),
+#       breaks = scales::pretty_breaks(n = 6)
+#     ) +
+#     scale_x_discrete(labels = c("Less than 1", "0-9", "10-19", "20-29", "30-39", "40-49", "50+")) +
+#     ggplot2::theme(
+#       axis.text = ggtext::element_markdown(size = 20),
+#       axis.title = ggtext::element_markdown(size = 24)
+#     ) +
+#     TeachingLab::theme_tl()
+# 
+#   cat("\n## Years of Teaching Experience", "\n")
+# 
+#   print(teaching_experience_plot)
+# 
+#   cat("\n")
+# }
+# })
+# 
+# render_gt({
+# if (sum(!is.na(educator_survey()$content_area)) >= 1 & input$siteSelect != "US_Digital Nest") {
+#   content_area_gt <- educator_survey() |>
+#     select(content_area) |>
+#     drop_na() |>
+#     dplyr::filter(!str_detect(content_area, "NA")) |>
+#     gt_percent_n(
+#       column = "content_area",
+#       custom_column_name = "Content Area", viz_type = sample(c("waffle", "pie", "treemap"),
+#         size = 1
+#       )
+#     )
+# 
+#   cat("\n## Content Area", "\n")
+# 
+#   print(content_area_gt)
+# 
+#   cat("\n")
+# }
+# })
+# 
+# renderPlot({
+# grades <- c(map_chr(1:14, ~ paste0("grade_level_", .x)))
+# if (reduce(map(grades, ~ sum(!is.na(educator_survey()[[.x]]))), `+`) >= 1) {
+#   n <- educator_survey() |>
+#     select(all_of(grades)) |>
+#     janitor::remove_empty("rows") |>
+#     nrow()
+# 
+#   grades_plot <- educator_survey() |>
+#     select(all_of(grades)) |>
+#     mutate(across(everything(), ~ as.character(.x))) |>
+#     pivot_longer(everything()) |>
+#     tidyr::drop_na(value) |>
+#     group_by(value) |>
+#     count(sort = T) |>
+#     ungroup() |>
+#     mutate(
+#       percent = round(100 * n / sum(n), 1),
+#       value = factor(value, levels = c(
+#         "K", "1", "2", "3", "4", "5",
+#         "6", "7", "8", "9", "10", "11",
+#         "12", "Other"
+#       ))
+#     ) |>
+#     ggplot(aes(value, percent)) +
+#     geom_col(aes(fill = percent)) +
+#     geom_text(
+#       aes(
+#         label = paste0(percent, "%"),
+#         vjust = -0.5
+#       ),
+#       fontface = "bold"
+#     ) +
+#     labs(
+#       y = "", x = "Grade",
+#       title = glue::glue("Grades Taught (n = {format(n, big.mark = ',')})"),
+#       subtitle = "<i>More than one could be selected.</i>"
+#     ) +
+#     scale_color_manual(values = c("black", "white")) +
+#     scale_fill_continuous() +
+#     scale_y_continuous(
+#       labels = scales::percent_format(scale = 1),
+#       breaks = scales::pretty_breaks(n = 6)
+#     ) +
+#     theme_tl() +
+#     theme(
+#       axis.text = element_markdown(size = 20),
+#       axis.title = element_markdown(size = 24),
+#       plot.subtitle = element_markdown()
+#     )
+# 
+#   cat("\n## Grades", "\n")
+# 
+#   print(grades_plot)
+# 
+#   cat("\n")
+# }
+# })
+# 
+# render_gt({
+# if (sum(!str_detect(educator_survey()$tl_pl_participation, "NA"), na.rm = T) >= 1) {
+#   tl_pl_gt <- gt_percent_n(
+#     df = educator_survey()[!str_detect(educator_survey()$tl_pl_participation, "NA"), ],
+#     column = "tl_pl_participation",
+#     custom_column_name = "Previous Experience with Teaching Lab", viz_type = sample(c("waffle", "pie", "treemap"),
+#       size = 1
+#     )
+#   )
+# 
+#   cat("\n## Prior Experience with Teaching Lab Professional Learning", "\n")
+# 
+#   print(tl_pl_gt)
+# 
+#   cat("\n")
+# }
+# })
+# 
+# render_gt({
+# if (sum(!str_detect(educator_survey()$role, "NA"), na.rm = T) >= 1) {
+#   roles_gt <- gt_percent_n(
+#     df = educator_survey()[!str_detect(educator_survey()$role, "NA"), ],
+#     column = "role",
+#     custom_column_name = "Primary Role",
+#     viz_type = sample(c("waffle", "treemap"),
+#       size = 1
+#     )
+#   )
+# 
+#   cat("\n## Roles", "\n")
+# 
+#   print(roles_gt)
+# 
+#   cat("\n")
+# }
+# })
+# 
+# render_gt({
+# if (sum(!str_detect(educator_survey()$lab_leader, "NA"), na.rm = T) >= 1) {
+#   lab_leader_gt <- gt_percent_n(
+#     df = educator_survey()[!str_detect(educator_survey()$lab_leader, "NA"), ],
+#     column = "lab_leader",
+#     custom_column_name = "Lab Leader",
+#     viz_type = sample(c("waffle", "pie", "treemap"),
+#       size = 1
+#     )
+#   )
+# 
+#   print(lab_leader_gt)
+# 
+#   cat("\n")
+# }
+# })
+```

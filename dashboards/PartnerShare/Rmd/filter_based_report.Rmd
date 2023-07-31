@@ -1,0 +1,158 @@
+---
+title: "`r params$partner`"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  rmdformats::readthedown:
+    css: styles.css
+    self_contained: true # Other options are downcute, material, readthedown, html_clean, html_docco, lockdown, https://github.com/juba/rmdformats
+    thumbnails: false
+    lightbox: true
+    gallery: false
+    highlight: kate # Also can do tango
+    number_sections: false
+    includes:
+      after_body: footer.html
+---
+
+
+```{r setup, include=FALSE}
+library(knitr)
+library(rmdformats)
+library(glue)
+library(gt)
+library(TeachingLab)
+
+if (params$year == "SY19-20") {
+ data <- readxl::read_excel(here::here("Data/SY19-20/SY19-20 Fall-Spring Merged Dataset Update.xls")) 
+} else if (params$year == "SY20-21") {
+ full_2021 <- read_rds(here::here("Data/SY20-21/full_2021.rds"))
+ matched_2021 <- read_rds(here::here("Data/SY20-21/matched_2021.rds"))
+}
+
+
+## Global options
+options(max.print = "75")
+opts_chunk$set(
+  echo = FALSE,
+  cache = TRUE,
+  prompt = FALSE,
+  tidy = TRUE,
+  comment = NA,
+  message = FALSE,
+  warning = FALSE
+)
+opts_knit$set(width = 75)
+```
+
+```{r}
+htmltools::tagList(rmarkdown::html_dependency_font_awesome()) # Needed so fa's in footer will show
+```
+
+#### 2020-2021 Report
+
+## Background
+
+In SY20-21, Teaching Lab administered online diagnostic and follow-up surveys of educators participating in Teaching Lab’s professional learning in order to measure growth and improvement in three different areas: 1) Educator Mindsets and Beliefs, 2) School Environment, and 3) Content and Pedagogical Content Knowledge. There were `r full_2021 %>% filter(!is.na(pre_site) & pre_site == params$partner) %>% summarise(n()) %>% as_vector()` educators who completed the diagnostic survey, `r full_2021 %>% filter(is.na(pre_site) & post_site == params$partner) %>% summarise(n()) %>% as_vector()` educators who completed the follow-up survey, and `r matched_2021 %>% filter(!is.na(pre_site)) %>% summarise(n()) %>% as_vector()` educators who completed both.
+
+
+## Summary of Results
+
+### Methodology and Presentation of Results
+We have provided two types of results for each section:
+The results in the `r colorize("first three columns", "#04ABEB")` of the table refer to the `r colorize("overall group averages", "#04ABEB")`. We provide the `r colorize("group average for the diagnostic", "#04ABEB")` and `r colorize("follow-up", "#04ABEB")` surveys as well as the `r colorize("percentage point change", "#04ABEB")` (increase or decrease) over this time. It is important to note that the group that completed the diagnostic survey and the group that completed the follow-up survey are different in size.
+The results in the fourth column reflect the percentage of educators who improved their responses or sustained the highest level response from the diagnostic to follow-up survey. This group of educators is the same for both surveys and is smaller in size.
+
+### Section 1: Mindsets and Beliefs
+Educators were asked a series of questions about their mindsets toward instruction and students on a 5-point Likert scale from 1- Strongly disagree to 5- Strongly agree. The questions focused on four core constructs surrounding mindsets and beliefs, specifically the recognition of race and culture, growth mindsets, high expectations, and taking accountability for equitable instruction.
+
+[INSERT TABLE 1 MINDSETS]
+
+```{r}
+
+```
+
+
+The plot illustrates educators’ average scores from the diagnostic and follow-up surveys, which corresponds to the information in the first three columns of the table. `r colorize("Orange represents the diagnostic scores", "#FF7B43")`, and `r colorize("blue represents the follow-up scores", "#04ABEB")`. The arrows represent the directionality, showing an increase or decrease in the average scores.
+
+[INSERT FIGURE 1 MINDSETS]
+
+
+### Section 2: School Environment
+Educators were asked about their school environment, including culture and climate on a 5-point Likert scale from 1- Strongly disagree to 5- Strongly agree. Specifically, educators were asked about trust and connectedness to other educators, their role in shaping their own professional learning, and confidence in implementing the curriculum in a way that maximizes positive impact for student learning. 
+
+[INSERT TABLE 2 SCHOOL ENVIRONMENT]
+
+The plot illustrates the shifts in educators’ reported culture and climate, which corresponds to the information in the first three columns of the table. `r colorize("Orange represents", "#FF7B43")` the percentage of educators with positive perceptions in the `r colorize("diagnostic survey", "#FF7B43")`, and `r colorize("blue represents", "#04ABEB")` the percentage in the `r colorize("follow-up survey", "#04ABEB")`. The arrows represent the directionality, showing an increase or decrease in the percent of educators who agreed or strongly agreed with the items.
+
+[INSERT FIGURE 2 SCHOOL ENVIRONMENT]
+
+
+### Section 3: Content and Pedagogical Content Knowledge
+Educators were asked a series of questions about their knowledge of instructional shifts and evidence-based instructional practices in their content area.
+
+### Section 3a: ELA Content and Pedagogical Content Knowledge 
+In ELA, the questions focused on seven core constructs, as shown in the table.
+
+[INSERT TABLE 3 ELA KNOWLEDGE]
+The plot illustrates the shift in educators’ average scores for ELA content and pedagogical content knowledge, which corresponds to the information in the first three columns of the table. `r colorize("Orange represents the diagnostic scores", "#FF7B43")`, and `r colorize("blue represents the follow-up scores", "#04ABEB")`. The arrows represent the directionality, showing an increase or decrease of average scores. 
+
+[INSERT FIGURE 3 ELA KNOWLEDGE]
+
+### Section 3b: Math Content and Pedagogical Content Knowledge 
+In Mathematics, the questions focused on four core constructs, as shown in the table.
+
+[INSERT TABLE 4 MATH KNOWLEDGE]
+
+The plot illustrates the shift in educators’ average scores for Math content and pedagogical content knowledge, which corresponds to the information in the first three columns of the table. `r colorize("Orange represents the diagnostic scores", "#FF7B43")`, and `r colorize("blue represents the follow-up scores", "#04ABEB")`. The arrows represent the directionality, showing an increase or decrease of average scores.
+
+[INSERT FIGURE 4 MATH KNOWLEDGE]
+
+
+### Section 4: Teacher Practices
+Coaches, leaders, and/or administrators were asked about the areas they focus on when observing teachers in general and also whether they observe differences in teaching practices between teachers who have participated in Teaching Lab professional learning and teachers who have not.
+
+First, coaches, leaders, and/or administrators were asked whether they focus on the following areas when observing teachers: 
+The lesson is focused on a high-quality text or task.
+The questions and tasks address the analytical thinking required by the grade-level standards.
+All students have opportunities to engage in the work of the lesson.
+
+[INSERT TABLE 5 Observing Teacher Practices]
+
+The plot illustrates the shifts in coaches, leaders, and/or administrators’ reported observation practices, which corresponds to the information in the first three columns of the table. `r colorize("Orange represents", "#FF7B43")` the percentage who always or almost always focus on these aspects in the `r colorize("diagnostic survey", "#FF7B43")`, and `r colorize("blue represents", "#04ABEB")` the percentage in the `r colorize("follow-up survey", "#04ABEB")`. The arrows represent the directionality, showing an increase or decrease in the percent of educators who  always or almost always focus on these aspects.
+
+[INSERT FIGURE 5 Observing Teacher Practices]
+Coaches, leaders, and/or administrators were also asked to compare teaching practices between Teaching Lab participants and non-Teaching Lab participants in the follow-up survey. They were asked about the same three areas above.
+
+[INSERT TABLE 6 Teacher Practices]
+
+The graph illustrates the differences in teaching practices between teachers who have participated in Teaching Lab professional learning and teachers who have not, as reported by the coaches, leaders, and/or administrators.
+
+[INSERT FIGURE 6 Teacher Practices]
+
+
+### Section 5: Lab Leaders
+Lab Leaders were asked about their engagement in different activities, such as leading professional learning, leading PLC meetings, coaching teachers, sharing information and resources, and improving their own instructional practices.
+
+[INSERT TABLE 7 Lab Leaders]
+
+The graph below illustrates the Lab Leaders participation in different activities.
+
+[INSERT FIGURE 7 Lab Leaders]
+
+### Section 6: Student Work
+
+### Section 7: Classroom observations
+
+### Section 8: Participant Feedback
+*Participant feedback from the dashboard (no filters)
+*Participant feedback from below (post_gainsqual)
+
+3 questions:
+post_gainsqual
+Overall, what did you gain from the professional learning you received from Teaching Lab this year?
+post_improvequal
+Overall, what could have improved about the professional learning you received from Teaching Lab this year?
+pre_comments
+post_comments
+pre: If you have questions or comments about this diagnostic or your partnership with Teaching Lab, please let us know.
+post: We’d appreciate any other feedback you have about Teaching Lab’s professional learning this year.

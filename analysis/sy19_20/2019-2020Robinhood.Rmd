@@ -1,0 +1,1438 @@
+---
+title: "Teaching Lab - Robinhood 2019-2020 Report"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  rmdformats::readthedown:
+    css: styles.css
+    self_contained: true # Other options are downcute, material, readthedown, html_clean, html_docco, lockdown, https://github.com/juba/rmdformats
+    thumbnails: false
+    lightbox: true
+    gallery: false
+    highlight: kate # Also can do tango
+    number_sections: false
+    includes:
+      after_body: footer.html
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, warning = F, message = F)
+library(readxl)
+library(tidyverse)
+library(here)
+library(gt)
+
+og_df <- read_excel(here("Data/SY19-20/SY19-20 Fall Spring merged.xlsx"))
+second_df <- read_excel(here("Data/SY19-20/SY19-20 Fall-Spring Merged Dataset Update.xls"))
+```
+
+```{r echo = F}
+htmltools::tagList(rmarkdown::html_dependency_font_awesome()) # Needed so fa's in footer will show
+```
+
+```{r cleaning, echo = F}
+### Work from here
+identifiers <- second_df %>%
+  select(district, school, portfolio, id, merge)#, role, role2...10, role_txt)
+
+fall_df <- second_df %>%
+  select_at(vars(contains("pre"))) %>%
+  bind_cols(identifiers) %>%
+  relocate(merge, .after = last_col())
+
+
+spring_df <- second_df %>%
+  select_at(vars(contains("post"))) %>%
+  bind_cols(identifiers) %>%
+  relocate(merge, .after = last_col())
+
+recode_vector <- c("1" = "Very Untrue", 
+                   "2" = "Untrue",
+                   "3" = "Somewhat Untrue",
+                   "4" = "Somewhat True",
+                   "5" = "True",
+                   "6" = "Very True")
+
+true_vector <- c("Very True", "True")
+untrue_vector <- c("Very Untrue", "Untrue")
+'%!in%' <- function(x,y)!('%in%'(x,y))
+
+### ELA CONTENT: 12a-23d
+## Average Scores
+# 14a-14d, 18a-18d need recoding
+fall_averages_ela <- fall_df %>%
+  dplyr::filter(str_detect(`district`, "Robinhood") & merge == 3) %>%
+  select(1:9) %>%
+  mutate(across(everything(), ~ str_replace_all(.x, recode_vector))) %>%
+  # filter(rowSums(across(everything(), ~ is.na(.))) < 20) %>%
+  summarise(
+    pre1 = c(sum(pre1 %in% untrue_vector, na.rm = T)/19, length(which(!is.na(pre1)))),
+    pre2 = c(sum(pre2 %in% true_vector, na.rm = T)/19, length(which(!is.na(pre2)))),
+    pre3 = c(sum(pre3 %in% untrue_vector, na.rm = T)/19, length(which(!is.na(pre3)))),
+    pre4 = c(sum(pre4 %in% untrue_vector, na.rm = T)/19, length(which(!is.na(pre4)))),
+    pre5 = c(sum(pre5 %in% true_vector, na.rm = T)/19, length(which(!is.na(pre5)))),
+    pre6 = c(sum(pre6 %in% true_vector, na.rm = T)/19, length(which(!is.na(pre6)))),
+    pre7 = c(sum(pre7 %in% true_vector, na.rm = T)/19, length(which(!is.na(pre7)))),
+    pre8 = c(sum(pre8 %in% untrue_vector, na.rm = T)/19, length(which(!is.na(pre8)))),
+    pre9 = c(sum(pre9 %in% untrue_vector, na.rm = T)/19, length(which(!is.na(pre9))))) %>%
+  dplyr::mutate(across(everything(), ~ .x * 100))
+
+fall_ela_n <- fall_averages_ela %>% slice(2) %>%
+  dplyr::mutate(across(everything(), ~ .x / 100)) %>%
+  pivot_longer(everything())
+
+
+### ELA CONTENT: 12a-23d
+## Average Scores
+# 14a-14d, 18a-18d need recoding
+spring_averages_ela <- spring_df %>%
+  dplyr::filter(str_detect(`district`, "Robinhood") & merge == 3) %>%
+  select(4:12) %>%
+  mutate(across(everything(), ~ str_replace_all(.x, recode_vector))) %>%
+  # filter(rowSums(across(everything(), ~ is.na(.))) < 20) %>%
+  summarise(
+    post1 = c(sum(post1 %in% untrue_vector, na.rm = T)/18, length(which(!is.na(post1)))),
+    post2 = c(sum(post2 %in% true_vector, na.rm = T)/18, length(which(!is.na(post2)))),
+    post3 = c(sum(post3 %in% untrue_vector, na.rm = T)/18, length(which(!is.na(post3)))),
+    post4 = c(sum(post4 %in% untrue_vector, na.rm = T)/18, length(which(!is.na(post4)))),
+    post5 = c(sum(post5 %in% true_vector, na.rm = T)/18, length(which(!is.na(post5)))),
+    post6 = c(sum(post6 %in% true_vector, na.rm = T)/18, length(which(!is.na(post6)))),
+    post7 = c(sum(post7 %in% true_vector, na.rm = T)/18, length(which(!is.na(post7)))),
+    post8 = c(sum(post8 %in% untrue_vector, na.rm = T)/18, length(which(!is.na(post8)))),
+    post9 = c(sum(post9 %in% untrue_vector, na.rm = T)/18, length(which(!is.na(post9))))) %>%
+  dplyr::mutate(across(everything(), ~ .x * 100))
+
+spring_ela_n <- spring_averages_ela %>% slice(2) %>%
+  dplyr::mutate(across(everything(), ~ .x / 100)) %>%
+  pivot_longer(everything())
+
+### JOINING FALL AND SPRING
+## EL
+fall_spring_el_averages <- bind_rows(fall_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "pre")),
+                                     spring_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "post")),
+                                     spring_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "post")) - 
+                                       fall_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "pre"))) %>%
+  rownames_to_column() %>%
+  pivot_longer(-rowname, 'variable', 'value') %>%
+  pivot_wider(variable, rowname) %>%
+  rename(Question = variable, Fall = `1`, Spring = `2`, Improvement = `3`) %>%
+  bind_cols(n2 = spring_ela_n$value, n1 = fall_ela_n$value) %>%
+  relocate(n2, .after = `Spring`) %>%
+  relocate(n1, .after = `Fall`)
+```
+
+
+```{r ela-question-key}
+question_key <- tibble(Number = c('12a', '12b', '12c', '12d', '13', '14a', '14b', '14c', '14d', '15', '16', '17a', '17b', '17c', '17d', '18a', '18b', '18c', '18d', '19', '20', '21', '22', '23a', '23b', '23c', '23d'),
+       Question = c(rep("Which of the following are literacy instructional shifts, and which are not?", 4),
+                    "When designing literacy lessons, teachers should start with which of the following?",
+                    rep("Which of the following statements are true about the relationship between reading fluency and reading comprehension, and which are false?", 4),
+                    "Which of the following is NOT an effective strategy for improving student fluency?",
+                    "Which of the following is the single biggest differentiator of college and career-readiness?",
+                    rep("Which of the following approaches for selecting texts for whole-class reading instruction are aligned with post-shifts literacy instruction and which are not", 4),
+                    rep("Which of the following statements are true about reading the same complex text multiple times?", 4),
+                    "Which of the following describes something students might do during close reading of complex texts?",
+                    "Mrs. Richards’ students have a range of reading proficiency and knowledge about the food chain. When reading a grade-level complex text about this topic, which group of students is most likely to perform better on comprehension questions?",
+                    "How could Mrs. Richards best prepare students to build knowledge about the topic of the food chain?",
+                    "The main text that the students in Ms. Blackwell’s class is about to read is likely to be very difficult for the majority of the class. Which of the following is a strategy that Ms. Blackwell could use with her students with lower reading abilities?",
+                    rep("Which of the following describe strategies for supporting struggling readers, and which do not?", 4)))
+```
+
+# Overall Data
+
+In this first section is a compilation of all data gathered by Teaching Lab in the two Robinhood district schools where professional learning occurred. The data is broken down in tables by question, with section groups for the different types of content queried.
+
+## ELA Table
+
+::: sidenav
+
+**ELA Question Key**
+
+```{r}
+key1 <- question_key %>%
+  gt() %>%
+  cols_width(
+    2 ~ px(200),
+    1 ~ px(69)
+  ) %>%
+  cols_label(
+    Question = md("**Question**"),
+    Number = md("**Number**")
+  ) %>%
+  cols_align(
+    align = "center"
+  )
+
+key1 %>%
+  gtsave(here("Images/el_key.png"))
+```
+
+:::
+
+This table by table breakdown shows that some of the questions answered in fall, were not responded to in the spring, but still shows the numbers where there are sufficient numbers of responses to record accuracy.
+
+```{r}
+el_table_grouped <- fall_spring_el_averages %>%
+   mutate(Content = c(rep("ELA General Standards and Shifts", 5),
+                      rep("Fluency", 5),
+                      rep("Text Complexity", 5),
+                      rep("Evidence & Close Reading", 5),
+                      rep("Building Knowledge", 2),
+                      rep("Supporting Students with Unfinished Learning", 5))) %>%
+  gt::gt(groupname_col = "Content") %>%
+  tab_header(
+    title = md("**ELA Scores in Fall vs. Spring**")
+  ) %>%
+   cols_label(
+     n1 = gt::html("n<sub>1</sub>"),
+     n2 = gt::html("n<sub>2</sub>")
+   ) %>%
+  gt::data_color(
+     columns = gt::vars(Improvement),
+     colors = scales::col_numeric(
+       palette = ggsci::rgb_material('light-green'),
+       domain = NULL
+     )
+   ) %>%
+  fmt_percent(
+    columns = vars(Fall, Spring, Improvement),
+    decimals = 2,
+    scale_values = F
+  ) %>%
+  summary_rows(groups = T,
+               columns = vars(n1, n2),
+               fns = list(
+                 `Block Average` = ~ mean(., na.rm = T)),
+               formatter = fmt_number
+               ) %>%
+  summary_rows(groups = T,
+               columns = vars(Fall, Spring, Improvement),
+               fns = list(
+                 `Block Average` = ~ mean(., na.rm = T)),
+               formatter = fmt_percent,
+               scale_values = F
+               ) %>%
+  tab_style(style = list(
+      cell_text(style = "italic",
+              weight = "bold"),
+      cell_fill(color = "#377A98")
+    ),
+    locations = cells_summary(
+      groups = c("ELA General Standards and Shifts", "Fluency", "Text Complexity", 
+                  "Evidence & Close Reading", "Building Knowledge", "Supporting Students with Unfinished Learning"),
+      columns = vars(Improvement)
+    )
+  ) %>%
+  tab_style(
+    style = list(
+      cell_text(weight = "bold")
+    ),
+    locations = cells_row_groups(
+      groups = c("ELA General Standards and Shifts", "Fluency", "Text Complexity", 
+                  "Evidence & Close Reading", "Building Knowledge", "Supporting Students with Unfinished Learning")
+    )
+  ) %>%
+  tab_style(
+    style = list(
+      cell_text(style = "italic")
+    ),
+    locations = cells_summary(
+      groups = c("ELA General Standards and Shifts", "Fluency", "Text Complexity", "Evidence & Close Reading",
+                 "Building Knowledge", "Supporting Students with Unfinished Learning"),
+      columns = everything()
+    )
+  ) %>%
+  grand_summary_rows(
+    columns = vars(Fall, Spring, Improvement),
+    fns = list(
+      Average = ~ mean(., na.rm = T)
+    ),
+    formatter = fmt_percent,
+    scale_values = F
+  ) %>%
+  grand_summary_rows(
+    columns = vars(n1, n2),
+    fns = list(
+      Average = ~ round(mean(., na.rm = T))
+    ),
+    formatter = fmt_number
+  ) %>%
+  tab_style(
+    style = list(
+      cell_text(weight = "bold"),
+      cell_fill(color = "#00743F")
+    ),
+    locations = cells_grand_summary(
+      columns = everything()
+    )
+  )
+
+el_table_grouped %>%
+  gtsave(filename = "RobinhoodGroupedSY19-20ELScores.png", path = here("Images/"))
+```
+
+# Matched Analysis
+
+This analysis only compares data for which respondents completed at least 75% of the responses in both the diagnosis and follow-up questionnaires, providing a matched sample analysis table that can be used to gauge improvement on an individual basis.
+
+
+```{r}
+recode_vector2 <- c("Not a Literacy Instructional Shift" = "No",
+                    "Literacy Instructional Shift" = "Yes",
+                    "Not Aligned" = "No",
+                    "Aligned" = "Yes")
+
+fall_averages_ela_matched <- fall_df %>%
+  dplyr::filter(merge == 3 & str_detect(`district`, "Robinhood")) %>%
+  select(12:38) %>%
+  mutate(across(c(1:4,12:15), ~ str_replace_all(.x, recode_vector2))) %>%
+  summarise(
+    pre12a = c(sum(pre12a == "Yes", na.rm = T)/sum(!is.na(pre12a)), length(which(!is.na(pre12a)))),
+    pre12b = c(sum(pre12b == "Yes", na.rm = T)/sum(!is.na(pre12b)), length(which(!is.na(pre12b)))),
+    pre12c = c(sum(pre12c == "No", na.rm = T)/sum(!is.na(pre12c)), length(which(!is.na(pre12c)))),
+    pre12d = c(sum(pre12d == "No", na.rm = T)/sum(!is.na(pre12d)), length(which(!is.na(pre12d)))),
+    pre13 = c(sum(pre13 == "A complex text that is worthy of reading multiple times.", na.rm = T)/sum(!is.na(pre13)), length(which(!is.na(pre13)))),
+    pre14a = c(sum(pre14a == "True", na.rm = T)/sum(!is.na(pre14a)), length(which(!is.na(pre14a)))),
+    pre14b = c(sum(pre14b == "True", na.rm = T)/sum(!is.na(pre14b)), length(which(!is.na(pre14b)))),
+    pre14c = c(sum(pre14c == "False", na.rm = T)/sum(!is.na(pre14c)), length(which(!is.na(pre14c)))),
+    pre14d = c(sum(pre14d == "False", na.rm = T)/sum(!is.na(pre14d)), length(which(!is.na(pre14d)))),
+    pre15 = c(sum(pre15 == "Students independently read aloud texts at their reading level.", na.rm = T)/sum(!is.na(pre15)), length(which(!is.na(pre15)))),
+    pre16 = c(sum(pre16 == "Ability to read complex text independently and proficiently.", na.rm = T)/sum(!is.na(pre16)), length(which(!is.na(pre16)))),
+    pre17a = c(sum(pre17a == "Yes", na.rm = T)/sum(!is.na(pre17a)), length(which(!is.na(pre17a)))),
+    pre17b = c(sum(pre17b == "Yes", na.rm = T)/sum(!is.na(pre17b)), length(which(!is.na(pre17b)))),
+    pre17c = c(sum(pre17c == "No", na.rm = T)/sum(!is.na(pre17c)), length(which(!is.na(pre17c)))),
+    pre17d = c(sum(pre17d == "No", na.rm = T)/sum(!is.na(pre17d)), length(which(!is.na(pre17d)))),
+    pre18a = c(sum(pre18a == "True", na.rm = T)/sum(!is.na(pre18a)), length(which(!is.na(pre18a)))),
+    pre18b = c(sum(pre18b == "True", na.rm = T)/sum(!is.na(pre18b)), length(which(!is.na(pre18b)))),
+    pre18c = c(sum(pre18c == "False", na.rm = T)/sum(!is.na(pre18c)), length(which(!is.na(pre18c)))),
+    pre18d = c(sum(pre18d == "False", na.rm = T)/sum(!is.na(pre18d)), length(which(!is.na(pre18d)))),
+    pre19 = c(sum(pre19 == "Students pull out evidence from the text to explain their thinking in response to questions.", na.rm = T)/sum(!is.na(pre19)), length(which(!is.na(pre19)))),
+    pre20 = c(sum(pre20 == "Students with low reading ability and a lot of knowledge about the food chain.", na.rm = T)/sum(!is.na(pre20)), length(which(!is.na(pre20)))),
+    pre21 = c(sum(pre21 == "Have students read a series of additional texts at a variety of complexity levels on the topic.", na.rm = T)/sum(!is.na(pre21)), length(which(!is.na(pre21)))),
+    pre22 = c(sum(pre22 == "Provide students with lower reading abilities an audio version of the main text to listen to before reading the main text in class.", na.rm = T)/sum(!is.na(pre22)), length(which(!is.na(pre22)))),
+    pre23a = c(sum(pre23a == "Yes", na.rm = T)/sum(!is.na(pre23a)), length(which(!is.na(pre23a)))),
+    pre23b = c(sum(pre23b == "Yes", na.rm = T)/sum(!is.na(pre23b)), length(which(!is.na(pre23b)))),
+    pre23c = c(sum(pre23c == "No", na.rm = T)/sum(!is.na(pre23c)), length(which(!is.na(pre23c)))),
+    pre23d = c(sum(pre23d == "No", na.rm = T)/sum(!is.na(pre23d)), length(which(!is.na(pre23d))))
+  ) %>%
+  dplyr::mutate(across(everything(), ~ .x * 100))
+
+fall_ela_n_matched <- fall_averages_ela_matched %>% slice(2) %>%
+  dplyr::mutate(across(everything(), ~ .x / 100)) %>%
+  pivot_longer(everything())
+
+
+### ELA CONTENT: 12a-23d
+## Average Scores
+# 14a-14d, 18a-18d need recoding
+spring_averages_ela_matched <- spring_df %>%
+  dplyr::filter(merge == 3 & str_detect(`district`, "Robinhood")) %>%
+  select(20:46) %>%
+  mutate(across(everything(), ~ str_replace_all(.x, recode_vector2))) %>%
+  summarise(
+    post12a = c(sum(post12a == "Yes", na.rm = T)/sum(!is.na(post12a)), length(which(!is.na(post12a)))),
+    post12b = c(sum(post12b == "Yes", na.rm = T)/sum(!is.na(post12b)), length(which(!is.na(post12b)))),
+    post12c = c(sum(post12c == "No", na.rm = T)/sum(!is.na(post12c)), length(which(!is.na(post12c)))),
+    post12d = c(sum(post12d == "No", na.rm = T)/sum(!is.na(post12d)), length(which(!is.na(post12d)))),
+    post13 = c(sum(post13 == "A complex text that is worthy of reading multiple times.", na.rm = T)/sum(!is.na(post13)), length(which(!is.na(post13)))),
+    post14a = c(sum(post14a == "True", na.rm = T)/sum(!is.na(post14a)), length(which(!is.na(post14a)))),
+    post14b = c(sum(post14b == "True", na.rm = T)/sum(!is.na(post14b)), length(which(!is.na(post14b)))),
+    post14c = c(sum(post14c == "False", na.rm = T)/sum(!is.na(post14c)), length(which(!is.na(post14c)))),
+    post14d = c(sum(post14d == "False", na.rm = T)/sum(!is.na(post14d)), length(which(!is.na(post14d)))),
+    post15 = c(sum(post15 == "Students independently read aloud texts at their reading level.", na.rm = T)/sum(!is.na(post15)), length(which(!is.na(post15)))),
+    post16 = c(sum(post16 == "Ability to read complex text independently and proficiently.", na.rm = T)/sum(!is.na(post16)), length(which(!is.na(post16)))),
+    post17a = c(sum(post17a == "Yes", na.rm = T)/sum(!is.na(post17a)), length(which(!is.na(post17a)))),
+    post17b = c(sum(post17b == "Yes", na.rm = T)/sum(!is.na(post17b)), length(which(!is.na(post17b)))),
+    post17c = c(sum(post17c == "No", na.rm = T)/sum(!is.na(post17c)), length(which(!is.na(post17c)))),
+    post17d = c(sum(post17d == "No", na.rm = T)/sum(!is.na(post17d)), length(which(!is.na(post17d)))),
+    post18a = c(sum(post18a == "True", na.rm = T)/sum(!is.na(post18a)), length(which(!is.na(post18a)))),
+    post18b = c(sum(post18b == "True", na.rm = T)/sum(!is.na(post18b)), length(which(!is.na(post18b)))),
+    post18c = c(sum(post18c == "False", na.rm = T)/sum(!is.na(post18c)), length(which(!is.na(post18c)))),
+    post18d = c(sum(post18d == "False", na.rm = T)/sum(!is.na(post18d)), length(which(!is.na(post18d)))),
+    post19 = c(sum(post19 == "Students pull out evidence from the text to explain their thinking in response to questions.", na.rm = T)/sum(!is.na(post19)), length(which(!is.na(post19)))),
+    post20 = c(sum(post20 == "Students with low reading ability and a lot of knowledge about the food chain.", na.rm = T)/sum(!is.na(post20)), length(which(!is.na(post20)))),
+    post21 = c(sum(post21 == "Have students read a series of additional texts at a variety of complexity levels on the topic.", na.rm = T)/sum(!is.na(post21)), length(which(!is.na(post21)))),
+    post22 = c(sum(post22 == "Provide students with lower reading abilities an audio version of the main text to listen to before reading the main text in class.", na.rm = T)/sum(!is.na(post22)), length(which(!is.na(post22)))),
+    post23a = c(sum(post23a == "Yes", na.rm = T)/sum(!is.na(post23a)), length(which(!is.na(post23a)))),
+    post23b = c(sum(post23b == "Yes", na.rm = T)/sum(!is.na(post23b)), length(which(!is.na(post23b)))),
+    post23c = c(sum(post23c == "No", na.rm = T)/sum(!is.na(post23c)), length(which(!is.na(post23c)))),
+    post23d = c(sum(post23d == "No", na.rm = T)/sum(!is.na(post23d)), length(which(!is.na(post23d))))
+  ) %>%
+  dplyr::mutate(across(everything(), ~ .x * 100))
+
+spring_ela_n_matched <- spring_averages_ela_matched %>% slice(2) %>%
+  dplyr::mutate(across(everything(), ~ .x / 100)) %>%
+  pivot_longer(everything())
+
+### JOINING FALL AND SPRING
+## EL
+fall_spring_el_averages_matched <- bind_rows(fall_averages_ela_matched %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "pre")),
+                                     spring_averages_ela_matched %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "post")),
+                                     spring_averages_ela_matched %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "post")) - 
+                                       fall_averages_ela_matched %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "pre"))) %>%
+  rownames_to_column() %>%
+  pivot_longer(-rowname, 'variable', 'value') %>%
+  pivot_wider(variable, rowname) %>%
+  rename(Question = variable, Fall = `1`, Spring = `2`, Improvement = `3`) %>%
+  bind_cols(n2 = spring_ela_n_matched$value, n1 = fall_ela_n_matched$value) %>%
+  relocate(n2, .after = `Spring`) %>%
+  relocate(n1, .after = `Fall`)
+```
+
+## ELA Table Matched and Grouped
+
+ELA table text here.
+
+```{r}
+el_table_grouped_matched <- fall_spring_el_averages_matched %>%
+   mutate(Content = c(rep("ELA General Standards and Shifts", 5),
+                      rep("Fluency", 5),
+                      rep("Text Complexity", 5),
+                      rep("Evidence & Close Reading", 5),
+                      rep("Building Knowledge", 2),
+                      rep("Supporting Students with Unfinished Learning", 5))) %>%
+  gt::gt(groupname_col = "Content") %>%
+  tab_header(
+    title = md("**ELA Matched Scores in Fall vs. Spring**"),
+    subtitle = md("*Those with at least a 75% response rate*")
+  ) %>%
+   cols_label(
+     n1 = gt::html("n<sub>1</sub>"),
+     n2 = gt::html("n<sub>2</sub>")
+   ) %>%
+  gt::data_color(
+     columns = gt::vars(Improvement),
+     colors = scales::col_numeric(
+       palette = ggsci::rgb_material('light-green'),
+       domain = NULL
+     )
+   ) %>%
+  fmt_percent(
+    columns = vars(Fall, Spring, Improvement),
+    decimals = 2,
+    scale_values = F
+  ) %>%
+  summary_rows(groups = T,
+               columns = vars(n1, n2),
+               fns = list(
+                 `Block Average` = ~ mean(., na.rm = T)),
+               formatter = fmt_number
+               ) %>%
+  summary_rows(groups = T,
+               columns = vars(Fall, Spring, Improvement),
+               fns = list(
+                 `Block Average` = ~ mean(., na.rm = T)),
+               formatter = fmt_percent,
+               scale_values = F
+               ) %>%
+  tab_style(style = list(
+      cell_text(style = "italic",
+              weight = "bold"),
+      cell_fill(color = "#377A98")
+    ),
+    locations = cells_summary(
+      groups = c("ELA General Standards and Shifts", "Fluency", "Text Complexity", 
+                  "Evidence & Close Reading", "Building Knowledge", "Supporting Students with Unfinished Learning"),
+      columns = vars(Improvement)
+    )
+  ) %>%
+  tab_style(
+    style = list(
+      cell_text(weight = "bold")
+    ),
+    locations = cells_row_groups(
+      groups = c("ELA General Standards and Shifts", "Fluency", "Text Complexity", 
+                  "Evidence & Close Reading", "Building Knowledge", "Supporting Students with Unfinished Learning")
+    )
+  ) %>%
+  tab_style(
+    style = list(
+      cell_text(style = "italic")
+    ),
+    locations = cells_summary(
+      groups = c("ELA General Standards and Shifts", "Fluency", "Text Complexity", "Evidence & Close Reading",
+                 "Building Knowledge", "Supporting Students with Unfinished Learning"),
+      columns = everything()
+    )
+  ) %>%
+  grand_summary_rows(
+    columns = vars(Fall, Spring, Improvement),
+    fns = list(
+      Average = ~ mean(., na.rm = T)
+    ),
+    formatter = fmt_percent,
+    scale_values = F
+  ) %>%
+  grand_summary_rows(
+    columns = vars(n1, n2),
+    fns = list(
+      Average = ~ round(mean(., na.rm = T))
+    ),
+    formatter = fmt_number
+  ) %>%
+  tab_style(
+    style = list(
+      cell_text(weight = "bold"),
+      cell_fill(color = "#00743F")
+    ),
+    locations = cells_grand_summary(
+      columns = everything()
+    )
+  )
+
+el_table_grouped_matched %>%
+  gtsave(filename = "RobinhoodGroupedSY19-20ELScores_Matched.png", path = here("Images/"))
+```
+
+
+```{r savetopdf, eval = F}
+pagedown::chrome_print(input = here("2019-2020/2019-2020ReportRobinhood.html"),
+                       output = here("PDF/Robinhood2019-2020Report.pdf"))
+```
+
+
+
+
+
+
+
+
+
+```{r}
+agree_vector <- c("Agree", "Strongly Agree")
+
+fall_averages_ela <- fall_df %>%
+  dplyr::filter(str_detect(`district`, "STEAM") & merge == 3) %>%
+  select(64:66) %>%
+  summarise(
+    pre1 = c(sum(pre35 %in% agree_vector, na.rm = T)/sum(!is.na(pre35)), length(which(!is.na(pre35)))),
+    pre2 = c(sum(pre36 %in% agree_vector, na.rm = T)/sum(!is.na(pre36)), length(which(!is.na(pre36)))),
+    pre3 = c(sum(pre37 %in% agree_vector, na.rm = T)/sum(!is.na(pre37)), length(which(!is.na(pre37))))) %>%
+  dplyr::mutate(across(everything(), ~ .x * 100))
+
+fall_ela_n <- fall_averages_ela %>% slice(2) %>%
+  dplyr::mutate(across(everything(), ~ .x / 100)) %>%
+  pivot_longer(everything())
+
+
+### ELA CONTENT: 12a-23d
+## Average Scores
+# 14a-14d, 18a-18d need recoding
+spring_averages_ela <- spring_df %>%
+  dplyr::filter(str_detect(`district`, "STEAM") & merge == 3) %>%
+  select(73:75) %>%
+  summarise(
+    post1 = c(sum(post35 %in% agree_vector, na.rm = T)/sum(!is.na(post35)), length(which(!is.na(post35)))),
+    post2 = c(sum(post36 %in% agree_vector, na.rm = T)/sum(!is.na(post36)), length(which(!is.na(post36)))),
+    post3 = c(sum(post37 %in% agree_vector, na.rm = T)/sum(!is.na(post37)), length(which(!is.na(post37))))) %>%
+  dplyr::mutate(across(everything(), ~ .x * 100))
+
+spring_ela_n <- spring_averages_ela %>% slice(2) %>%
+  dplyr::mutate(across(everything(), ~ .x / 100)) %>%
+  pivot_longer(everything())
+
+### JOINING FALL AND SPRING
+## EL
+fall_spring_el_averages <- bind_rows(fall_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "pre")),
+                                     spring_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "post")),
+                                     spring_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "post")) - 
+                                       fall_averages_ela %>% slice(-2) %>% rename_with( ~ str_remove_all(.x, "pre"))) %>%
+  rownames_to_column() %>%
+  pivot_longer(-rowname, 'variable', 'value') %>%
+  pivot_wider(variable, rowname) %>%
+  rename(Question = variable, Fall = `1`, Spring = `2`, Improvement = `3`) %>%
+  bind_cols(n2 = spring_ela_n$value, n1 = fall_ela_n$value) %>%
+  relocate(n2, .after = `Spring`) %>%
+  relocate(n1, .after = `Fall`)
+fall_spring_el_averages %>% gt()
+```
+
+
+
+
+
+
+
+
+
+```{r q35-q37}
+fall_join <- fall_df %>%
+  dplyr::filter(str_detect(`district`, "Robinhood") & merge == 3) %>%
+  select(64:66, id) 
+  
+spring_join <- spring_df %>%
+  dplyr::filter(str_detect(`district`, "Robinhood") & merge == 3) %>%
+  select(73:75, id)
+
+joined_increase <- left_join(fall_join, spring_join, by = "id") %>%
+  mutate(increase35 = 0,
+         increase36 = 0,
+         increase37 = 0) %>%
+  mutate(increase35 = case_when(pre35 %in% agree_vector & post35 %in% agree_vector ~ increase35 + 1,
+                                pre35 %!in% agree_vector & post35 %in% agree_vector ~ increase35 + 1),
+         increase36 = case_when(pre36 %in% agree_vector & post36 %in% agree_vector ~ increase36 + 1,
+                                pre36 %!in% agree_vector & post36 %in% agree_vector ~ increase36 + 1),
+         increase37 = case_when(pre37 %in% agree_vector & post37 %in% agree_vector ~ increase37 + 1,
+                                pre37 %!in% agree_vector & post37 %in% agree_vector ~ increase37 + 1)) %>%
+  slice(-18) %>%
+  summarise(sum(increase35, na.rm = T)/18,
+            sum(increase36, na.rm = T)/18,
+            sum(increase37, na.rm = T)/18)
+```
+
+
+```{r q12-q23}
+yes_vector <- c("Yes")
+no_vector <- c("No")
+thirteen_vector <- c("A complex text that is worthy of reading multiple times.")
+twenty_vector <- c("Students with low reading ability and a lot of knowledge about the food chain.")
+twentytwo_vector <- c("Provide students with lower reading abilities an audio version of the main text to listen to before reading the main text in class.")
+
+
+fall_join <- fall_df %>%
+  dplyr::filter(str_detect(`district`, "Robinhood") & merge == 3) %>%
+  select(12:38, id) %>%
+  mutate(across(!id, ~ str_replace_all(.x, recode_vector2))) %>%
+  discard(~ all(is.na(.))) %>%
+  filter(id != "D1137")
+  
+spring_join <- spring_df %>%
+  dplyr::filter(str_detect(`district`, "Robinhood") & merge == 3) %>%
+  select(20:46, id) %>%
+  mutate(across(!id, ~ str_replace_all(.x, recode_vector2))) %>%
+  discard(~ all(is.na(.))) %>%
+  filter(id != "D1137")
+
+joined_increase <- left_join(fall_join, spring_join, by = "id") %>%
+  mutate(increase12a = 0,
+         increase12b = 0,
+         increase12c = 0,
+         increase12d = 0,
+         increase13 = 0,
+         increase14a = 0,
+         increase14b = 0,
+         increase14c = 0,
+         increase14d = 0,
+         increase17a = 0,
+         increase17b = 0,
+         increase17c = 0,
+         increase17d = 0,
+         increase20 = 0,
+         increase22 = 0) %>%
+  mutate(increase12a = case_when(pre12a %in% yes_vector & post12a %in% yes_vector ~ increase12a + 1,
+                                pre12a %!in% yes_vector & post12a %in% yes_vector ~ increase12a + 1),
+         increase12b = case_when(pre12b %in% yes_vector & post12b %in% yes_vector ~ increase12b + 1,
+                                pre12b %!in% yes_vector & post12b %in% yes_vector ~ increase12b + 1),
+         increase12c = case_when(pre12c %in% no_vector & post12c %in% no_vector ~ increase12c + 1,
+                                pre12c %!in% no_vector & post12c %in% no_vector ~ increase12c + 1),
+         increase12d = case_when(pre12d %in% no_vector & post12d %in% no_vector ~ increase12d + 1,
+                                pre12d %!in% no_vector & post12d %in% no_vector ~ increase12d + 1),
+         increase13 = case_when(pre13 %in% thirteen_vector & post13 %in% thirteen_vector ~ increase13 + 1,
+                                pre13 %!in% thirteen_vector & post13 %in% thirteen_vector ~ increase13 + 1),
+         increase14a = case_when(pre14a %in% yes_vector & post14a %in% yes_vector ~ increase14a + 1,
+                                pre14a %!in% yes_vector & post14a %in% yes_vector ~ increase14a + 1),
+         increase14b = case_when(pre14b %in% yes_vector & post14b %in% yes_vector ~ increase14b + 1,
+                                pre14b %!in% yes_vector & post14b %in% yes_vector ~ increase14b + 1),
+         increase14c = case_when(pre14c %in% no_vector & post14c %in% no_vector ~ increase14c + 1,
+                                pre14c %!in% no_vector & post14c %in% no_vector ~ increase14c + 1),
+         increase14d = case_when(pre14d %in% no_vector & post14d %in% no_vector ~ increase14d + 1,
+                                pre14d %!in% no_vector & post14d %in% no_vector ~ increase14d + 1),
+         increase17a = case_when(pre17a %in% yes_vector & post17a %in% yes_vector ~ increase17a + 1,
+                                pre17a %!in% yes_vector & post17a %in% yes_vector ~ increase17a + 1),
+         increase17b = case_when(pre17b %in% yes_vector & post17b %in% yes_vector ~ increase17b + 1,
+                                pre17b %!in% yes_vector & post17b %in% yes_vector ~ increase17b + 1),
+         increase17c = case_when(pre17c %in% no_vector & post17c %in% no_vector ~ increase17c + 1,
+                                pre17c %!in% no_vector & post17c %in% no_vector ~ increase17c + 1),
+         increase17d = case_when(pre17d %in% no_vector & post17d %in% no_vector ~ increase17d + 1,
+                                pre17d %!in% no_vector & post17d %in% no_vector ~ increase17d + 1),
+         increase20 = case_when(pre20 %in% twenty_vector & post20 %in% twenty_vector ~ increase20 + 1,
+                                pre20 %!in% twenty_vector & post20 %in% twenty_vector ~ increase20 + 1),
+         increase22 = case_when(pre22 %in% twentytwo_vector & post22 %in% twentytwo_vector ~ increase22 + 1,
+                                pre22 %!in% twentytwo_vector & post22 %in% twentytwo_vector ~ increase22 + 1)) %>%
+  summarise(sum(increase12a, na.rm = T)/18,
+            sum(increase12b, na.rm = T)/18,
+            sum(increase12c, na.rm = T)/18,
+            sum(increase12d, na.rm = T)/18,
+            sum(increase13, na.rm = T)/18,
+            sum(increase14a, na.rm = T)/18,
+            sum(increase14b, na.rm = T)/18,
+            sum(increase14c, na.rm = T)/18,
+            sum(increase14d, na.rm = T)/18,
+            sum(increase17a, na.rm = T)/18,
+            sum(increase17b, na.rm = T)/18,
+            sum(increase17c, na.rm = T)/18,
+            sum(increase17d, na.rm = T)/18,
+            sum(increase20, na.rm = T)/18,
+            sum(increase22, na.rm = T)/18) %>%
+  mutate(across(everything(), ~ .x * 100))
+```
+
+
+
+```{r q3-q9}
+fall_join <- fall_df %>%
+  dplyr::filter(str_detect(`district`, "Robinhood") & merge == 3) %>%
+  select(3:9, id) %>%
+  mutate(across(!id, ~ str_replace_all(.x, recode_vector)))
+  
+spring_join <- spring_df %>%
+  dplyr::filter(str_detect(`district`, "Robinhood") & merge == 3) %>%
+  select(6:12, id) %>%
+  mutate(across(!id, ~ str_replace_all(.x, recode_vector)))
+
+joined_increase <- left_join(fall_join, spring_join, by = "id") %>%
+  mutate(increase3 = 0,
+         increase4 = 0,
+         increase7 = 0,
+         increase8 = 0,
+         increase9 = 0) %>%
+  mutate(increase3 = case_when(pre3 %in% untrue_vector & post3 %in% untrue_vector ~ increase3 + 1,
+                                pre3 %!in% untrue_vector & post3 %in% untrue_vector ~ increase3 + 1),
+         increase4 = case_when(pre4 %in% untrue_vector & post4 %in% untrue_vector ~ increase4 + 1,
+                                pre4 %!in% untrue_vector & post4 %in% untrue_vector ~ increase4 + 1),
+         increase7 = case_when(pre7 %in% true_vector & post7 %in% true_vector ~ increase7 + 1,
+                                pre7 %!in% true_vector & post7 %in% true_vector ~ increase7 + 1),
+         increase8 = case_when(pre8 %in% untrue_vector & post8 %in% untrue_vector ~ increase8 + 1,
+                                pre8 %!in% untrue_vector & post8 %in% untrue_vector ~ increase8 + 1),
+         increase9 = case_when(pre9 %in% untrue_vector & post9 %in% untrue_vector ~ increase9 + 1,
+                                pre9 %!in% untrue_vector & post9 %in% untrue_vector ~ increase9 + 1)) %>%
+  slice(-18) %>%
+  summarise(sum(increase3, na.rm = T)/19,
+            sum(increase4, na.rm = T)/19,
+            sum(increase7, na.rm = T)/19,
+            sum(increase8, na.rm = T)/19,
+            sum(increase9, na.rm = T)/19)
+```
+
+
+# Tibble Making
+
+
+```{r}
+both_culture <- tibble(
+  ed_fall = c(63,83,72,33),
+  ed_spring = c(78,89,83,61),
+  increase = c(15,6,11,28),
+  percent_improve = c(78,89,83,61)
+)
+
+
+bennington_culture <- tibble(
+  ed_fall = c(56,75,67,25),
+  ed_spring = c(81,92,83,67),
+  increase = c(25,17,17,42),
+  percent_improve = c(654,61,56,44)
+)
+
+steam_culture <- tibble(
+  ed_fall = c(78,100,83,50),
+  ed_spring = c(72,83,83,50),
+  increase = c(-5,-17,0,0),
+  percent_improve = c(24,28,28,17)
+)
+
+```
+
+```{r tibbles}
+mindsets <- tibble(
+  ed = c(82,96,50,68,82,97,67,66),
+  season = c(rep("Fall", 4), rep("Spring", 4)),
+  obs = c("Average", "Growth Mindsets", "**High Expectations<br>(Scaffolding)**", "High Expectations<br>and Beliefs",
+          "Average", "Growth Mindsets", "**High Expectations<br>(Scaffolding)**", "High Expectations<br>and Beliefs")
+  # increase = c(4,2,19,-8),
+  # percent_improve = c(62,89,53,44)
+)
+
+mindsets_text <- tibble(
+  x = c(82,96,50,68),
+  xend = c(82,97,67,66),
+  y = c("Average", "Growth Mindsets", "**High Expectations<br>(Scaffolding)**", "High Expectations<br>and Beliefs"),
+  yend = c("Average", "Growth Mindsets", "**High Expectations<br>(Scaffolding)**", "High Expectations<br>and Beliefs"),
+  text_fall = c(80.5,95,50,68.5),
+  text_spring = c(83.5,98,67,65.5),
+  size = c(0, 0.4, 0.4, 0.4)
+)
+
+mindsets_segments <- tibble(
+  x = c(96,50,68),
+  xend = c(97,67,66),
+  y = c("Growth Mindsets", "**High Expectations<br>(Scaffolding)**", "High Expectations<br>and Beliefs"),
+  yend = c("Growth Mindsets", "**High Expectations<br>(Scaffolding)**", "High Expectations<br>and Beliefs"),
+  text_fall = c(95,50,68.5),
+  text_spring = c(98,67,65.5),
+  size = c(0.4, 0.4, 0.4)
+)
+```
+
+# Graph making
+
+```{r ggplots}
+library(scales)
+library(ggtext)
+mindsets$obs <- factor(mindsets$obs, levels = c("**High Expectations<br>(Scaffolding)**", "High Expectations<br>and Beliefs", "Growth Mindsets", "Average"))
+ggplot() +
+  geom_point(data = mindsets, mapping = aes(color = season, x = ed, y = obs, size = ed), alpha = 0.75) +
+  geom_segment(data = mindsets_segments, mapping = aes(x = x, xend = xend, y = y, yend = yend, size = size), 
+               color = "black", arrow = arrow(length = unit(0.1, "inches")), size = 0.4) +
+  geom_richtext(data = mindsets_text, fill = NA, label.color = NA,
+                aes(x = text_fall, y = y, label = paste0(x, "%")), 
+                color = "#ff7b43", vjust = -0.5, size = 4.85) +
+  geom_richtext(data = mindsets_text, fill = NA, label.color = NA,
+                aes(x = text_spring, y = y, label = paste0(xend, "%")), 
+                color = "#00acf0", vjust = -0.5, size = 4.85) +
+  scale_color_manual(values = c("#ff7b43", "#00acf0")) +
+  scale_x_continuous(labels = scales::percent_format(scale = 1), breaks = scales::pretty_breaks(n = 5)) +
+  labs(x = NULL, y = NULL,
+       title = "Educators' Average Scores on Growth Mindsets and High Expectations<br>on <span style = 'color:#ff7b43;'>First</span> and <span style = 'color:#00acf0;'>Second</span> Surveys") +
+  theme_bw() +
+  theme(panel.border = element_blank(),
+        legend.position = "none",
+        plot.title = element_markdown(hjust = 0.5, family = "Fira Sans", size = 20, lineheight = 1.15),
+        text = element_text(family = "Open Sans"),
+        axis.text.y = element_markdown(hjust = 0.5, lineheight = 1.1, size = 14),
+        axis.text.x = element_markdown(size = 14))
+
+ggsave(here("Images/mindsets_expecations_increase.png"), width = 12.5)
+
+```
+
+```{r ggplots1-3}
+mindsets <- tibble(
+  ed = c(82,96,50,68,82,92,94,71),
+  season = c(rep("Fall", 4), rep("Spring", 4)),
+  obs = c("Average", "Growth Mindsets", "**High Expectations<br>(Scaffolding)**", "High Expectations<br>and Beliefs",
+          "Average", "Growth Mindsets", "**High Expectations<br>(Scaffolding)**", "High Expectations<br>and Beliefs")
+  # increase = c(4,2,19,-8),
+  # percent_improve = c(62,89,53,44)
+)
+
+mindsets_text <- tibble(
+  x = c(82,96,50,68),
+  xend = c(82,92,94,71),
+  y = c("Average", "Growth Mindsets", "**High Expectations<br>(Scaffolding)**", "High Expectations<br>and Beliefs"),
+  yend = c("Average", "Growth Mindsets", "**High Expectations<br>(Scaffolding)**", "High Expectations<br>and Beliefs"),
+  text_fall = c(80.5,95,50,68.5),
+  text_spring = c(83.5,92,94,71),
+  size = c(0, 0.4, 0.4, 0.4)
+)
+
+mindsets_segments <- tibble(
+  x = c(96,50,68),
+  xend = c(92,94,71),
+  y = c("Growth Mindsets", "**High Expectations<br>(Scaffolding)**", "High Expectations<br>and Beliefs"),
+  yend = c("Growth Mindsets", "**High Expectations<br>(Scaffolding)**", "High Expectations<br>and Beliefs"),
+  text_fall = c(95,50,68.5),
+  text_spring = c(92,94,71),
+  size = c(0.4, 0.4, 0.4)
+)
+
+library(scales)
+library(ggtext)
+mindsets$obs <- factor(mindsets$obs, levels = c("**High Expectations<br>(Scaffolding)**", "High Expectations<br>and Beliefs", "Growth Mindsets", "Average"))
+ggplot() +
+  geom_point(data = mindsets, mapping = aes(color = season, x = ed, y = obs, size = ed), alpha = 0.75) +
+  geom_segment(data = mindsets_segments, mapping = aes(x = x, xend = xend, y = y, yend = yend, size = size), 
+               color = "black", arrow = arrow(length = unit(0.1, "inches")), size = 0.4) +
+  geom_richtext(data = mindsets_text, fill = NA, label.color = NA,
+                aes(x = text_fall, y = y, label = paste0(x, "%")), 
+                color = "#ff7b43", vjust = -0.5, size = 4.85) +
+  geom_richtext(data = mindsets_text, fill = NA, label.color = NA,
+                aes(x = text_spring, y = y, label = paste0(xend, "%")), 
+                color = "#00acf0", vjust = -0.5, size = 4.85) +
+  scale_color_manual(values = c("#ff7b43", "#00acf0")) +
+  scale_x_continuous(labels = scales::percent_format(scale = 1), breaks = scales::pretty_breaks(n = 5)) +
+  labs(x = NULL, y = NULL,
+       title = "Educators' Average Scores on Growth Mindsets and High Expectations<br>on <span style = 'color:#ff7b43;'>First</span> and <span style = 'color:#00acf0;'>Third</span> Surveys") +
+  theme_bw() +
+  theme(panel.border = element_blank(),
+        legend.position = "none",
+        plot.title = element_markdown(hjust = 0.5, family = "Fira Sans", size = 20, lineheight = 1.15),
+        text = element_text(family = "Open Sans"),
+        axis.text.y = element_markdown(hjust = 0.5, lineheight = 1.1, size = 14),
+        axis.text.x = element_markdown(size = 14))
+
+ggsave(here("Images/2020-2021/Robinhood/mindsets_first_to_third.png"), width = 12.5, height = 8)
+
+```
+
+
+
+
+
+
+
+
+```{r}
+both_culture <- tibble(
+  ed = c(63,83,72,33,78,89,83,61),
+  season = c(rep("Fall", 4), rep("Spring", 4)),
+  obs = c("Average", "Trust in<br>Fellow Teachers", "Connectedness to<br>Fellow Teachers", "Felt they have<br>Influence over<br>Professional Learning",
+          "Average", "Trust in<br>Fellow Teachers", "Connectedness to<br>Fellow Teachers", "Felt they have<br>Influence over<br>Professional Learning")
+)
+
+both_culture_segments <- tibble(
+  x = c(63,83,72,33),
+  xend = c(78,89,83,61),
+  y = c("Average", "Trust in<br>Fellow Teachers", "Connectedness to<br>Fellow Teachers", "Felt they have<br>Influence over<br>Professional Learning"),
+  yend = c("Average", "Trust in<br>Fellow Teachers", "Connectedness to<br>Fellow Teachers", "Felt they have<br>Influence over<br>Professional Learning"),
+  text_fall = c(63,83,72,33),
+  text_spring = c(78,89,83,61),
+)
+
+both_culture$obs <- factor(both_culture$obs, 
+                           levels = c("Felt they have<br>Influence over<br>Professional Learning", "Connectedness to<br>Fellow Teachers", "Trust in<br>Fellow Teachers", "Average"))
+
+ggplot() +
+  geom_point(data = both_culture, mapping = aes(color = season, x = ed, y = obs, size = ed)) +
+  geom_segment(data = both_culture_segments, mapping = aes(x = x, xend = xend, y = y, yend = yend, alpha = 0.7), color = "black", size = 0.3, arrow = arrow(length = unit(0.1, "inches"))) +
+  geom_richtext(data = both_culture_segments, fill = NA, label.color = NA,
+                aes(x = text_fall, y = y, label = paste0(x, "%")), 
+                color = "#ff7b43", vjust = -0.5, size = 4.85) +
+  geom_richtext(data = both_culture_segments, fill = NA, label.color = NA,
+                aes(x = text_spring, y = y, label = paste0(xend, "%")), 
+                color = "#00acf0", vjust = -0.5, size = 4.85) +
+  scale_color_manual(values = c("#ff7b43", "#00acf0")) +
+  scale_x_continuous(labels = scales::percent_format(scale = 1), breaks = scales::pretty_breaks(n = 5)) +
+  labs(x = NULL, y = NULL,
+       title = "Change in the Percent of Educators' with Positive Perceptions<br>of School Culture and Climate from the <span style = 'color:#ff7b43;'>First</span> to <span style = 'color:#00acf0;'>Second</span> Survey") +
+  theme_bw() +
+  theme(panel.border = element_blank(),
+        legend.position = "none",
+        plot.title = element_markdown(hjust = 0.5, family = "Fira Sans", size = 20, lineheight = 1.15),
+        text = element_text(family = "Open Sans"),
+        axis.text.y = element_markdown(hjust = 0.5, lineheight = 1.1, size = 14),
+        axis.text.x = element_markdown(size = 14))
+
+ggsave(here("Images/robinhood_both_schools_increase.png"), width = 11, height = 7, units = "in")
+```
+
+
+
+
+```{r}
+ela_content <- tibble(
+  ed = c(59,47,50,49,33,78,68,53,40,62,56,78),
+  season = c(rep("Fall", 6), rep("Spring", 6)),
+  obs = c("Average", "ELA Instructional<br>Shifts", "Fluency", "Text Complexity", "Building Knowledge", "Supporting Students<br>with Unfinished Learning",
+          "Average", "ELA Instructional<br>Shifts", "Fluency", "Text Complexity", "Building Knowledge", "Supporting Students<br>with Unfinished Learning")
+)
+
+ela_content_segments <- tibble(
+  x = c(59,47,50,49,33,78),
+  xend = c(68,53,40,62,56,78),
+  y = c("Average", "ELA Instructional<br>Shifts", "Fluency", "Text Complexity", "Building Knowledge", "Supporting Students<br>with Unfinished Learning"),
+  yend = c("Average", "ELA Instructional<br>Shifts", "Fluency", "Text Complexity", "Building Knowledge", "Supporting Students<br>with Unfinished Learning"),
+  text_fall = c(59,47,50,49,33,76),
+  text_spring = c(68,53,40,62,56,80),
+)
+
+ela_content_arrow <- tibble(
+  x = c(59,47,50,49,33),
+  xend = c(68,53,40,62,56),
+  y = c("Average", "ELA Instructional<br>Shifts", "Fluency", "Text Complexity", "Building Knowledge"),
+  yend = c("Average", "ELA Instructional<br>Shifts", "Fluency", "Text Complexity", "Building Knowledge"),
+  text_fall = c(59,47,50,49,33),
+  text_spring = c(68,53,40,62,56),
+)
+
+ela_content$obs <- factor(ela_content$obs,
+                          levels = c("Supporting Students<br>with Unfinished Learning", "Building Knowledge", "Text Complexity", "Fluency", "ELA Instructional<br>Shifts", "Average"))
+
+ggplot() +
+  geom_point(data = ela_content, mapping = aes(color = season, x = ed, y = obs, size = ed)) +
+  geom_segment(data = ela_content_arrow, mapping = aes(x = x, xend = xend, y = y, yend = yend, alpha = 0.7), color = "black", size = 0.3, arrow = arrow(length = unit(0.1, "inches"))) +
+  geom_richtext(data = ela_content_segments, fill = NA, label.color = NA,
+                aes(x = text_fall, y = y, label = paste0(x, "%")), 
+                color = "#ff7b43", vjust = -0.5, size = 4.85) +
+  geom_richtext(data = ela_content_segments, fill = NA, label.color = NA,
+                aes(x = text_spring, y = y, label = paste0(xend, "%")), 
+                color = "#00acf0", vjust = -0.5, size = 4.85) +
+  scale_color_manual(values = c("#ff7b43", "#00acf0")) +
+  scale_x_continuous(labels = scales::percent_format(scale = 1), breaks = scales::pretty_breaks(n = 5)) +
+  labs(x = NULL, y = NULL,
+       title = "Educators' Averages Scores on Content and Pedagogical<br>Content Knowledge on the <span style = 'color:#ff7b43;'>First</span> and <span style = 'color:#00acf0;'>Second</span> Surveys") +
+  theme_bw() +
+  theme(panel.border = element_blank(),
+        legend.position = "none",
+        plot.title = element_markdown(hjust = 0.5, family = "Fira Sans", size = 20),
+        text = element_text(family = "Open Sans"),
+        axis.text.y = element_markdown(hjust = 0.5, lineheight = 1.1, size = 14),
+        axis.text.x = element_markdown(size = 14))
+
+ggsave(here("Images/robinhood_ela_increase.png"), width = 11.5, height = 7.5, units = "in")
+```
+
+
+
+
+
+
+```{r pooled-sd}
+library(effectsize)
+
+
+
+fall_join <- fall_df %>%
+  dplyr::filter(str_detect(`district`, "Robinhood") & merge == 3) %>%
+  select(12:34, id) %>%
+  discard(~ all(is.na(.)))
+  
+spring_join <- spring_df %>%
+  dplyr::filter(str_detect(`district`, "Robinhood") & merge == 3) %>%
+  select(20:36, id) %>%
+  discard(~ all(is.na(.)))
+
+joined_increase <- left_join(fall_join, spring_join, by = "id") %>%
+  drop_na() %>%
+  mutate(across(contains("17"), ~ str_replace_all(.x, "Aligned", "1")))
+
+
+effect_size <- function(percent1, percent2, n) {
+  size1 <- round((percent1*n))
+  size1_inv <- n-size1
+  size2 <- round((percent2*n))
+  size2_inv <- n-size2
+  fake_data <- tibble(one = c(rep(1, size1), rep(0, size1_inv)),
+                 two = c(rep(1, round(size2)), rep(0, size2_inv)))
+  
+  (percent2-percent1)/sd_pooled(fake_data$one, fake_data$two, data = fake_data)
+}
+
+effect_size(0.78, 0.78, 19)
+effect_size(0.5, 0.4, 19)
+effect_size(0.33, 0.57, 19)
+effect_size(0.47, 0.53, 19)
+effect_size(0.49, 0.62, 19)
+effect_size(0.59, 0.68, 19)
+```
+
+
+
+
+
+
+```{r}
+positive_vector <- c("4", "5")
+negative_vector <- c("1", "2")
+```
+
+```{r}
+library(TeachingLab)
+index <- tibble(question_pre = c("pre1", "pre2", "pre3", "pre4", "pre5", "pre6", "pre7", "pre8", "pre9"),
+                question_post = c("post1", "post2", "post3", "post4", "post5", "post6", "post7", "post8", "post9"),
+                coding = list("negative", "positive", "negative", "negative", "positive", "positive", "positive", "negative", "negative"))
+
+# For general
+# replace_vector <- c("Somewhat true" = "4", "Very true" = "6", "True" = "5", "Very untrue" = "1",
+#                     "Somewhat untrue" = "3", "Untrue" = "2")
+
+# For robinhood
+recode_vector <- c("Very Untrue" = "1", 
+                   "Somewhat Untrue" = "3",
+                   "Somewhat True" = "4",
+                   "Very True" = "6",
+                   "Untrue" = "2",
+                   "True" = "5")
+
+name_replace <- c("pre3" = "pregrowth1",
+             "pre4" = "pregrowth2",
+             "pre7" = "prehigh1",
+             "pre8" = "prehigh2",
+             "pre9" = "prehigh3",
+             "post3" = "postgrowth1",
+             "post4" = "postgrowth2",
+             "post7" = "posthigh1",
+             "post8" = "posthigh2",
+             "post9" = "posthigh3")
+
+index <- index %>%
+  mutate(question_pre = str_replace_all(question_pre, name_replace),
+         question_post = str_replace_all(question_post, name_replace))
+
+mindsets_robinhood_df <- second_df %>% 
+  dplyr::filter(str_detect(`district`, "Robinhood") & merge == 3) %>%
+  select(c(5:13, 131:139)) %>%
+  mutate(across(everything(), ~ str_replace_all(.x, recode_vector))) %>%
+  rename_with( ~ str_replace_all(.x, name_replace))
+
+unmatched_both_mindsets <- pmap_df(list(index$question_pre, index$question_post, index$coding), 
+                                  ~ score_question_number(data = mindsets_robinhood_df, question_pre = ..1, question_post = ..2, coding = ..3, likert = 6)) %>%
+  mutate(percent_pre = round(100 * score_pre/max_score_pre),
+         percent_post = round(100 * score_post/max_score_post),
+         difference = percent_post - percent_pre) %>%
+  select(percent_pre, n1, percent_post, n2, difference)
+
+unmatched_both_mindsets %>%
+  slice(1:2) %>%
+  summarise(across(c(1, 3, 5), ~ sum(as.double(.x))/2)) %>%
+  mutate(across(everything(), ~ round(.x))) %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  mutate(difference = case_when(str_detect(difference, "-") ~ difference,
+                                !str_detect(difference, "-|0") ~ paste0("+", difference),                                 str_detect(difference, "0") ~ difference)) %>%
+  mutate(difference = str_remove_all(difference, "%")) #%>%
+  # range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+  #             sheet = "Table 1 Mindsets",
+  #             range = "B4:D4",
+  #             col_names = F,
+  #             reformat = F)
+
+unmatched_both_mindsets %>%
+  slice(3:4) %>%
+  summarise(across(c(1, 3, 5), ~ sum(as.double(.x))/2)) %>%
+  mutate(across(everything(), ~ round(.x))) %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  mutate(difference = case_when(str_detect(difference, "-") ~ difference,
+                                !str_detect(difference, "-|0") ~ paste0("+", difference),                                 str_detect(difference, "0") ~ difference)) %>%
+  mutate(difference = str_remove_all(difference, "%")) #%>%
+  # range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+  #             sheet = "Table 1 Mindsets",
+  #             range = "B5:D5",
+  #             col_names = F,
+  #             reformat = F)
+
+unmatched_both_mindsets %>%
+  slice(7:8) %>%
+  summarise(across(c(1, 3, 5), ~ sum(as.double(.x))/2)) %>%
+  mutate(across(everything(), ~ round(.x))) %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  mutate(difference = case_when(str_detect(difference, "-") ~ difference,
+                                !str_detect(difference, "-|0") ~ paste0("+", difference),                                 str_detect(difference, "0") ~ difference)) %>%
+  mutate(difference = str_remove_all(difference, "%")) #%>%
+  # range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+  #             sheet = "Table 1 Mindsets",
+  #             range = "B6:D6",
+  #             col_names = F,
+  #             reformat = F)
+
+unmatched_both_mindsets %>%
+  slice(9:11) %>%
+  summarise(across(c(1, 3, 5), ~ sum(as.double(.x))/3)) %>%
+  mutate(across(everything(), ~ round(.x))) %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  mutate(difference = case_when(str_detect(difference, "-") ~ difference,
+                                !str_detect(difference, "-|0") ~ paste0("+", difference),
+                                str_detect(difference, "0") ~ difference)) %>%
+  mutate(difference = str_remove_all(difference, "%")) #%>%
+  # range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+  #             sheet = "Table 1 Mindsets",
+  #             range = "B7:D7",
+  #             col_names = F,
+              # reformat = F)
+
+unmatched_both_mindsets %>%
+  summarise(across(c(1, 3, 5), ~ sum(as.double(.x))/11)) %>%
+  mutate(across(everything(), ~ round(.x))) %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  mutate(difference = case_when(str_detect(difference, "-") ~ difference,
+                                !str_detect(difference, "-|0") ~ paste0("+", difference),
+                                str_detect(difference, "0") ~ difference)) %>%
+  mutate(difference = str_remove_all(difference, "%")) #%>%
+  # range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+  #             sheet = "Table 1 Mindsets",
+  #             range = "B3:D3",
+  #             col_names = F,
+  #             reformat = F)
+
+unmatched_both_mindsets %>%
+  slice(1) %>%
+  select(n1, n2) %>%
+  mutate(across(everything(), ~ paste("n =", .x))) #%>%
+  # range_write(ss = "https://docs.google.com/spreadsheets/d/1Iva12A06pytoD7N4AhGIzV7PlvBHN0trO3SDuTsguCM/edit#gid=1852062847",
+  #             sheet = "Table 1 Mindsets",
+  #             range = "B8:C8",
+  #             col_names = F,
+  #             reformat = F)
+```
+# Percent Improved/Sustained
+
+```{r}
+pmap_dfc(list(index$question_pre, index$question_post, index$coding),
+                                   ~ score_question_mindsets(data = mindsets_robinhood_df, question_pre = ..1, question_post = ..2, coding = ..3, likert = 6)) %>%
+  mutate(id = row_number()) %>%
+  relocate(id, .before = 1) %>%
+  pivot_longer(!id, values_to = "score", names_to = "names") %>%
+  mutate(prepost = case_when(str_detect(names, "pre") == T ~ "pre",
+                             str_detect(names, "post") == T ~ "post")) %>%
+  mutate(names = str_remove(names, "[:digit:]")) %>%
+  mutate(names = str_remove(names, "score_")) %>%
+  mutate(names = str_remove(names, "pre")) %>%
+  mutate(names = str_remove(names, "post")) %>%
+  group_by(names, id, prepost) %>%
+  summarise(score = sum(score, na.rm = T)) %>%
+  pivot_wider(names_from = "prepost", values_from = "score") %>%
+  mutate(score_compare = post - pre) %>%
+  ungroup() %>%
+  mutate(names = factor(names, levels = c("high", "growth"))) %>%
+  arrange(names) %>%
+  drop_na(names) %>%
+  # group_by(names) %>%
+  mutate(max_score = c(rep(6, 19), rep(4, 19))) %>%
+  group_by(names) %>%
+  summarise(percent_improve_sustain = sum(score_compare > 0 | post == max_score | 
+                                            post == max_score - 1 & pre == max_score - 1 |
+                                            post == max_score - 2 & pre == max_score - 2)/length(score_compare)) %>%
+  mutate(percent_improve_sustain = round(100*percent_improve_sustain))
+```
+
+```{r}
+index <- tibble(question_pre = c("pre1", "pre2", "pre3", "pre4", "pre5", "pre6", "pre7", "pre8", "pre9"),
+                question_post = c("post1", "post2", "post3", "post4", "post5", "post6", "post7", "post8", "post9"),
+                coding = list("negative", "positive", "negative", "negative", "positive", "positive", "positive", "negative", "negative"))
+
+# For general
+replace_vector <- c("Somewhat true" = "4", "Very true" = "6", "True" = "5", "Very untrue" = "1",
+                    "Somewhat untrue" = "3", "Untrue" = "2")
+
+# For robinhood
+recode_vector <- c("Very Untrue" = "1", 
+                   "Somewhat Untrue" = "3",
+                   "Somewhat True" = "4",
+                   "Very True" = "6",
+                   "Untrue" = "2",
+                   "True" = "5")
+
+name_replace <- c("pre3" = "pregrowth1",
+             "pre4" = "pregrowth2",
+             "pre7" = "prehigh1",
+             "pre8" = "prehigh2",
+             "pre9" = "prehigh3",
+             "post3" = "postgrowth1",
+             "post4" = "postgrowth2",
+             "post7" = "posthigh1",
+             "post8" = "posthigh2",
+             "post9" = "posthigh3",
+             "pre1" = "prerace1",
+             "pre2" = "prerace2",
+             "pre5" = "prehigh4",
+             "pre6" = "prehigh5",
+             "post1" = "postrace1",
+             "post2" = "postrace2",
+             "post5" = "posthigh4",
+             "post6" = "posthigh5")
+
+index <- index %>%
+  mutate(question_pre = str_replace_all(question_pre, name_replace),
+         question_post = str_replace_all(question_post, name_replace))
+
+mindsets_df <- second_df %>% 
+  filter(pre_subject == "ELA" & merge == 3) %>%
+  select(c(5:13, 131:139)) %>%
+  mutate(across(everything(), ~ str_replace_all(.x, replace_vector))) %>%
+  mutate(across(everything(), ~ str_replace_all(.x, recode_vector))) %>%
+  rename_with( ~ str_replace_all(.x, name_replace)) %>%
+  drop_na()
+
+pmap_dfc(list(index$question_pre, index$question_post, index$coding),
+                                   ~ score_question_mindsets(data = mindsets_df, question_pre = ..1, question_post = ..2, coding = ..3, likert = 6)) %>%
+  mutate(id = row_number()) %>%
+  relocate(id, .before = 1) %>%
+  pivot_longer(!id, values_to = "score", names_to = "names") %>%
+  mutate(prepost = case_when(str_detect(names, "pre") == T ~ "pre",
+                             str_detect(names, "post") == T ~ "post")) %>%
+  mutate(names = str_remove(names, "[:digit:]")) %>%
+  mutate(names = str_remove(names, "score_")) %>%
+  mutate(names = str_remove(names, "pre")) %>%
+  mutate(names = str_remove(names, "post")) %>%
+  group_by(names, id, prepost) %>%
+  summarise(score = sum(score, na.rm = T)) %>%
+  pivot_wider(names_from = "prepost", values_from = "score") %>%
+  mutate(score_compare = post - pre) %>%
+  ungroup() %>%
+  mutate(names = factor(names, levels = c("high", "growth"))) %>%
+  arrange(names) %>%
+  drop_na(names) %>%
+  # group_by(names) %>%
+  mutate(max_score = c(rep(6, 87), rep(4, 87))) %>%
+  group_by(names) %>%
+  summarise(percent_improve_sustain = sum(score_compare > 0 | post == max_score | 
+                                            post == max_score - 1 & pre == max_score - 1 |
+                                            post == max_score - 2 & pre == max_score - 2)/length(score_compare)) %>%
+  mutate(percent_improve_sustain = round(100*percent_improve_sustain))
+```
+
+```{r}
+index <- tibble(question_pre = c("pre1", "pre2", "pre3", "pre4", "pre5", "pre6", "pre7", "pre8", "pre9"),
+                question_post = c("post1", "post2", "post3", "post4", "post5", "post6", "post7", "post8", "post9"),
+                coding = list("negative", "positive", "negative", "negative", "positive", "positive", "positive", "negative", "negative"))
+
+# For general
+replace_vector <- c("Somewhat true" = "4", "Very true" = "6", "True" = "5", "Very untrue" = "1",
+                    "Somewhat untrue" = "3", "Untrue" = "2")
+
+# For robinhood
+recode_vector <- c("Very Untrue" = "1", 
+                   "Somewhat Untrue" = "3",
+                   "Somewhat True" = "4",
+                   "Very True" = "6",
+                   "Untrue" = "2",
+                   "True" = "5")
+
+name_replace <- c("pre3" = "pregrowth1",
+             "pre4" = "pregrowth2",
+             "pre7" = "prehigh1",
+             "pre8" = "prehigh2",
+             "pre9" = "prehigh3",
+             "post3" = "postgrowth1",
+             "post4" = "postgrowth2",
+             "post7" = "posthigh1",
+             "post8" = "posthigh2",
+             "post9" = "posthigh3",
+             "pre1" = "prerace1",
+             "pre2" = "prerace2",
+             "pre5" = "prehigh4",
+             "pre6" = "prehigh5",
+             "post1" = "postrace1",
+             "post2" = "postrace2",
+             "post5" = "posthigh4",
+             "post6" = "posthigh5")
+
+index <- index %>%
+  mutate(question_pre = str_replace_all(question_pre, name_replace),
+         question_post = str_replace_all(question_post, name_replace))
+
+mindsets_df <- second_df %>% 
+  filter(pre_subject == "ELA") %>%
+  select(c(5:13, 131:139)) %>%
+  mutate(across(everything(), ~ str_replace_all(.x, replace_vector))) %>%
+  mutate(across(everything(), ~ str_replace_all(.x, recode_vector))) %>%
+  rename_with( ~ str_replace_all(.x, name_replace)) %>%
+  drop_na()
+
+pmap_dfc(list(index$question_pre, index$question_post, index$coding),
+                                   ~ score_question_mindsets(data = mindsets_df, question_pre = ..1, question_post = ..2, coding = ..3, likert = 6)) %>%
+  mutate(id = row_number()) %>%
+  relocate(id, .before = 1) %>%
+  pivot_longer(!id, values_to = "score", names_to = "names") %>%
+  mutate(prepost = case_when(str_detect(names, "pre") == T ~ "pre",
+                             str_detect(names, "post") == T ~ "post")) %>%
+  mutate(names = str_remove(names, "[:digit:]")) %>%
+  mutate(names = str_remove(names, "score_")) %>%
+  mutate(names = str_remove(names, "pre")) %>%
+  mutate(names = str_remove(names, "post")) %>%
+  group_by(names, id, prepost) %>%
+  summarise(score = sum(score, na.rm = T)) %>%
+  pivot_wider(names_from = "prepost", values_from = "score") %>%
+  mutate(score_compare = post - pre) %>%
+  ungroup() %>%
+  mutate(names = factor(names, levels = c("high", "growth"))) %>%
+  arrange(names) %>%
+  drop_na(names) %>%
+  # group_by(names) %>%
+  mutate(max_score = c(rep(6, 118), rep(4, 118))) %>%
+  group_by(names) %>%
+  summarise(percent_improve_sustain = sum(score_compare > 0 | post == max_score | 
+                                            post == max_score - 1 & pre == max_score - 1 |
+                                            post == max_score - 2 & pre == max_score - 2)/length(score_compare)) %>%
+  mutate(percent_improve_sustain = round(100*percent_improve_sustain))
+```
+
+
+
+## ELA Reanalysis
+
+Lowercase dataframe
+
+```{r}
+replace_vector <- c("not a literacy instructional shift" = "no",
+                    "literacy instructional shift" = "yes")
+replace_vector2 <- c("not aligned" = "no",
+                     "aligned" = "yes")
+
+lower_df <- second_df %>%
+  mutate(across(where(is.character), ~ str_to_lower(.x))) %>%
+  mutate(across(everything(), ~ str_replace_all(.x, replace_vector))) %>%
+  mutate(across(everything(), ~ str_replace_all(.x, replace_vector2)))
+  
+```
+
+
+```{r}
+index <- tibble(question_pre = c("pre12a", "pre12b", "pre12c", "pre12d", "pre13", "pre14a", 
+"pre14b", "pre14c", "pre14d", "pre15", "pre16", "pre17a", "pre17b", 
+"pre17c", "pre17d", "pre18a", "pre18b", "pre18c", "pre18d", "pre19", 
+"pre20", "pre21", "pre22", "pre23a", "pre23b", "pre23c", "pre23d"
+),
+                question_post = c("post12a", "post12b", "post12c", "post12d", "post13", "post14a", 
+"post14b", "post14c", "post14d", "post15", "post16", "post17a", "post17b", 
+"post17c", "post17d", "post18a", "post18b", "post18c", "post18d", "post19", 
+"post20", "post21", "post22", "post23a", "post23b", "post23c", "post23d"
+),
+                coding = list("yes", "yes", "no", "no", "a complex text that is worthy of reading multiple times.", 
+"true", "true", "false", "false", "students independently read aloud texts at their reading level.", 
+"ability to read complex text independently and proficiently.", 
+"yes", "yes", "no", "no", "true", "true", "false", "false", "students pull out evidence from the text to explain their thinking in response to questions.", 
+"students with low reading ability and a lot of knowledge about the food chain.", 
+"have students read a series of additional texts at a variety of complexity levels on the topic.", 
+"provide students with lower reading abilities an audio version of the main text to listen to before reading the main text in class.", 
+"yes", "yes", "no", "no"))
+
+ela_data <- pmap_df(list(index$question_pre, index$question_post, index$coding),
+     ~ score_question_improved(data = lower_df %>%
+                                 filter(portfolio == "expeditionary learning (el)"), question_pre = ..1, question_post = ..2, coding = ..3)) %>%
+  select(pre_percent, post_percent, percent_improve_sustain)
+
+ela_data %>% 
+  slice(1:5) %>%
+  summarise(across(everything(), ~ mean(.x, na.rm = T)))
+
+ela_data %>% 
+  slice(6:10) %>%
+  summarise(across(everything(), ~ mean(.x, na.rm = T)))
+
+ela_data %>% 
+  slice(11:15) %>%
+  summarise(across(everything(), ~ mean(.x, na.rm = T)))
+
+ela_data %>% 
+  slice(21:22) %>%
+  summarise(across(everything(), ~ mean(.x, na.rm = T)))
+
+ela_data %>% 
+  slice(23:27) %>%
+  summarise(across(everything(), ~ mean(.x, na.rm = T)))
+```
+
+
+
+# Lab Leaders
+
+```{r}
+index <- tibble(question_pre = c("pre35", "pre36", "pre37", "pre38"),
+                question_post = c("post35", "post36", "post37", "post38"),
+                coding = list(c("strongly agree", "agree"), c("strongly agree", "agree"), c("strongly agree", "agree"), c("strongly agree", "agree")))
+
+lab_data <- pmap_df(list(index$question_pre, index$question_post, index$coding),
+     ~ score_question_improved(data = lower_df, question_pre = ..1, question_post = ..2, coding = ..3)) %>%
+  select(pre_percent, post_percent, percent_improve_sustain)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

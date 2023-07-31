@@ -1,0 +1,707 @@
+---
+title: "IPG Analysis"
+author: "Duncan Gates"
+date: "7/20/2021"
+output:
+  TeachingLab::TLDefault:
+  theme: paper
+  thumbnails: false
+  lightbox: true
+  gallery: false
+  highlight: kate # Also can do tango
+  number_sections: false
+highlight: kate
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, warning = F, message = F)
+
+library(tidyverse)
+library(googlesheets4)
+library(DataExplorer)
+library(janitor)
+library(ggtext)
+devtools::load_all()
+library(TeachingLab)
+library(reactable)
+library(reactablefmtr)
+
+init_data <- read_sheet("https://docs.google.com/spreadsheets/d/1L33wVpPERyUQdG8WO3sZiyjnHzPvDL91O4yVUQTN14A/edit#gid=1455024681") %>%
+  janitor::remove_empty(which = "cols") %>%
+  rename(
+    `Learning Goal #1` = `Learning Goal...30`,
+    `Learning Goal #2` = `Learning Goal...51`,
+    `Learning Goal #3` = `Learning Goal...76`,
+    `Standard(s) Addressed in this Lesson #1` = `Standard(s) Addressed in this Lesson...31`,
+    `Standard(s) Addressed in this Lesson #2` = `Standard(s) Addressed in this Lesson...52`,
+    `Standard(s) Addressed in this Lesson #3` = `Standard(s) addressed in this lesson...77`,
+    `Name of text #1` = `Name of text...32`,
+    `Name of text #2` = `Name of text...53`,
+    `Type of text(s) #1` = `Type of text(s). Circle all that apply:...33`,
+    `Type of text(s) #2` = `Type of text(s). Circle all that apply:...54`,
+    `Core Action 1 Notes #1` = `Core Action 1 Notes...37`,
+    `Core Action 1 Notes #2` = `Core Action 1 Notes...60`,
+    `Core Action 1 Notes #3` = `Core Action 1 Notes...83`,
+    `Core Action 2 Notes #1` = `Core Action 2 Notes...42`,
+    `Core Action 2 Notes #2` = `Core Action 2 Notes...65`,
+    `Core Action 2 Notes #3` = `Core Action 2 Notes...88`,
+    `Core Action 3 Notes #1` = `Core Action 3 Notes...49`,
+    `Core Action 3 Notes #2` = `Core Action 3 Notes...74`,
+    `Core Action 3 Notes #3` = `Core Action 3 Notes...94`,
+    `Topic/Lesson/Unit #1` = `Topic/Lesson/Unit...50`,
+    `Topic/Lesson/Unit #2` = `Topic/Lesson/Unit...75`
+  )
+
+data <- init_data %>%
+  mutate(`Name of Site (Parish, District, Network)` = str_replace_all(`Name of Site (Parish, District, Network)`,
+                                                                      c("Legacy Early College" = "Legacy",
+                                                                        "District 11, NY" = "District 11"))) %>%
+  filter(`Name of Site (Parish, District, Network)` != "TEST") %>%
+  mutate(`Timeline of Obs` = if_else(is.na(`Timeline of Obs`), 
+                                     paste(get_season(Timestamp), year(Timestamp)),
+                                     `Timeline of Obs`))
+```
+
+```{r}
+cols <- colnames(data) %>% as_tibble()
+```
+
+
+# Summary Statistics
+
+```{r echo = F}
+counts <- data %>%
+  mutate(year = if_else(Timestamp > as.Date("2020-06-30"), "2020-2021", "2019-2020")) %>%
+  mutate(year = if_else(`Timeline of Obs` == "Winter 2021" & is.na(year), "2020-2021", year)) %>%
+  group_by(year) %>%
+  count(sort = T)
+```
+
+
+In 2019-2020 there were `r counts %>% filter(year == "2019-2020") %>% pull(n)` observations, while in 2020-2021 there were `r counts %>% filter(year == "2020-2021") %>% pull(n)` observations from the IPG forms. Looking at this by school, we can also see that there are very few sites with more than 50 observations, or schools with over 5 observations. The distributions of schools and sites match as we would expect.
+
+```{r}
+data %>%
+  group_by(`Name of Site (Parish, District, Network)`) %>%
+  count(sort = T) %>%
+  reactable::reactable() %>%
+  reactablefmtr::add_title("Table 1: Counts per Site", align = "center")
+
+data %>%
+  group_by(`Name of Site (Parish, District, Network)`) %>%
+  count(sort = T) %>%
+  ggplot(aes(x = n)) +
+  geom_histogram(bins = 15, fill = "#04abeb") +
+  labs(x = "n", y = "Count of per site observations", title = "Figure 1: Low Observation Count on Per Site Basis") +
+  TeachingLab::theme_tl() +
+  theme(plot.title = element_text(size = 24, face = "bold"))
+
+data %>%
+  group_by(`Name of School`) %>%
+  count(sort = T) %>%
+  ggplot(aes(x = n)) +
+  geom_histogram(bins = 15, fill = "#04abeb") +
+  labs(x = "n", y = "count of per school observations", title = "Figure 2: Low Observation Count on Per School Basis") +
+  TeachingLab::theme_tl() +
+  theme(plot.title = element_text(size = 24, face = "bold"))
+```
+
+Looking at the different rubrics we see a lot more ELA observations than Mathematics observations, and a lot more K-12 observations as well.
+
+```{r}
+data %>%
+  group_by(`IPG Rubric`) %>%
+  count(sort = T) %>%
+  drop_na() %>%
+  mutate(`IPG Rubric` = TeachingLab::html_wrap(`IPG Rubric`, interval = 20)) %>%
+  ggplot(aes(x = fct_reorder(`IPG Rubric`, n), y = n, fill = `IPG Rubric`)) +
+  geom_col() +
+  geom_text(aes(label = paste0("  ", n, "\n(", round(100 * n / nrow(data)), "%)"), color = `IPG Rubric`), hjust = -0.6) +
+  labs(x = "", title = "Figure 3: Counts of Different IPG Rubrics") +
+  coord_flip() +
+  scale_y_continuous(limits = c(0, 155)) +
+  scale_fill_tl(n = 4) +
+  scale_color_tl(n = 4) +
+  theme_tl() +
+  theme(
+    axis.text.y = element_markdown(lineheight = 1.15),
+    axis.text = element_markdown(size = 10)
+  ) +
+  theme(plot.title = element_text(size = 24, face = "bold"))
+```
+
+
+Lastly, looking at this by timeline of observation we can see that nearly all observations actually took place in the Fall of 2019.
+
+```{r}
+data %>%
+  group_by(`Timeline of Obs`) %>%
+  count(sort = T) %>%
+  drop_na() %>%
+  ggplot(aes(x = fct_reorder(`Timeline of Obs`, n), y = n, fill = `Timeline of Obs`)) +
+  geom_col() +
+  geom_text(aes(label = n), vjust = -1) +
+  labs(x = "", title = "Figure 4: Counts of observation timelines (NA removed)") +
+  scale_y_continuous(limits = c(0, 160)) +
+  scale_fill_tl(n = 6) +
+  theme_tl() +
+  theme(plot.title = element_text(size = 24, face = "bold"))
+```
+
+
+# Grading the data
+
+## Literary/Informational Data
+
+In the following table, we calculated the percentage of observations with a positive rating for each Core Action.
+
+```{r}
+# Splitting the data for the first set, adding year column, and making everything a character
+data_split_one <- data %>%
+  mutate(year = if_else(Timestamp > as.Date("2020-06-30"), "2020-2021", "2019-2020")) %>%
+  mutate(year = if_else(`Timeline of Obs` == "Winter 2021" & is.na(year), "2020-2021", year)) %>%
+  select(15:30, year) %>%
+  # drop_na(`CA1a. A majority of the lesson is spent listening to, reading, writing, or speaking about text(s)....34`) %>%
+  mutate(across(everything(), ~ as.character(.x))) %>%
+  select(!contains("Notes"))
+
+data_split_two <- data %>%
+  mutate(year = if_else(Timestamp > as.Date("2020-06-30"), "2020-2021", "2019-2020")) %>%
+  mutate(year = if_else(`Timeline of Obs` == "Winter 2021" & is.na(year), "2020-2021", year)) %>%
+  select(38:54, year) %>%
+  mutate(across(everything(), ~ as.character(.x))) %>%
+  select(!starts_with("LDOE")) %>%
+  select(!contains("Notes"))
+
+data_full_bind <- bind_rows(data_split_one, data_split_two) %>%
+  mutate(`CA2b. Questions and tasks require students to use evidence from the text to demonstrate understanding and to support their ideas about the text.` = coalesce(`CA2b. Questions and tasks require students to use evidence from the text to demonstrate understanding and to support their ideas about the text.`, `CA2b. Questions and tasks require students to use evidence from the text to demonstrate understanding and to support their ideas about the text. These ideas are expressed through written and/or oral responses.`)) %>%
+  select(-15) %>%
+  mutate(across(everything(), ~ case_when(str_detect(.x, "3") ~ "3",
+                                          str_detect(.x, "4") ~ "4",
+                                          T ~ as.character(.x)))) %>%
+  mutate(across(c(1:3), ~ case_when(str_detect(.x, "Yes") ~ "Yes",
+                                    str_detect(.x, "No") ~ "No",
+                                    T ~ as.character(.x))))
+
+# Getting unique values
+
+uniques <- data_full_bind %>%
+  map(~ str_c(unique(.x), collapse = ",")) %>%
+  bind_rows() %>%
+  gather(key = col_name, value = col_unique)
+
+# Defining vectors for answers coding
+positive_vector <- c("3", "4")
+top_answers_one <- c("4- Most questions and tasks attend to the qualitative features of the text to build understanding.",
+                     "3- Many questions and tasks attend to the qualitative features of the text to build understanding.")
+top_answers_two <- c("4- Most questions and tasks require students to cite evidence from the text.",
+                     "3- Many questions and tasks require students to cite evidence from the text.")
+top_answers_three <- c("4- Vocabulary questions and tasks consistently focus students on the words, phrases, and sentences that matter most and how they are used in the text.",
+                       "3- Vocabulary questions and tasks mostly focus students on the words that matter most and how they are used in the text.")
+top_answers_four <- c("4- Most questions and tasks are intentionally sequenced to support building knowledge.",
+                      "3- Some questions and tasks are intentionally sequenced to support building knowledge.")
+top_answers_five <- c("4- Teacher provides many opportunities, and most students take them.",
+                      "3- Teacher provides many opportunities, and some students take them; or teacher provides some opportunities and most students take them.")
+
+index1 <- tibble(question = c("CA1a. A majority of the lesson is spent listening to, reading, writing, or speaking about text(s).", 
+"CA1b. The anchor text(s) are at or above the complexity level expected for the grade and time in the school year.", 
+"CA1c. The text(s) exhibit exceptional craft and thought and/or provide meaningful information in the service of building knowledge.", 
+"CA2a. Questions and tasks address the text by attending to its particular qualitative features: its meaning/purpose and/or language, structure(s), or knowledge demands.", 
+"CA2b. Questions and tasks require students to use evidence from the text to demonstrate understanding and to support their ideas about the text.", 
+"CA2c. Questions and tasks attend to the words (academic vocabulary), phrases, and sentences within the text.", 
+"CA2d. Questions and tasks are sequenced to build knowledge by guiding students to delve deeper into the text and graphics.", 
+"CA3a. The teacher poses questions and tasks for students to do the majority of the work: speaking/listening, reading, and/or writing; Students do the majority of the work of the lesson", 
+"CA3b. The teacher cultivates reasoning and meaning making by allowing students to productively struggle; Students persevere through difficulty.", 
+"CA3c. The teacher expects evidence and precision from students and probes students’ answers accordingly; Students provide text evidence to support their ideas and display precision in their oral and/or written responses.", 
+"CA3d. The teacher creates the conditions for student conversations where students are encouraged to talk about each other’s thinking; Students talk and ask questions about each other’s thinking, in order to clarify or improve their understanding.", 
+"CA3e. The teacher deliberately checks for understanding throughout the lesson and adapts the lesson according to student understanding; When appropriate, students refine written and/or oral responses.", 
+"CA3f. When appropriate, the teacher explicitly attends to strengthening students’ language and reading foundational skills; Students demonstrate use of language conventions and decoding skills, activating such strategies as needed to read, write, and speak with grade-level fluency and skill."
+  ),
+  coding = list("Yes", "Yes", "Yes", 
+             positive_vector, positive_vector, positive_vector, positive_vector,
+             positive_vector, positive_vector, positive_vector, positive_vector, positive_vector, positive_vector))
+
+part1 <- map2_dfr(index1$question, index1$coding, ~ score_question(data = data_full_bind, 
+                                                        question = .x, coding = .y, 
+                                                        na_type = "Not observed")) %>%
+  rename(Percent = percent,
+         N = n,
+         `Core Action` = question,
+         `Positive rating(s)` = answer) %>%
+  relocate(`Core Action`, .before = 1) %>%
+  relocate(N, .before = Percent) %>%
+  mutate(Percent = Percent/100,
+         N = as.character(N),
+         `Core Action` = str_remove_all(`Core Action`, "...[:digit:][:digit:]")
+         )
+
+part1$`Positive rating(s)`[4] <- paste(top_answers_one, collapse = "\n")
+part1$`Positive rating(s)`[5] <- paste(top_answers_two, collapse = "\n")
+part1$`Positive rating(s)`[6] <- paste(top_answers_three, collapse = "\n")
+part1$`Positive rating(s)`[7] <- paste(top_answers_four, collapse = "\n")
+
+
+part1$`Positive rating(s)`[c(8:13)] <- paste(top_answers_five, collapse = "\n")
+
+part1 %>%
+  reactable::reactable(
+    pagination = F,
+    defaultColDef = colDef(
+      cell = data_bars(part1, fill_color = c("#032E3F", "#02587A", "#0182B4", "#00ACF0"), 
+                       fill_gradient = T,
+                       number_fmt = scales::percent, max_value = 1, background = "gray90")
+    ),
+    style = list(fontFamily = "Calibri", fontSize = "14px")
+    ) %>%
+  add_title("Table 2: Percentage of Positive Indicators: ELA", align = "center")
+```
+
+Here is the exact same data, but split by year
+
+```{r}
+part1_year <- map2_dfr(index1$question, index1$coding, ~ score_question(data = data_full_bind %>% 
+                                                                          drop_na(year) %>%
+                                                                          group_by(year), 
+                                                        question = .x, coding = .y, 
+                                                        na_type = "Not observed")) %>%
+  pivot_wider(names_from = year, values_from = c(percent, n)) %>%
+  rename(`Percent 2019-2020` = `percent_2019-2020`,
+         `Percent 2020-2021` = `percent_2020-2021`,
+         `N 2019-2020` = `n_2019-2020`,
+         `N 2020-2021` = `n_2020-2021`,
+         `Core Action` = question,
+         `Positive rating(s)` = answer) %>%
+  relocate(`Positive rating(s)`, .after = last_col()) %>%
+  mutate(across(contains("Percent"), ~ .x/100),
+         across(contains("N"), ~ as.character(.x)),
+         `Core Action` = str_remove_all(`Core Action`, "...[:digit:][:digit:]")
+         )
+
+part1_year$`Positive rating(s)`[4] <- paste(top_answers_one, collapse = "\n")
+part1_year$`Positive rating(s)`[5] <- paste(top_answers_two, collapse = "\n")
+part1_year$`Positive rating(s)`[6] <- paste(top_answers_three, collapse = "\n")
+part1_year$`Positive rating(s)`[7] <- paste(top_answers_four, collapse = "\n")
+
+
+part1_year$`Positive rating(s)`[c(8:13)] <- paste(top_answers_five, collapse = "\n")
+
+
+part1_year %>%
+  mutate(across(contains("Percent"), ~ as.numeric(.x)),
+         `Positive rating(s)` = str_remove_all(`Positive rating(s)`, "c\\("),
+         `Positive rating(s)` = str_remove_all(`Positive rating(s)`, "\"\\)"),
+         `Positive rating(s)` = str_remove_all(`Positive rating(s)`, "\""),
+         `Positive rating(s)` = str_replace_all(`Positive rating(s)`, "\\.,", ".")) %>%
+  reactable::reactable(
+    pagination = F,
+    defaultColDef = colDef(
+      cell = data_bars(., fill_color = c("#04ABEB"), number_fmt = scales::percent, max_value = 1)
+    ),
+    style = list(fontFamily = "Calibri", fontSize = "14px")
+    ) %>%
+  add_title("Table 3: Percentage of Positive Indicators: ELA (by year)", align = "center")
+```
+
+
+&nbsp;
+&nbsp;
+&nbsp;
+
+
+<!-- Now I know there may be some doubt about whether the 2020-2021 data is actually like that so see the following table of solely 2020-2021 data - which is the entirety of that data: -->
+
+```{r eval = F}
+data_full_bind %>% 
+  filter(year == "2020-2021") %>%
+  select(-year) %>%
+  janitor::remove_empty("rows") %>%
+  gt::gt()
+```
+
+&nbsp;
+&nbsp;
+&nbsp;
+
+
+
+### LDOE Data
+
+LDOE Question data is looked at here briefly just to see the percent that said yes vs. no (as well as not observed). There was no data at all in 2020-2021 so no data is presented for the year split.
+
+```{r}
+ldoe_data <- data %>% 
+  select(contains("LDOE")) %>%
+  mutate(across(c(1:3), ~ case_when(str_detect(.x, "Yes") ~ "Yes",
+                                    str_detect(.x, "No") ~ "No",
+                                    T ~ as.character(.x))))
+
+ldoe_index <- tibble(question = c("LDOE 1B: Teachers use the Tier 1 curriculum as intended. During the walkthroughs, use a smartphone or tablet to pull up the teacher version of the lesson. Is the teacher following the detailed teacher notes provided?", 
+"LDOE 1C: Are students consistently engaging with grade-level texts to the level demanded by the Tier 1 curriculum. Flip through a student's notebook or binder to see that students have been responding to the texts they are reading.", 
+"LDOE 3F: Students respond to texts they read in a variety of ways and groupings. Do students write, discuss in groups, and discuss whole-class to answer questions about the text they read?", 
+"LDOE 3g: The teacher uses prompts and questions to push students to share their thinking. For example, \"Tell me more...\" \"How do you know...?\" \"Who can add to what X said about the text...?\""
+),
+coding = list("Yes", "Yes", "Yes", "Yes"))
+
+ldoe_part <- map2_dfr(ldoe_index$question, ldoe_index$coding, ~ score_question(data = ldoe_data,
+                                                        question = .x, coding = .y, 
+                                                        na_type = "Not observed"))
+
+ldoe_part %>%
+  mutate(percent = percent/100) %>%
+  mutate(across(everything(), ~ as.character(.x))) %>%
+  rename_with( ~ str_to_title(.x)) %>%
+  mutate(across(contains("Percent"), ~ as.numeric(.x))) %>%
+  relocate(Question, .before = 1) %>%
+  reactable::reactable(
+    pagination = F,
+    defaultColDef = colDef(
+      cell = data_bars(., fill_color = c("#04ABEB"), number_fmt = scales::percent, max_value = 1)
+    ),
+    style = list(fontFamily = "Calibri", fontSize = "14px")
+    ) %>%
+  add_title("Table 4: Percentage of Positive Indicators: ELA", align = "center")
+```
+
+
+## Math Data
+
+Finally looking at the math data we replicate the tables above
+
+```{r}
+data_split_three <- data %>%
+  mutate(year = if_else(Timestamp > as.Date("2020-06-30"), "2020-2021", "2019-2020")) %>%
+  mutate(year = if_else(`Timeline of Obs` == "Winter 2021" & is.na(year), "2020-2021", year)) %>%
+  select(59:74, year) %>%
+  mutate(across(everything(), ~ as.character(.x))) %>%
+  select(!contains("Notes")) %>%
+  select(-c(4, 5)) %>%
+  mutate(across(c(1:3), ~ case_when(str_detect(.x, "Yes") ~ "Yes",
+                                    str_detect(.x, "No") ~ "No",
+                                    T ~ as.character(.x)))) %>%
+  mutate(across(everything(), ~ case_when(str_detect(.x, "3") ~ "3",
+                                          str_detect(.x, "4") ~ "4",
+                                          T ~ as.character(.x)))) %>%
+  rename_with( ~ str_remove_all(.x, "\\.\\.\\.[:digit:][:digit:]"))
+
+index2 <- tibble(question = c("CA1a. The enacted lesson focuses on the grade-level cluster(s), grade-level content standard(s), or part(s) thereof.", 
+"CA1b. The enacted lesson appropriately relates new content to math content within or across grades.", 
+"CA1c. The enacted lesson intentionally targets the aspect(s) of Rigor (conceptual understanding, procedural skill and fluency, application) called for by the standard(s) being addressed.", 
+"CA2a. The teacher makes the mathematics of the lesson explicit through the use of explanations, representations, tasks, and/or examples.", 
+"CA2b. The teacher strengthens all students’ understanding of the content by strategically sharing students’ representations and/or solution methods.", 
+"CA2c. The teacher deliberately checks for understanding throughout the lesson to surface misconceptions and opportunities for growth, and adapts the lesson according to student understanding.", 
+"CA2d. The teacher facilitates the summary of the mathematics with references to student work and discussion in order to reinforce the purpose of the lesson.", 
+"CA3a. The teacher provides opportunities for all students to work with and practice grade-level (or course-level) problems and exercises; Students work with and practice grade-level (or course-level) problems and exercises.", 
+"CA3b. The teacher cultivates reasoning and problem solving by allowing students to productively struggle; Students persevere in solving problems in the face of difficulty.", 
+"CA3c. The teacher poses questions and problems that prompt students to explain their thinking about the content of the lesson; Students share their thinking about the content of the lesson beyond just stating answers.", 
+"CA3d. The teacher creates the conditions for student conversations where students are encouraged to talk about each other’s thinking; Students talk and ask questions about each other’s thinking, in order to clarify or improve their own mathematical understanding.", 
+"CA3e. The teacher connects and develops students’ informal language and mathematical ideas to precise mathematical language and ideas; Students use increasingly precise mathematical language and ideas."),
+                 coding = list("Yes", "Yes", "Yes",
+                            positive_vector, positive_vector, positive_vector, positive_vector, 
+                            positive_vector,
+                            positive_vector, positive_vector,
+                            positive_vector, positive_vector))
+
+part3 <- map2_dfr(index2$question, index2$coding, ~ score_question(data = data_split_three, 
+                                                        question = .x, coding = .y, 
+                                                        na_type = "Not observed")) %>%
+  rename(Percent = percent,
+         N = n,
+         `Core Action` = question,
+         `Positive rating(s)` = answer) %>%
+  relocate(`Core Action`, .before = 1) %>%
+  relocate(N, .before = Percent) %>%
+  mutate(Percent = Percent/100,
+         N = as.character(N),
+         `Core Action` = str_remove_all(`Core Action`, "...[:digit:][:digit:]")
+         )
+
+part3$`Positive rating(s)`[4] <- "4- A variety of instructional techniques and examples are used to make the mathematics of the lesson clear. 3- Examples are used to make the mathematics of the lesson clear."
+part3$`Positive rating(s)`[5] <- "4- A variety of instructional techniques and examples are used to make the mathematics of the lesson clear. 3- Examples are used to make the mathematics of the lesson clear."
+part3$`Positive rating(s)`[6] <- "3- There are checks for understanding used throughout the lesson to assess progress of some students; minimal adjustments are made to instruction, even when adjustments are appropriate."
+part3$`Positive rating(s)`[7] <- "3- The lesson includes a summary with a focus on the mathematics."
+part3$`Positive rating(s)`[8] <- "4- Teacher provides many opportunities, and most students take them. Teacher provides many opportunities, and some students take them; or teacher provides some opportunities and most students take them."
+part3$`Positive rating(s)`[9] <- "4- Teacher provides many opportunities, and most students take them. 3- Teacher provides many opportunities and some students take them; or teacher provides some opportunities and most students take them."
+part3$`Positive rating(s)`[10] <- "4- Teacher provides many opportunities, and most students take them. 3- Teacher provides many opportunities and some students take them; or teacher provides some opportunities and most students take them."
+part3$`Positive rating(s)`[11] <- "4- Teacher provides many opportunities, and most students take them. 3- Teacher provides many opportunities and some students take them; or teacher provides some opportunities and most students take them."
+part3$`Positive rating(s)`[12] <- "4- Teacher provides many opportunities, and most students take them. 3- Teacher provides many opportunities and some students take them; or teacher provides some opportunities and most students take them."
+
+part3 %>%
+  reactable::reactable(
+    pagination = F,
+    defaultColDef = colDef(
+      cell = data_bars(., fill_color = c("#032E3F", "#02587A", "#0182B4", "#00ACF0"), 
+                       fill_gradient = T,
+                       number_fmt = scales::percent, max_value = 1, background = "gray90")
+    ),
+    style = list(fontFamily = "Calibri", fontSize = "14px")
+    ) %>%
+  add_title("Table 5: Percentage of Positive Indicators: Math", align = "center")
+```
+
+Once again the above table is replicated for its yearly numbers
+
+```{r}
+part3_year <- map2_dfr(index2$question, index2$coding, ~ score_question(data = data_split_three %>% 
+                                                                          drop_na(year) %>%
+                                                                          group_by(year), 
+                                                        question = .x, coding = .y, 
+                                                        na_type = "Not observed")) %>%
+  pivot_wider(names_from = year, values_from = c(percent, n)) %>%
+  rename(`Percent 2019-2020` = `percent_2019-2020`,
+         `Percent 2020-2021` = `percent_2020-2021`,
+         `N 2019-2020` = `n_2019-2020`,
+         `N 2020-2021` = `n_2020-2021`,
+         `Core Action` = question,
+         `Positive rating(s)` = answer) %>%
+  relocate(`Positive rating(s)`, .after = last_col()) %>%
+  mutate(across(contains("Percent"), ~ .x/100),
+         across(contains("N"), ~ as.character(.x)),
+         `Core Action` = str_remove_all(`Core Action`, "...[:digit:][:digit:]")
+         )
+
+part3_year$`Positive rating(s)`[4] <- "4- A variety of instructional techniques and examples are used to make the mathematics of the lesson clear. 3- Examples are used to make the mathematics of the lesson clear."
+part3_year$`Positive rating(s)`[5] <- "4- A variety of instructional techniques and examples are used to make the mathematics of the lesson clear. 3- Examples are used to make the mathematics of the lesson clear."
+part3_year$`Positive rating(s)`[6] <- "3- There are checks for understanding used throughout the lesson to assess progress of some students; minimal adjustments are made to instruction, even when adjustments are appropriate."
+part3_year$`Positive rating(s)`[7] <- "3- The lesson includes a summary with a focus on the mathematics."
+part3_year$`Positive rating(s)`[8] <- "4- Teacher provides many opportunities, and most students take them. Teacher provides many opportunities, and some students take them; or teacher provides some opportunities and most students take them."
+part3_year$`Positive rating(s)`[9] <- "4- Teacher provides many opportunities, and most students take them. 3- Teacher provides many opportunities and some students take them; or teacher provides some opportunities and most students take them."
+part3_year$`Positive rating(s)`[10] <- "4- Teacher provides many opportunities, and most students take them. 3- Teacher provides many opportunities and some students take them; or teacher provides some opportunities and most students take them."
+part3_year$`Positive rating(s)`[11] <- "4- Teacher provides many opportunities, and most students take them. 3- Teacher provides many opportunities and some students take them; or teacher provides some opportunities and most students take them."
+part3_year$`Positive rating(s)`[12] <- "4- Teacher provides many opportunities, and most students take them. 3- Teacher provides many opportunities and some students take them; or teacher provides some opportunities and most students take them."
+
+part3_year %>%
+  mutate(across(contains("Percent"), ~ as.numeric(.x)),
+         `Positive rating(s)` = str_remove_all(`Positive rating(s)`, "c\\("),
+         `Positive rating(s)` = str_remove_all(`Positive rating(s)`, "\"\\)"),
+         `Positive rating(s)` = str_remove_all(`Positive rating(s)`, "\""),
+         `Positive rating(s)` = str_replace_all(`Positive rating(s)`, "\\.,", ".")) %>%
+  reactable::reactable(
+    pagination = F,
+    defaultColDef = colDef(
+      cell = data_bars(., fill_color = c("#04ABEB"), number_fmt = scales::percent, max_value = 1)
+    ),
+    style = list(fontFamily = "Calibri", fontSize = "14px")
+    ) %>%
+  add_title("Table 6: Percentage of Positive Indicators: Math (by year)", align = "center")
+```
+
+# Trends Over Time
+
+The trend over time is messy and unclear, the n size consistently decreases over time after Winter of 2020 in nearly every question, before which there appears to be a positive trend.
+
+## Overall ELA
+
+```{r fig.width = 10, fig.height = 18}
+# Splitting the data for the first set, adding year column, and making everything a character
+data_split_one <- data %>%
+  mutate(year = if_else(Timestamp > as.Date("2020-06-30"), "2020-2021", "2019-2020")) %>%
+  mutate(year = if_else(`Timeline of Obs` == "Winter 2021" & is.na(year), "2020-2021", year)) %>%
+  select(15:30, `Timeline of Obs`) %>%
+  mutate(across(everything(), ~ as.character(.x))) %>%
+  select(!contains("Notes"))
+
+data_split_two <- data %>%
+  mutate(year = if_else(Timestamp > as.Date("2020-06-30"), "2020-2021", "2019-2020")) %>%
+  mutate(year = if_else(`Timeline of Obs` == "Winter 2021" & is.na(year), "2020-2021", year)) %>%
+  select(38:54, `Timeline of Obs`) %>%
+  mutate(across(everything(), ~ as.character(.x))) %>%
+  select(!starts_with("LDOE")) %>%
+  select(!contains("Notes"))
+
+data_full_bind <- bind_rows(data_split_one, data_split_two) %>%
+  mutate(`CA2b. Questions and tasks require students to use evidence from the text to demonstrate understanding and to support their ideas about the text.` = coalesce(`CA2b. Questions and tasks require students to use evidence from the text to demonstrate understanding and to support their ideas about the text.`, `CA2b. Questions and tasks require students to use evidence from the text to demonstrate understanding and to support their ideas about the text. These ideas are expressed through written and/or oral responses.`)) %>%
+  select(-15) %>%
+  mutate(across(!c(14), ~ case_when(str_detect(.x, "1") ~ "1",
+                                          str_detect(.x, "2") ~ "2",
+                                          str_detect(.x, "3") ~ "3",
+                                          str_detect(.x, "4") ~ "4",
+                                          T ~ "Doesn't matter"))) %>%
+  mutate(across(c(1:3), ~ case_when(str_detect(.x, "Yes") ~ "Yes",
+                                    str_detect(.x, "No") ~ "No",
+                                    T ~ "Doesn't matter")))
+
+data_time_ela_n <- data_full_bind %>%
+  rename_with( ~ str_remove_all(.x, "\\.\\.\\.[:digit:][:digit:]")) %>%
+  group_by(`Timeline of Obs`) %>%
+  summarise(across(!c(1:3), ~ sum(!is.na(as.numeric(.x)), na.rm = T))) %>%
+  pivot_longer(!`Timeline of Obs`) %>%
+  mutate(`Timeline of Obs` = factor(`Timeline of Obs`, levels = c("Summer 2019", "Fall 2019", "Winter 2020", "Spring 2020",
+                                                                  "Winter 2021", "Spring 2021"))) %>%
+  arrange(desc(`Timeline of Obs`))
+
+ 
+data_time_ela <- data_full_bind %>%
+  rename_with( ~ str_remove_all(.x, "\\.\\.\\.[:digit:][:digit:]")) %>%
+  group_by(`Timeline of Obs`) %>%
+  summarise(across(!c(1:3), ~ mean(as.numeric(.x), na.rm = T))) %>%
+  pivot_longer(!`Timeline of Obs`) %>%
+  mutate(`Timeline of Obs` = factor(`Timeline of Obs`, levels = c("Summer 2019", "Fall 2019", "Winter 2020", "Spring 2020",
+                                                                  "Winter 2021", "Spring 2021"))) %>%
+  arrange(desc(`Timeline of Obs`)) %>%
+  bind_cols(n = data_time_ela_n$value) %>%
+  mutate(name = html_wrap(name, 50))
+
+ggplot(data_time_ela, aes(x = `Timeline of Obs`, y = value, fill = `Timeline of Obs`, color = `Timeline of Obs`)) +
+  geom_col() +
+  geom_text(aes(label = paste0("n = ", n)), position = position_dodge(), vjust = -1) +
+  guides(fill = guide_legend(nrow = 1, byrow = T)) +
+  facet_wrap( ~ name, ncol = 2) +
+  labs(x = "Season", y = "Average positive indicator(s)", title = "Figure 5: ELA Averages Per Season") +
+  scale_fill_manual(values = c("Summer 2019" = "#040404", "Fall 2019" = "#032533", 
+                               "Winter 2020" = "#024762", "Spring 2020" = "#016891", 
+                               "Winter 2021" = "#008AC0", "Spring 2021" = "#00ACF0")) +
+  scale_color_manual(values = c("Summer 2019" = "#040404", "Fall 2019" = "#032533", 
+                               "Winter 2020" = "#024762", "Spring 2020" = "#016891", 
+                               "Winter 2021" = "#008AC0", "Spring 2021" = "#00ACF0")) +
+  theme_tl(legend = T) +
+  theme(legend.position = "bottom",
+        legend.box = "horizontal",
+        legend.direction = "horizontal",
+        strip.text = element_markdown(lineheight = 1.1, hjust = 0.5),
+        plot.title = element_text(size = 24, face = "bold"))
+```
+
+## Overall Math
+
+There is not much data to see here after Winter of 2020.
+
+```{r fig.width = 10, fig.height = 18}
+data_split_three <- data %>%
+  mutate(year = if_else(Timestamp > as.Date("2020-06-30"), "2020-2021", "2019-2020")) %>%
+  mutate(year = if_else(`Timeline of Obs` == "Winter 2021" & is.na(year), "2020-2021", year)) %>%
+  select(59:74, `Timeline of Obs`) %>%
+  mutate(across(everything(), ~ as.character(.x))) %>%
+  select(!contains("Notes")) %>%
+  select(-c(4, 5)) %>%
+  mutate(across(!c(13), ~ case_when(str_detect(.x, "1") ~ "1",
+                                          str_detect(.x, "2") ~ "2",
+                                          str_detect(.x, "3") ~ "3",
+                                          str_detect(.x, "4") ~ "4",
+                                          T ~ "Doesn't matter"))) %>%
+  mutate(across(c(1:3), ~ case_when(str_detect(.x, "Yes") ~ "Yes",
+                                    str_detect(.x, "No") ~ "No",
+                                    T ~ "Doesn't matter"))) %>%
+  rename_with( ~ str_remove_all(.x, "\\.\\.\\.[:digit:][:digit:]"))
+
+data_time_math_n <- data_split_three %>%
+  rename_with( ~ str_remove_all(.x, "\\.\\.\\.[:digit:][:digit:]")) %>%
+  group_by(`Timeline of Obs`) %>%
+  summarise(across(!c(1:3), ~ sum(!is.na(as.numeric(.x)), na.rm = T))) %>%
+  pivot_longer(!`Timeline of Obs`) %>%
+  mutate(`Timeline of Obs` = factor(`Timeline of Obs`, levels = c("Summer 2019", "Fall 2019", "Winter 2020", "Spring 2020",
+                                                                  "Winter 2021", "Spring 2021"))) %>%
+  arrange(desc(`Timeline of Obs`))
+
+ 
+data_time_math <- data_split_three %>%
+  rename_with( ~ str_remove_all(.x, "\\.\\.\\.[:digit:][:digit:]")) %>%
+  group_by(`Timeline of Obs`) %>%
+  summarise(across(!c(1:3), ~ mean(as.numeric(.x), na.rm = T))) %>%
+  pivot_longer(!`Timeline of Obs`) %>%
+  mutate(`Timeline of Obs` = factor(`Timeline of Obs`, levels = c("Summer 2019", "Fall 2019", "Winter 2020", "Spring 2020",
+                                                                  "Winter 2021", "Spring 2021"))) %>%
+  arrange(desc(`Timeline of Obs`)) %>%
+  bind_cols(n = data_time_math_n$value) %>%
+  mutate(name = html_wrap(name, 50))
+
+ggplot(data_time_math, aes(x = `Timeline of Obs`, y = value, fill = `Timeline of Obs`, color = `Timeline of Obs`)) +
+  geom_col() +
+  geom_text(aes(label = paste0("n = ", n)), position = position_dodge(), vjust = -1) +
+  guides(fill = guide_legend(nrow = 1, byrow = T)) +
+  facet_wrap( ~ name, ncol = 2) +
+  labs(x = "Season", y = "Average positive indicator(s)", title = "Figure 6: Math Averages Per Season") +
+  scale_fill_manual(values = c("Summer 2019" = "#040404", "Fall 2019" = "#032533", 
+                               "Winter 2020" = "#024762", "Spring 2020" = "#016891", 
+                               "Winter 2021" = "#008AC0", "Spring 2021" = "#00ACF0")) +
+  scale_color_manual(values = c("Summer 2019" = "#040404", "Fall 2019" = "#032533", 
+                               "Winter 2020" = "#024762", "Spring 2020" = "#016891", 
+                               "Winter 2021" = "#008AC0", "Spring 2021" = "#00ACF0")) +
+  scale_y_continuous(limits = c(0, 4)) +
+  theme_tl(legend = T) +
+  theme(legend.position = "bottom",
+        legend.box = "horizontal",
+        legend.direction = "horizontal",
+        strip.text = element_markdown(lineheight = 1.1, hjust = 0.5),
+        plot.title = element_text(size = 24, face = "bold"))
+```
+
+
+## Looking at Lafayette Parish
+
+Here the figure above is replicated just for Lafayette Parish.
+
+```{r fig.width = 10, fig.height = 18}
+# Splitting the data for the first set, adding year column, and making everything a character
+data_split_one <- data %>%
+  mutate(year = if_else(Timestamp > as.Date("2020-06-30"), "2020-2021", "2019-2020")) %>%
+  mutate(year = if_else(`Timeline of Obs` == "Winter 2021" & is.na(year), "2020-2021", year)) %>%
+  filter(`Name of Site (Parish, District, Network)` == "Lafayette Parish") %>%
+  select(15:30, `Timeline of Obs`) %>%
+  mutate(across(everything(), ~ as.character(.x))) %>%
+  select(!contains("Notes"))
+
+data_split_two <- data %>%
+  mutate(year = if_else(Timestamp > as.Date("2020-06-30"), "2020-2021", "2019-2020")) %>%
+  mutate(year = if_else(`Timeline of Obs` == "Winter 2021" & is.na(year), "2020-2021", year)) %>%
+  filter(`Name of Site (Parish, District, Network)` == "Lafayette Parish") %>%
+  select(38:54, `Timeline of Obs`) %>%
+  mutate(across(everything(), ~ as.character(.x))) %>%
+  select(!starts_with("LDOE")) %>%
+  select(!contains("Notes"))
+
+data_full_bind <- bind_rows(data_split_one, data_split_two) %>%
+  mutate(`CA2b. Questions and tasks require students to use evidence from the text to demonstrate understanding and to support their ideas about the text.` = coalesce(`CA2b. Questions and tasks require students to use evidence from the text to demonstrate understanding and to support their ideas about the text.`, `CA2b. Questions and tasks require students to use evidence from the text to demonstrate understanding and to support their ideas about the text. These ideas are expressed through written and/or oral responses.`)) %>%
+  select(-15) %>%
+  mutate(across(!c(14), ~ case_when(str_detect(.x, "1") ~ "1",
+                                          str_detect(.x, "2") ~ "2",
+                                          str_detect(.x, "3") ~ "3",
+                                          str_detect(.x, "4") ~ "4",
+                                          T ~ "Doesn't matter"))) %>%
+  mutate(across(c(1:3), ~ case_when(str_detect(.x, "Yes") ~ "Yes",
+                                    str_detect(.x, "No") ~ "No",
+                                    T ~ "Doesn't matter")))
+
+data_time_ela_n <- data_full_bind %>%
+  rename_with( ~ str_remove_all(.x, "\\.\\.\\.[:digit:][:digit:]")) %>%
+  group_by(`Timeline of Obs`) %>%
+  summarise(across(!c(1:3), ~ sum(!is.na(as.numeric(.x)), na.rm = T))) %>%
+  pivot_longer(!`Timeline of Obs`) %>%
+  mutate(`Timeline of Obs` = factor(`Timeline of Obs`, levels = c("Summer 2019", "Fall 2019", "Winter 2020", "Spring 2020",
+                                                                  "Winter 2021", "Spring 2021"))) %>%
+  arrange(desc(`Timeline of Obs`))
+
+ 
+data_time_ela <- data_full_bind %>%
+  rename_with( ~ str_remove_all(.x, "\\.\\.\\.[:digit:][:digit:]")) %>%
+  group_by(`Timeline of Obs`) %>%
+  summarise(across(!c(1:3), ~ mean(as.numeric(.x), na.rm = T))) %>%
+  pivot_longer(!`Timeline of Obs`) %>%
+  mutate(`Timeline of Obs` = factor(`Timeline of Obs`, levels = c("Summer 2019", "Fall 2019", "Winter 2020", "Spring 2020",
+                                                                  "Winter 2021", "Spring 2021"))) %>%
+  arrange(desc(`Timeline of Obs`)) %>%
+  bind_cols(n = data_time_ela_n$value) %>%
+  mutate(name = html_wrap(name, 50))
+
+ggplot(data_time_ela, aes(x = `Timeline of Obs`, y = value, fill = `Timeline of Obs`, color = `Timeline of Obs`)) +
+  geom_col() +
+  geom_text(aes(label = paste0("n = ", n)), position = position_dodge(), vjust = -1) +
+  guides(fill = guide_legend(nrow = 1, byrow = T)) +
+  facet_wrap( ~ name, ncol = 2) +
+  labs(x = "Season", y = "Average positive indicator(s)", title = "Figure 7: Lafayette Parish ELA Averages Per Season") +
+  scale_fill_manual(values = c("Summer 2019" = "#040404", "Fall 2019" = "#032533", 
+                               "Winter 2020" = "#024762", "Spring 2020" = "#016891", 
+                               "Winter 2021" = "#008AC0", "Spring 2021" = "#00ACF0")) +
+  scale_color_manual(values = c("Summer 2019" = "#040404", "Fall 2019" = "#032533", 
+                               "Winter 2020" = "#024762", "Spring 2020" = "#016891", 
+                               "Winter 2021" = "#008AC0", "Spring 2021" = "#00ACF0")) +
+  theme_tl(legend = T) +
+  theme(legend.position = "bottom",
+        legend.box = "horizontal",
+        legend.direction = "horizontal",
+        strip.text = element_markdown(lineheight = 1.1, hjust = 0.5),
+        plot.title = element_text(size = 24, face = "bold"))
+```
+
+

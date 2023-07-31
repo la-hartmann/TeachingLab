@@ -1,0 +1,203 @@
+---
+title: "Teaching Lab Session Report"
+params:
+  plot_ts: NA
+  plot_agree: NA
+  agree_plot_n: NA
+  quote1: NA
+  quote2: NA
+  quote3: NA
+  subtitle: NA
+subtitle: "`r params$subtitle`"
+output: 
+  word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, warning = F, message = F)
+library(tidyverse)
+library(tlShiny)
+library(tidytext)
+library(bookdown)
+library(webshot)
+webshot::install_phantomjs()
+```
+
+<!-- \fontspec{Calibri} -->
+
+# Quantitative Data
+
+## Overall
+
+```{r fig.width = 10, fig.height = 10}
+ggplot(data = params$plot_agree, aes(x = Question, y = Percent, fill = factor(Response))) +
+        geom_col() +
+        geom_text(aes(label = if_else(Percent >= 3, paste0(round(Percent), "%"), "")), position = position_stack(vjust = 0.5)) +
+        scale_fill_manual(values = c(
+          "(1) Strongly disagree" = "#040404", "(2) Disagree" = "#032E3F",
+          "(3) Neither agree nor disagree" = "#02587A", "(4) Agree" = "#0182B4", "(5) Strongly agree" = "#00ACF0"
+        )) +
+        labs(
+          fill = "", title = "Participant Perceptions of Course - Likert Scale Questions",
+          x = "", y = "",
+          subtitle = glue::glue("Given the filters applied there are {params$agree_plot_n} responses")
+        ) +
+        coord_flip() +
+        guides(fill = guide_legend(reverse = T)) +
+        scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+        theme_tl(legend = T) +
+        theme(
+          axis.text.x = element_blank(),
+          axis.text.y = element_text(lineheight = 1.1, size = 12),
+          legend.position = "bottom",
+          plot.title = element_text(lineheight = 1.1, size = 16, face = "bold"),
+          plot.subtitle = element_text(size = 14, face = "bold"),
+          legend.key.size = unit(0.75, "cm"),
+          legend.text = element_text(size = 9)
+        )
+```
+
+\newpage
+
+In summary, we see the following % agree or strongly agree with the above statements:
+
+- `r params$plot_agree %>% filter(Question == "They were fully prepared for\nthe session." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%")` strongly agree or agree that they were fully prepared for the session.
+- `r params$plot_agree %>% filter(Question == "They responded to the group’s\nneeds." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%")` strongly agree or agree that they responded to the group's needs.
+- `r params$plot_agree %>% filter(Question == "They facilitated the content\nclearly." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%")` strongly agree or agree that they facilitated the content clearly.
+- `r params$plot_agree %>% filter(Question == "They effectively built a safe\nlearning community." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%")` strongly agree or agree that they effectively built a safe learning community.
+- `r params$plot_agree %>% filter(Question == "They demonstrated deep\nknowledge of the content they\nfacilitated." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%")` strongly agree or agree that they demonstrated deep knowledge of the content they facilitated.
+
+## Over Time
+
+Here by visualizing ratings of strongly agree/agree in blue areas, and all other ratings in black areas we visualize feedback over time (If there is just one point of feedback this appears as a dot).
+
+```{r}
+params$plot_ts %>%
+        ggplot(aes(x = ymd(Date),
+                   y = Percent)) +
+        geom_area(color = "gray50", aes(fill = Rating), alpha = 0.6, position = position_identity()) + # position_identity is absolutely necessary here, not sure why
+        geom_ribbon(color = "transparent", aes(
+          ymin = Percent, ymax = 100,
+          fill = "Neither Agree nor Disagree/Disagree/Strongly Disagree"
+        ), alpha = 0.85) +
+        geom_line(size = 1.25, alpha = 0.9, aes(group = 1)) +
+        geom_point(size = 1, alpha = 0.9) +
+        facet_wrap(~ fct_reorder(question, .x = `Percent`, .fun = mean, .desc = T)) +
+        coord_cartesian() +
+        scale_x_date(
+          date_breaks = case_when(as.integer(diff(range(as.Date(params$plot_ts$Date)))) >= 30 ~ "1 month",
+                                 as.integer(diff(range(as.Date(params$plot_ts$Date)))) >= 14 & as.integer(diff(range(as.Date(params$plot_ts$Date)))) < 30 ~ "1 week",
+                                 as.integer(diff(range(as.Date(params$plot_ts$Date)))) < 14 ~ "1 day"),
+          date_labels = case_when(as.integer(diff(range(as.Date(params$plot_ts$Date)))) >= 30 ~ "%b",
+                                 as.integer(diff(range(as.Date(params$plot_ts$Date)))) >= 14 & as.integer(diff(range(as.Date(params$plot_ts$Date)))) < 30 ~ "%W",
+                                 as.integer(diff(range(as.Date(params$plot_ts$Date)))) < 14 ~ "%d"),
+          limits = c(min(as.Date(params$plot_ts$Date)), max(as.Date(params$plot_ts$Date))),
+          expand = c(0, 0)
+        ) +
+        scale_y_continuous(
+          breaks = pretty_breaks(n = 5), limits = c(0, 100),
+          labels = scales::percent_format(scale = 1), expand = c(0, 0)
+        ) +
+        scale_fill_manual(values = c(rev(tl_palette(n = 2, color = "blue", theme = "dark")))) +
+        labs(x = "Date", title = "Percent that Agree/Strongly Agree") +
+        theme_bw() + # BW Panel panel elements
+        theme(
+          legend.position = "bottom",
+          legend.title = element_blank(),
+          legend.text = element_text(family = "Calibri"),
+          text = element_text(family = "Calibri", face = "bold"),
+          panel.grid.minor.x = element_blank(),
+          axis.text.x = element_text(size = 10),
+          strip.background = element_rect(fill = "white"),
+          strip.text = element_text(size = 10),
+          axis.title.x = element_blank(),
+          axis.title.y = element_blank(),
+          plot.title = element_text(hjust = 0.5, family = "Calibri", size = 16, face = "bold"),
+          axis.line = element_line(size = 1.5)
+        )
+```
+
+# Qualitative Data
+
+Finally responses to the following questions are presented below:
+
+- What could have been better about today's session?
+
+- What went well in today's session?
+
+- What additional feedback do you have about their facilitation skills?
+
+## Quotes from "What could have been better about today's session?"
+
+```{r fig.width = 8, fig.show = "hide"}
+img1_loc <- file.path2(tempdir(), "img1.png")
+if (nrow(as_tibble(params$quote1)) >= 1) { 
+  img1 <- quote_viz(
+          data = params$quote3, text_col = "Response", viz_type = "gt",
+          title = "What could have been better about today’s session?",
+          width = 40, align = "left",
+          print = F
+        ) %>%
+    gtsave(filename = img1_loc)
+} else {
+  img1 <- tibble("There were no comments to display here.") %>% 
+    quote_viz(title = "Nothing", 
+              width = 40,
+              print = F) %>% 
+    gtsave(filename = img1_loc)
+}
+```
+
+```{r}
+knitr::include_graphics(img1_loc)
+```
+
+
+## Quotes from "What went well in today's session?"
+
+```{r fig.width = 8, fig.show = "hide"}
+img2_loc <- file.path2(tempdir(), "img2.png")
+if (nrow(as_tibble(params$quote2)) >= 1) { 
+  img2 <- quote_viz(
+          data = params$quote2, text_col = "Response", viz_type = "gt",
+          title = "What went well in today’s session?",
+          width = 40, align = "left",
+          print = F
+        ) %>%
+    gtsave(filename = img2_loc)
+} else {
+  img2 <- tibble("There were no comments to display here.") %>% 
+    quote_viz(title = "Nothing", 
+              width = 40,
+              print = F) %>% 
+    gtsave(filename = img2_loc)
+}
+```
+
+```{r}
+knitr::include_graphics(img2_loc)
+```
+
+## Quotes from "What additional feedback do you have about their facilitation skills?"
+
+```{r fig.width = 8, fig.show = "hide"}
+img3_loc <- file.path2(tempdir(), "img3.png")
+if (nrow(as_tibble(params$quote3)) >= 1) { 
+  img3 <- quote_viz(
+          data = params$quote1, text_col = "Response", viz_type = "gt",
+          title = "What additional feedback do you have about their facilitation skills?",
+          width = 40, align = "left",
+          print = F
+        ) %>%
+    gtsave(filename = img3_loc)
+} else {
+  img3 <- tibble("There were no comments to display here.") %>% 
+    quote_viz(title = "Nothing", width = 40,
+              print = F) %>% 
+    gtsave(filename = img3_loc)
+}
+```
+
+```{r}
+knitr::include_graphics(img3_loc)
+```

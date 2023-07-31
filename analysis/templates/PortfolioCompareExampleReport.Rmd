@@ -1,0 +1,252 @@
+---
+title: "Example Report Comparing Content Types"
+author: "Teaching Lab Monthly Facilitator Review"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  rmdformats::readthedown:
+    css: styles.css
+    self_contained: true # Other options are downcute, material, readthedown, html_clean, html_docco, lockdown, https://github.com/juba/rmdformats
+    thumbnails: false
+    lightbox: true
+    gallery: false
+    highlight: kate # Also can do tango
+    number_sections: false
+    includes:
+      after_body: footer.html
+---
+
+```{r setup, echo = F, cache = F, include = F}
+knitr::opts_chunk$set(echo = F, message = F, warning = F, fig.width = 16, fig.height = 10, width = 2000)
+library(tidyverse)
+library(lubridate)
+library(ggiraph)
+library(gt)
+library(reactable)
+library(reactablefmtr)
+library(scales)
+library(htmltools)
+library(htmlwidgets)
+library(glue)
+library(here)
+sheets_data <- read_rds(here("Data/google_sheets_data.rds"))
+
+col <- colorRampPalette(c("#040404", "#04ABEB"))
+
+# options(width = 2000) # Adjust the width 
+
+theme_set(theme_minimal())
+```
+
+```{r echo = F}
+htmltools::tagList(rmarkdown::html_dependency_font_awesome()) # Needed so fa's in footer will show
+```
+
+```{r}
+teaching_lab_df <- read_rds(here("Data/original_df.rds")) # Read original data for column names
+
+# There's Guidebooks, and GuideBooks so vector for later filter
+guidebooks <- c("Guidebooks|GuideBooks")
+
+not_state_level <- c("EL|IM|Guidebooks|GuideBooks") # Define those for which we should filter for later
+
+
+```
+
+
+# By Portfolio
+
+An example of how each portfolio can be compared - the gray line represents the overall average and the extending segments to larger dots represent the distance from the overall mean to the actual mean of each portfolio.
+
+```{r}
+sorted_teaching_df <- teaching_lab_df %>%
+  group_by(`Date for the session`) %>%
+  mutate(pro_grouping = case_when(!str_detect(`Professional training session`, not_state_level) == T ~ "State-Level",
+                                  str_detect(`Professional training session`, "IM") == T ~ "IM",
+                                  str_detect(`Professional training session`, guidebooks) == T ~ "Guidebooks",
+                                  str_detect(`Professional training session`, "EL") == T ~ "EL")) %>%
+  drop_na(`How likely are you to recommend this professional learning to a colleague or friend?`,
+          pro_grouping) %>%
+  group_by(pro_grouping) %>%
+  # Means before and after pandemic by type of training session
+  mutate(grouped_means = mean(`How likely are you to recommend this professional learning to a colleague or friend?`, na.rm = T)) %>%
+  mutate(pro_grouping = forcats::fct_reorder(pro_grouping, -grouped_means)) %>%
+  ungroup() %>%
+  # Means of before and after pandemic
+  mutate(mean_score = mean(`How likely are you to recommend this professional learning to a colleague or friend?`)) %>%
+  ungroup()
+
+# Axis colors 
+axis_colors <- rev(c("#040404", "#324D56", "#346475", "#04ABEB"))
+
+# Make the graph aesthetics, theme, and limits
+g <- ggplot(sorted_teaching_df, aes(
+              x = fct_rev(pro_grouping), 
+              y = `How likely are you to recommend this professional learning to a colleague or friend?`, 
+              color = pro_grouping
+  )) +
+  scale_y_continuous(limits = c(0, 10), breaks = scales::breaks_pretty(n = 10)) +
+  scale_color_manual(values = rev(col(4))) +
+  coord_flip() +
+  labs(x = "", y = "Likeliness to Recommend to a Friend or Colleague", title = "Comparing Scores Between Content Types") +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        plot.title = element_text(hjust = 0.5, family = "Oswald"),
+        plot.subtitle = element_text(hjust = 0.5, family = "Oswald"),
+        panel.grid = element_blank(),
+        axis.title.y = element_text(family = "Oswald"),
+        axis.title.x = element_text(family = "Oswald"),
+        axis.text.x = element_text(color = "#324D56", family = "Oswald", 
+                                   margin = unit(c(0, 0, -0.2, 0), "cm"),
+                                   vjust = 10),
+        axis.text.y = element_text(color= axis_colors, family = "Oswald"),
+        strip.text = element_text(family = "Oswald", size = 10),
+        legend.text = element_text(family = "Oswald"),
+        axis.ticks.x = element_line(size = 3, color = "#324D56", linetype = 2),
+        axis.ticks.length.x = unit(0.2, "cm"))
+
+
+# Graph with geoms applied for baselayer test
+g + 
+  geom_segment(
+    aes(x = fct_rev(pro_grouping), xend = fct_rev(pro_grouping),
+        y = mean_score, yend = grouped_means),
+    show.legend = F,
+    size = 0.8
+  ) + 
+  geom_jitter(size = 3, alpha = 0.1,
+              height = 0.15, width = 0.28) +
+  stat_summary(fun = mean, geom = "point", size = 5) +
+  geom_hline(aes(yintercept = mean_score), color = "gray70")
+```
+
+# By Month
+
+The above plot is now replicated without portfolio groupings for each month.
+
+```{r}
+sorted_monthly_teaching_df <- teaching_lab_df %>%
+  mutate(Month = lubridate::month(`Date for the session`, label = T, abbr = F)) %>%
+  group_by(Month) %>%
+  mutate(grouped_means = mean(`How likely are you to recommend this professional learning to a colleague or friend?`, na.rm = T)) %>%
+  ungroup() %>%
+  mutate(mean_score = mean(`How likely are you to recommend this professional learning to a colleague or friend?`, na.rm = T)) %>%
+  drop_na(Month) %>%
+  mutate(Month = factor(Month, levels = c("July", "August", "September", "October", "November", "December", "January", "February", "March", "April", "May", "June"))) %>%
+  arrange(Month)
+```
+
+```{r}
+# Make the graph aesthetics, theme, and limits
+g <- ggplot(sorted_monthly_teaching_df, aes(
+              x = Month, 
+              y = `How likely are you to recommend this professional learning to a colleague or friend?`, 
+              color = Month
+  )) +
+  scale_y_continuous(limits = c(0, 10), breaks = scales::breaks_pretty(n = 10)) +
+  scale_color_manual(values = rev(col(11))) +
+  coord_flip() +
+  labs(x = "", y = "Likeliness to Recommend to a Friend or Colleague", title = "Comparing Scores Just By Month") +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        plot.title = element_text(hjust = 0.5, family = "Oswald"),
+        plot.subtitle = element_text(hjust = 0.5, family = "Oswald"),
+        panel.grid = element_blank(),
+        axis.title.y = element_text(family = "Oswald"),
+        axis.title.x = element_text(family = "Oswald"),
+        axis.text.x = element_text(color = "#324D56", family = "Oswald", 
+                                   margin = unit(c(0, 0, -0.2, 0), "cm"),
+                                   vjust = 10),
+        axis.text.y = element_text(color= axis_colors, family = "Oswald"),
+        strip.text = element_text(family = "Oswald", size = 10),
+        legend.text = element_text(family = "Oswald"),
+        axis.ticks.x = element_line(size = 3, color = "#324D56", linetype = 2),
+        axis.ticks.length.x = unit(0.2, "cm"))
+
+
+# Graph with geoms applied for baselayer test
+g + 
+  geom_segment(
+    aes(x = Month, xend = Month,
+        y = mean_score, yend = grouped_means),
+    show.legend = F,
+    size = 0.8
+  ) +
+  geom_jitter(size = 3, alpha = 0.1,
+              height = 0.15, width = 0.28) +
+  stat_summary(fun = mean, geom = "point", size = 5) +
+  geom_hline(aes(yintercept = mean(`How likely are you to recommend this professional learning to a colleague or friend?`, na.rm = T)), color = "gray70")
+```
+
+
+# By Portfolio by Month
+
+Finally, taking a look at each portfolio in each month. The text automation here is limitless - I can make it say certain strings in each section, such as specifying the worst performer in x month is y portfolio with an average of n that is n less than the overall average $n_2$.
+
+```{r echo = F}
+sorted_monthly_portfolio_teaching_df <- teaching_lab_df %>%
+  mutate(Month = lubridate::month(`Date for the session`, label = T, abbr = F)) %>%
+  group_by(`Date for the session`) %>%
+  mutate(pro_grouping = case_when(!str_detect(`Professional training session`, not_state_level) == T ~ "State-Level",
+                                  str_detect(`Professional training session`, "IM") == T ~ "IM",
+                                  str_detect(`Professional training session`, guidebooks) == T ~ "Guidebooks",
+                                  str_detect(`Professional training session`, "EL") == T ~ "EL")) %>%
+  drop_na(`How likely are you to recommend this professional learning to a colleague or friend?`,
+          pro_grouping) %>%
+  group_by(Month, pro_grouping) %>%
+  # Means before and after pandemic by type of training session
+  mutate(grouped_means = mean(`How likely are you to recommend this professional learning to a colleague or friend?`, na.rm = T)) %>%
+  mutate(pro_grouping = forcats::fct_reorder(pro_grouping, -grouped_means)) %>%
+  ungroup(pro_grouping) %>%
+  # Means of before and after pandemic
+  mutate(mean_score = mean(`How likely are you to recommend this professional learning to a colleague or friend?`)) %>%
+  ungroup()
+```
+
+```{r}
+g <- ggplot(sorted_monthly_portfolio_teaching_df, aes(
+              x = fct_rev(pro_grouping), 
+              y = `How likely are you to recommend this professional learning to a colleague or friend?`, 
+              color = pro_grouping
+  )) +
+  facet_wrap( ~ Month) +
+  scale_y_continuous(limits = c(0, 10), breaks = scales::breaks_pretty(n = 10)) +
+  scale_color_manual(values = rev(col(4))) +
+  coord_flip() +
+  labs(x = "", y = "Likeliness to Recommend to a Friend or Colleague", title = "Comparing Scores By Portfolio and Month") +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        plot.title = element_text(hjust = 0.5, family = "Oswald"),
+        plot.subtitle = element_text(hjust = 0.5, family = "Oswald"),
+        panel.grid = element_blank(),
+        axis.title.y = element_text(family = "Oswald"),
+        axis.title.x = element_text(family = "Oswald"),
+        axis.text.x = element_text(color = "#324D56", family = "Oswald", 
+                                   margin = unit(c(0, 0, -0.2, 0), "cm"),
+                                   vjust = 10),
+        axis.text.y = element_text(color= axis_colors, family = "Oswald"),
+        strip.text = element_text(family = "Oswald", size = 10),
+        legend.text = element_text(family = "Oswald"),
+        axis.ticks.x = element_line(size = 3, color = "#324D56", linetype = 2),
+        axis.ticks.length.x = unit(0.2, "cm"))
+
+
+# Graph with geoms applied for baselayer test
+g + 
+  geom_segment(
+    aes(x = fct_rev(pro_grouping), xend = fct_rev(pro_grouping),
+        y = mean_score, yend = grouped_means),
+    show.legend = F,
+    size = 0.8
+  ) + 
+  geom_jitter(size = 3, alpha = 0.1,
+              height = 0.15, width = 0.28) +
+  stat_summary(fun = mean, geom = "point", size = 5) +
+  geom_hline(aes(yintercept = mean_score), color = "gray70")
+```
+
+
+
+
+
+
+

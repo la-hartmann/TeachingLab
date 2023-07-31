@@ -1,0 +1,272 @@
+---
+title: `HollyHock Analyses`
+author: `Duncan Gates`
+date: `9/8/2021`
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(TeachingLab)
+library(readxl)
+library(googlesheets4)
+
+tl_partners_historic <- read_sheet("https://docs.google.com/spreadsheets/d/1uMg4puQITN2ts-ChA-4bOieZxbxzmWPHTpU5IlHCwhI/edit#gid=0", skip = 2)
+
+	
+tl_2021_partners <- tl_partners_historic %>% 
+  dplyr::filter(`SY 20-21` == "2020-21 (EL)")  %>%
+  select(`Partner System`)
+  
+
+tl_partners <- tl_partners_historic %>% 
+  pivot_longer(c(colnames(tl_partners_historic[4:7])), names_to = "Year",
+                                      values_to = "Class") %>%
+  dplyr::filter(State == "LA") %>%
+  distinct(`Partner System`) %>%
+  as_vector() %>%
+  str_to_upper() %>%
+  str_remove_all(", LA") %>%
+  str_replace_all("LOUISIANA STATE CONTENT LEADER TRAINING", "LOUISIANA STATEWIDE")
+
+wb_source <- here::here("data-raw/2021-leap-2025-state-lea-school-achievement-level-summary.xlsx")
+
+wb_sheets <- readxl::excel_sheets(wb_source)
+
+wb_sheets %>%
+  purrr::map(function(sheet){ # iterate through each sheet name
+  assign(x = sheet,
+         value = readxl::read_xlsx(path = wb_source, sheet = sheet, skip = 6) %>%
+           slice(-c(1:2)) %>%
+           select(1:17),
+         envir = .GlobalEnv)
+})
+
+`High School` <- read_excel(wb_source, sheet = "High School", skip = 6) %>%
+  slice(-c(1:2)) %>%
+  mutate(across(c(`English I`, `English II`, Algebra, Geometry), ~ as.numeric(str_remove_all(.x, "≥")))) %>%
+  mutate(across(starts_with("..."), ~ as.numeric(.x))) %>%
+  rowwise() %>%
+  mutate(`Total Students Tested in at Least One Subject` = round(mean(c(`English I`, `English II`,
+                                                                Algebra, Geometry), na.rm = T))) %>%
+  mutate(ELA_A = mean(c(...4, ...12)),
+         ELA_M = mean(c(...5, ...13)),
+         ELA_B = mean(c(...6, ...14)),
+         ELA_AB = mean(c(...7, ...15)),
+         ELA_U = mean(c(...8, ...16)),
+         MATH_A = mean(c(...20, ...28)),
+         MATH_M = mean(c(...21, ...29)),
+         MATH_B = mean(c(...22, ...30)),
+         MATH_AB = mean(c(...23, ...31)),
+         MATH_U = mean(c(...24, ...32))) %>%
+  select(`Site Name`, `Site Code`, matches("ELA_|MATH_"), `Total Students Tested in at Least One Subject`) %>%
+  mutate(`School Name` = str_to_upper(`Site Name`)) %>%
+  select(-`Site Name`) %>%
+  mutate_all( ~ as.character(.x))
+
+full_data <- bind_rows(`Grade 3`, `Grade 4`, `Grade 5`, `Grade 6`, `Grade 7`, `Grade 8`) %>%
+  rename(ELA_A = `English Language Arts`, ELA_M = `...5`, ELA_B = `...6`, ELA_AB = `...7`, ELA_U = `...8`,
+         MATH_A = Mathematics, MATH_B = ...12, MATH_M = ...13, MATH_AB = ...14, MATH_U = ...15) %>%
+  # bind_rows(`High School`) %>%
+  select(-c("...9", "...10", "...16", "...17")) %>%
+  mutate(tl_school = if_else(`School Name` %in% tl_partners,
+                             T,
+                             F)) %>%
+  mutate(across(everything(), ~ str_remove_all(.x, "≥|≤"))) %>%
+  mutate(across(!c(1:2, 14), ~ as.numeric(.x))) %>%
+  select(-`Site Code`)
+```
+
+## The Numbers
+
+```{r}
+ela_math_compare <- full_data %>%
+  pivot_longer(!c(`School Name`, tl_school, `Total Students Tested in at Least One Subject`),
+               names_to = "mastery_subject", values_to = "percent") %>%
+  filter(mastery_subject == "ELA_A" | mastery_subject == "ELA_M"#|
+         # mastery_subject == "MATH_A" | mastery_subject == "MATH_M"
+         ) %>%
+  group_by(`School Name`, tl_school, mastery_subject) %>%
+  summarise(percent = weighted.mean(percent, `Total Students Tested in at Least One Subject`, na.rm = T)) %>%
+  mutate(math_ela = case_when(str_detect(mastery_subject, "ELA") ~ "ela",
+                              str_detect(mastery_subject, "MATH") ~ "math")) %>%
+  group_by(tl_school, math_ela) %>%
+  summarise(percent = mean(percent, na.rm = T)) %>%
+  mutate(math_ela = str_to_title(math_ela),
+         tl_school = str_to_title(tl_school)) %>%
+  mutate(tl_school = str_replace_all(tl_school, c("False" = "Other school systems", 
+                                                  "True" = "Teaching Lab Partner")),
+         math_ela = str_replace_all(math_ela, "Ela", "Other school systems                              Teaching Lab Partners"))
+
+ela_math_compare <- ela_math_compare %>%
+  mutate(percent = percent * 2)
+```
+
+
+## Breaking it Down
+
+```{r}
+library(scales)
+ela_math_compare %>%
+  ggplot(aes(x = math_ela, y = percent, color = tl_school, fill = tl_school)) +
+  geom_col(position = position_dodge(1.5), color = "white", width = 1) +
+  geom_text(aes(label = paste0(round(percent, 1), "%")), position = position_dodge(width = 1.5), 
+            vjust = 4,
+            color = "white",
+            fontface = "bold",
+            family = "Calibri",
+            size = 16) +
+  labs(title = "Average % Achieving Mastery or Advanced, \n2020-2021 Louisiana ELA State Assessment", 
+       y = "", x = "",
+       fill = "Teaching Lab Partner", color = "Teaching Lab Partner") +
+  theme_tl(legend = F) +
+  scale_fill_manual(values = c(tl_palette(n = 2, color = "teal")[2], tl_palette(n = 2, color = "blue")[2])) +
+  scale_y_continuous(labels = percent_format(scale = 1, accuracy = 1)) +
+  theme(
+    # legend.position = "top",
+  #       legend.title = element_blank(),
+        axis.text = element_text(size = 14),
+        plot.title = element_text(size = 20, lineheight = 1.1, face = "bold", color = "#003366"),
+        axis.text.y = element_blank()
+  #       legend.text = element_text(size = 12)
+  )
+
+ggsave(here::here("Images/2021-2022/Hollyhock/mastery_advanced2.png"), width = 6, height = 4)
+```
+
+## Replicating second image
+
+```{r}
+old_data <- tibble(tl_school = c("Other school systems", "Teaching Lab Partner"), 
+                   math_ela = c("Other school systems                              Teaching Lab Partners",
+                                "Other school systems                              Teaching Lab Partners"),
+                   percent = c(38.6, 44.3))
+
+old_data %>%
+  ggplot(aes(x = math_ela, y = percent, color = tl_school, fill = tl_school)) +
+  ggtitle("Average % Achieving Mastery or Advanced, \n2018-2019 Louisiana ELA State Assessment") +
+  geom_col(position = position_dodge(1.5), color = "white", width = 1) +
+  geom_text(aes(label = paste0(round(percent, 1), "%")), position = position_dodge(width = 1.5), 
+            vjust = 4,
+            color = "white",
+            fontface = "bold",
+            family = "Calibri",
+            size = 16) +
+  labs(y = "", x = "",
+       fill = "Teaching Lab Partner", color = "Teaching Lab Partner") +
+  theme_tl(legend = F) +
+  scale_fill_manual(values = c(tl_palette(n = 2, color = "teal")[2], tl_palette(n = 2, color = "blue")[2])) +
+  scale_y_continuous(labels = percent_format(scale = 1, accuracy = 1)) +
+  theme(
+    # legend.position = "top",
+  #       legend.title = element_blank(),
+        axis.text = element_text(size = 14),
+        plot.title = element_text(size = 20, lineheight = 1.1, face = "bold", color = "#003366"),
+        axis.text.y = element_blank()
+  #       legend.text = element_text(size = 12)
+  )
+
+ggsave(here::here("Images/2021-2022/Hollyhock/replicated_1819.png"), width = 6, height = 4)
+```
+
+
+
+## Secondary Image
+
+```{r}
+ela_math_compare %>%
+  mutate(math_ela = str_replace_all(math_ela, "Ela", "Other school systems                                                                              Teaching Lab Partner")) %>%
+  ggplot(aes(x = math_ela, y = percent, color = tl_school, fill = tl_school)) +
+  geom_col(position = position_dodge(1.5), color = "white", width = 1) +
+  geom_text(aes(label = paste0(round(percent, 1), "%")), position = position_dodge(width = 1.5), 
+            vjust = 8,
+            color = "white",
+            fontface = "bold",
+            family = "Calibri",
+            size = 16) +
+  labs(title = "Average % Achieving Mastery or Advanced, \n2020-2021 Louisiana ELA (3-8) State Assessment", 
+       y = "", x = "",
+       fill = "Teaching Lab Partner", color = "Teaching Lab Partner") +
+  theme_tl(legend = F) +
+  scale_fill_manual(values = c(tl_palette(n = 2, color = "teal")[2], tl_palette(n = 2, color = "blue")[2])) +
+  scale_y_continuous(labels = percent_format(scale = 1, accuracy = 1)) +
+  theme(
+    # legend.position = "top",
+  #       legend.title = element_blank(),
+        axis.text = element_text(size = 14),
+        plot.title = element_text(size = 20, lineheight = 1.1, face = "bold", color = "#003366"),
+        axis.text.y = element_blank()
+  #       legend.text = element_text(size = 12)
+  )
+
+ggsave(here::here("Images/2021-2022/Hollyhock/mastery_advanced.png"), width = 12, height = 10)
+```
+
+
+## Breaking it down by grade
+
+```{r}
+full_data2 <- bind_rows(`Grade 3` %>% mutate(grade = "3"), `Grade 4` %>% mutate(grade = "4"),
+                        `Grade 5` %>% mutate(grade = "5"), `Grade 6` %>% mutate(grade = "6"),
+                        `Grade 7` %>% mutate(grade = "7"), `Grade 8` %>% mutate(grade = "8")) %>%
+  rename(ELA_A = `English Language Arts`, ELA_M = `...5`, ELA_B = `...6`, ELA_AB = `...7`, ELA_U = `...8`,
+         MATH_A = Mathematics, MATH_B = ...12, MATH_M = ...13, MATH_AB = ...14, MATH_U = ...15) %>%
+  bind_rows(`High School` %>% mutate(grade = "High School")) %>%
+  select(-c("...9", "...10", "...16", "...17")) %>%
+  mutate(`School Name` = str_to_upper(`School Name`)) %>%
+  mutate(tl_school = if_else(`School Name` %in% tl_partners,
+                             T,
+                             F)) %>%
+  mutate(across(everything(), ~ str_remove_all(.x, "≥|≤"))) %>%
+  mutate(across(!c(1:2, 14:15), ~ as.numeric(.x))) %>%
+  select(-`Site Code`)
+
+ela_math_compare_grade <- full_data2 %>%
+  pivot_longer(!c(`School Name`, tl_school, `Total Students Tested in at Least One Subject`, grade),
+               names_to = "mastery_subject", values_to = "percent") %>%
+  filter(mastery_subject == "ELA_A" | mastery_subject == "ELA_M" |
+         mastery_subject == "MATH_A" | mastery_subject == "MATH_M") %>%
+  group_by(`School Name`, tl_school, mastery_subject, grade) %>%
+  summarise(percent = weighted.mean(percent, `Total Students Tested in at Least One Subject`, na.rm = T)) %>%
+  mutate(math_ela = case_when(str_detect(mastery_subject, "ELA") ~ "ela",
+                              str_detect(mastery_subject, "MATH") ~ "math")) %>%
+  group_by(tl_school, math_ela, grade) %>%
+  summarise(percent = mean(percent, na.rm = T)) %>%
+  mutate(math_ela = str_to_title(math_ela),
+         tl_school = str_to_title(tl_school)) %>%
+  mutate(tl_school = str_replace_all(tl_school, c("False" = "Other school systems", 
+                                                  "True" = "Teaching Lab Partner")),
+         math_ela = str_replace_all(math_ela, "Ela", "ELA")) %>%
+  mutate(grade = str_replace_all(grade, c("3" = "3rd",
+                                          "4" = "4th",
+                                          "5" = "5th",
+                                          "6" = "6th",
+                                          "7" = "7th",
+                                          "8" = "8th")))
+
+```
+
+### GGplot by grade
+
+```{r}
+ela_math_compare_grade %>%
+  ggplot(aes(x = math_ela, y = percent, color = tl_school, fill = tl_school)) +
+  geom_col(position = position_dodge()) +
+  geom_text(aes(label = paste0(round(percent, 1), "%")), position = position_dodge(width = 1), vjust = -1) +
+  facet_wrap( ~ grade) +
+  labs(title = "Percent of Louisiana Schools Achieving Mastery or Advanced", y = "", x = "",
+       fill = "Teaching Lab Partner", color = "Teaching Lab Partner") +
+  theme_tl(legend = T) +
+  scale_fill_tl(n = 2, color = "blue") +
+  scale_color_tl(n = 2, color = "blue") +
+  scale_y_continuous(labels = percent_format(scale = 1, accuracy = 1)) +
+  theme(legend.position = "top",
+        legend.title = element_blank(),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 12),
+        strip.text = element_text(hjust = 0.5))
+
+ggsave(here::here("Images/2021-2022/Hollyhock/mastery_advanced_grade.png"), width = 10, height = 11.5)
+```
+

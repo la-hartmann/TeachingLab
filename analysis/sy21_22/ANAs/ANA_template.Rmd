@@ -1,0 +1,914 @@
+---
+params:
+  site: "All District 27 Sites"
+title: "ANA Template for Generating Summary of Findings"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  TeachingLab::TLDefault:
+    css: styles.css
+    fontawesome: false
+    self_contained: true
+    thumbnails: false
+    lightbox: true
+    gallery: false
+    highlight: kate # Also can do tango
+    number_sections: false
+    includes:
+      in_header: header.html
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+library(ggtext)
+library(glue)
+library(gt)
+library(here)
+library(knitr)
+library(lubridate)
+library(rmdformats)
+library(scales)
+devtools::load_all()
+library(TeachingLab)
+library(tidyverse)
+
+### Diagnostic Survey Data ###
+diagnostic_survey <- get_diagnostic_survey(update = FALSE) |>
+  TeachingLab::neg_cond_filter(if_not_this = "All District 27 Sites",
+                               filter_this = params$site,
+                               dat_filter = your_site_district_parish_network_or_school_br_br)
+
+### IPG Forms Data ###
+ipg_forms <- get_ipg_forms(update = FALSE) |>
+  TeachingLab::neg_cond_filter(if_not_this = "All District 27 Sites",
+                               filter_this = params$site,
+                               dat_filter = `Name of Site (Parish, District, Network)`)
+
+### Knowledge Assessments Data ###
+knowledge_assessments <- get_diagnostic_survey() |>
+  select(respondent_id,
+         your_site_district_parish_network_or_school_br_br,
+         all_of(c("please_indicate_which_of_the_following_components_are_foundational_skills_of_reading_select_all_that_apply_print_concepts",
+  "please_indicate_which_of_the_following_components_are_foundational_skills_of_reading_select_all_that_apply_phonological_awareness",
+  "please_indicate_which_of_the_following_components_are_foundational_skills_of_reading_select_all_that_apply_vocabulary_development",
+  "please_indicate_which_of_the_following_components_are_foundational_skills_of_reading_select_all_that_apply_fluency",
+  "please_indicate_which_of_the_following_components_are_foundational_skills_of_reading_select_all_that_apply_reading_comprehension",
+  "a_structured_phonics_program_is_important_in_k_2_for_the_following_reasons_except",
+  "when_planning_for_differentiated_small_group_instruction_to_support_the_foundational_skills_which_of_the_following_should_teachers_engage_in_select_all_that_apply_utilize_a_variety_of_ongoing_assessment_data_to_determine_the_focus_of_instruction_for_small_groups",
+  "when_planning_for_differentiated_small_group_instruction_to_support_the_foundational_skills_which_of_the_following_should_teachers_engage_in_select_all_that_apply_group_students_by_their_ongoing_phase_of_development_with_regard_to_the_foundational_skills",
+  "when_planning_for_differentiated_small_group_instruction_to_support_the_foundational_skills_which_of_the_following_should_teachers_engage_in_select_all_that_apply_only_provide_foundational_skills_instruction_during_small_group_time",
+  "when_planning_for_differentiated_small_group_instruction_to_support_the_foundational_skills_which_of_the_following_should_teachers_engage_in_select_all_that_apply_adhere_to_a_same_structure_of_number_of_groups_and_members_of_groups_for_the_entirety_of_the_year",
+  "when_planning_for_differentiated_small_group_instruction_to_support_the_foundational_skills_which_of_the_following_should_teachers_engage_in_select_all_that_apply_im_not_sure",
+  "which_of_the_following_are_literacy_instructional_shifts_select_all_that_apply_regular_practice_with_complex_texts_and_their_academic_language",
+  "which_of_the_following_are_literacy_instructional_shifts_select_all_that_apply_building_knowledge_through_content_rich_non_fiction",
+  "which_of_the_following_are_literacy_instructional_shifts_select_all_that_apply_equal_balance_of_text_based_writing_and_writing_from_personal_experiences",
+  "which_of_the_following_are_literacy_instructional_shifts_select_all_that_apply_regular_opportunities_for_direct_instruction_on_reading_comprehension_strategies",
+  "which_of_the_following_are_literacy_instructional_shifts_select_all_that_apply_im_not_sure",
+  "when_designing_literacy_lessons_teachers_should_start_with_which_of_the_following",
+  "which_of_the_following_is_the_single_biggest_differentiator_of_college_and_career_readiness",
+  "which_of_the_following_approaches_for_selecting_texts_for_whole_class_reading_instruction_are_aligned_with_post_shifts_literacy_instruction_select_all_the_apply_selecting_a_text_that_is_at_or_above_the_grade_level_complexity",
+  "which_of_the_following_approaches_for_selecting_texts_for_whole_class_reading_instruction_are_aligned_with_post_shifts_literacy_instruction_select_all_the_apply_selecting_a_text_that_is_rich_in_meaning",
+  "which_of_the_following_approaches_for_selecting_texts_for_whole_class_reading_instruction_are_aligned_with_post_shifts_literacy_instruction_select_all_the_apply_selecting_an_adapted_version_of_the_main_text_for_below_grade_level_readers",
+  "which_of_the_following_approaches_for_selecting_texts_for_whole_class_reading_instruction_are_aligned_with_post_shifts_literacy_instruction_select_all_the_apply_selecting_a_text_for_the_class_based_on_student_interest",
+  "which_of_the_following_approaches_for_selecting_texts_for_whole_class_reading_instruction_are_aligned_with_post_shifts_literacy_instruction_select_all_the_apply_im_not_sure",
+  "richards_students_have_a_range_of_reading_proficiency_and_knowledge_about_the_food_chain_when_reading_a_grade_level_complex_text_about_this_topic_which_group_of_students_is_most_likely_to_perform_better_on_comprehension_questions",
+  "how_could_mrs_richards_best_prepare_students_to_build_knowledge_about_the_topic_of_the_food_chain",
+  "the_main_text_that_the_students_in_ms_blackwell_s_class_is_about_to_read_is_likely_to_be_very_difficult_for_the_majority_of_the_class_which_of_the_following_is_a_strategy_that_ms_blackwell_could_use_with_her_students_with_lower_reading_abilities",
+  "which_of_the_following_describe_strategies_for_supporting_struggling_readers_select_all_that_apply_read_the_complex_text_aloud_for_students",
+  "which_of_the_following_describe_strategies_for_supporting_struggling_readers_select_all_that_apply_read_aloud_a_simple_article_to_build_knowledge_of_the_topic_while_students_follow_along",
+  "which_of_the_following_describe_strategies_for_supporting_struggling_readers_select_all_that_apply_have_students_read_the_full_text_multiple_times_to_find_the_main_idea",
+  "which_of_the_following_describe_strategies_for_supporting_struggling_readers_select_all_that_apply_ask_simpler_questions_about_the_same_text",
+  "which_of_the_following_statements_are_true_about_reading_the_same_complex_text_multiple_times_select_all_that_apply_each_read_of_the_text_should_have_a_different_focus_or_lens",
+  "which_of_the_following_statements_are_true_about_reading_the_same_complex_text_multiple_times_select_all_that_apply_multiple_reads_are_designed_to_lead_students_to_new_and_deeper_understanding",
+  "which_of_the_following_statements_are_true_about_reading_the_same_complex_text_multiple_times_select_all_that_apply_multiple_reads_should_be_used_for_every_text_students_encounter",
+  "which_of_the_following_statements_are_true_about_reading_the_same_complex_text_multiple_times_select_all_that_apply_students_should_read_the_full_length_of_the_text_multiple_times_to_uncover_meaning",
+  "which_of_the_following_describes_something_students_might_do_during_close_reading_of_complex_texts",
+  "which_of_the_following_statements_are_true_about_the_relationship_between_reading_fluency_and_reading_comprehension_select_all_that_apply_students_cannot_generally_comprehend_texts_in_their_grade_band_unless_they_can_read_these_texts_fluently",
+  "which_of_the_following_statements_are_true_about_the_relationship_between_reading_fluency_and_reading_comprehension_select_all_that_apply_students_with_higher_fluency_can_spend_more_cognitive_energy_on_comprehending_what_they_re_reading",
+  "which_of_the_following_statements_are_true_about_the_relationship_between_reading_fluency_and_reading_comprehension_select_all_that_apply_students_who_struggle_with_decoding_and_fluency_can_be_taught_to_comprehend_grade_level_text_without_improving_their_fluency_or_comprehension",
+  "which_of_the_following_statements_are_true_about_the_relationship_between_reading_fluency_and_reading_comprehension_select_all_that_apply_oral_reading_fluency_does_not_positively_correlate_with_comprehension",
+  "which_of_the_following_statements_are_true_about_the_relationship_between_reading_fluency_and_reading_comprehension_select_all_that_apply_im_not_sure",
+  "which_of_the_following_is_not_an_effective_strategy_for_improving_student_fluency"
+  ))) |>
+  janitor::remove_empty("rows") |>
+  group_by(respondent_id) |>
+  summarise_all(TeachingLab::coalesce_by_column) |>
+  TeachingLab::neg_cond_filter(if_not_this = "All District 27 Sites",
+                               filter_this = params$site,
+                               dat_filter = your_site_district_parish_network_or_school_br_br) |>
+  select(-c(respondent_id, your_site_district_parish_network_or_school_br_br)) |>
+  janitor::remove_empty("rows")
+
+answers <- c(
+  "Print concepts",
+  "Phonological awareness",
+  "Wrong answer",
+  "Fluency",
+  "Wrong answer",
+  "It prompts students to use context clues and pictures to decode words",
+  "Utilize a variety of ongoing assessment data to determine the focus of instruction for small groups",
+  "Group students by their ongoing phase of development with regard to the foundational skills",
+  rep("Wrong answer", 3),
+  "Regular practice with complex texts and their academic language.",
+  "Building knowledge through content-rich non-fiction.",
+  rep("Wrong answer", 3),
+  "A complex text that is worthy of reading multiple times.",
+  "Ability to read complex text independently and proficiently.",
+  "Selecting a text that is at or above the grade-level complexity.",
+  "Selecting a text that is rich in meaning.",
+  rep("Wrong answer", 3),
+  "Students with low reading ability and a lot of knowledge about the food chain.",
+  "Have students read a series of additional texts at a variety of complexity levels on the topic.",
+  "Provide students with lower reading abilities an audio version of the main text to listen to before reading the main text in class.",
+  "Read the complex text aloud for students.",
+  "Read aloud a simple article to build knowledge of the topic while students follow along.",
+  rep("Wrong answer", 2),
+  "Each read of the text should have a different focus or lens.",
+  "Multiple reads are designed to lead students to new and deeper understanding.",
+  rep("Wrong answer", 2),
+  "Students pull out evidence from the text to explain their thinking in response to questions.",
+  "Students cannot generally comprehend texts in their grade-band unless they can read these texts fluently.",
+  "Students with higher fluency can spend more cognitive energy on comprehending what they’re reading.",
+  rep("Wrong answer", 3),
+  "Students independently read aloud texts at their reading level."
+)
+
+knowledge_assessments_percents <- map2_df(knowledge_assessments, 
+                                          answers, 
+                                          ~ TeachingLab::tl_score(data = .x, answer = .y)) |>
+  mutate(
+    answer = answers,
+    question = colnames(knowledge_assessments),
+    question_groups = c(
+      "1", "1", "1", "1", "1",
+      "2",
+      "3", "3", "3", "3", "3",
+      "4", "4", "4", "4", "4",
+      "5",
+      "6", 
+      "7", "7", "7", "7", "7",
+      "8",
+      "9",
+      "10",
+      "11", "11", "11", "11",
+      "12", "12", "12", "12",
+      "13",
+      "14", "14", "14", "14", "14",
+      "15"
+    ),
+    correct = c(
+      T, T, F, T, F,
+      T,
+      T, T, F, F, F,
+      T, T, F, F, F,
+      T,
+      T,
+      T, T, F, F, F,
+      T,
+      T,
+      T,
+      T, T, F, F,
+      T, T, F, F,
+      T,
+      T, T, F, F, F,
+      T
+    )
+  ) |>
+  mutate(n_selected = ifelse(answer == "Wrong answer" & length(question_groups) > 1,
+                             n_selected/2, 
+                             n_selected)) |>
+  group_by(question_groups) |>
+  summarise(final_percent = round(100 * sum(n_correct, na.rm = T) / sum(n_selected, na.rm = T), 2)) |>
+  ungroup() |>
+  arrange(as.numeric(question_groups)) |>
+  select(final_percent) |>
+  bind_cols(question = c(
+    "Please indicate which of the following components are foundational skills of reading. Select all that apply.",
+    "A structured phonics program is important in K-2 for the following reasons EXCEPT:",
+    "When planning for differentiated small group instruction to support the foundational skills, which of the following should teachers engage in? Select all that apply.",
+    "Which of the following are literacy instructional shifts? Select all that apply.",
+    "When designing literacy lessons, teachers should start with which of the following?",
+    "Which of the following is the single biggest differentiator of college and career-readiness?",
+    "Which of the following approaches for selecting texts for whole-class reading instruction are aligned with post-shifts literacy instruction? Select all the apply.",
+    "Mrs. Richards’ students have a range of reading proficiency and knowledge about the food chain. When reading a grade-level complex text about this topic, which group of students is most likely to perform better on comprehension questions?",
+    "How could Mrs. Richards best prepare students to build knowledge about the topic of the food chain?",
+    "The main text that the students in Ms. Blackwell’s class is about to read is likely to be very difficult for the majority of the class. Which of the following is a strategy that Ms. Blackwell could use with her students with lower reading abilities?",
+    "Which of the following describe strategies for supporting struggling readers? Select all that apply.",
+    "Which of the following statements are true about reading the same complex text multiple times? Select all that apply.",
+    "Which of the following describes something students might do during close reading of complex texts?",
+    "Which of the following statements are true about the relationship between reading fluency and reading comprehension? Select all that apply.",
+    "Which of the following is NOT an effective strategy for improving student fluency?"
+  ))
+
+### Plot for if there is no data ###
+no_data_plot <- ggplot(tibble(text = "There was no data\nfor this site here.", x = 0, y = 0)) +
+  geom_text(aes(label = text, x, y), fontface = "bold", family = "Calibri Bold", size = 10) +
+  theme_void()
+
+### Grouping Vectors ###
+equitable_questions <- c(
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_am_color_blind_when_it_comes_to_my_teaching_i_don_t_think_of_my_students_in_terms_of_their_race_or_ethnicity",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_the_gap_in_the_achievement_among_students_of_different_races_is_about_poverty_not_race",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_think_about_my_own_background_and_experiences_and_how_those_affect_my_instruction"
+)
+
+high_expectations_questions <- c(
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_try_to_keep_in_mind_the_limits_of_my_students_ability_and_give_them_assignments_that_i_know_they_can_do_so_that_they_do_not_become_discouraged",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_before_students_are_asked_to_engage_in_complex_learning_tasks_they_need_to_have_a_solid_grasp_of_basic_skills",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_it_is_not_fair_to_ask_students_who_are_struggling_with_english_to_take_on_challenging_academic_assignments",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_teachers_should_provide_all_students_the_opportunity_to_work_with_grade_level_texts_and_tasks"
+)
+
+crse_questions <- c(
+  "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_adapt_instruction_to_meet_the_needs_of_my_students",
+  "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_identify_ways_that_the_school_culture_e_g_values_norms_and_practices_is_different_from_my_students_home_culture",
+  "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_use_my_students_prior_knowledge_to_help_them_make_sense_of_new_information",
+  "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_revise_instructional_material_to_include_a_better_representation_of_cultural_groups",
+  "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_teach_the_curriculum_to_students_with_unfinished_learning",
+  "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_teach_the_curriculum_to_students_who_are_from_historically_marginalized_groups"
+)
+
+teacher_mindsets <- c(
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_am_color_blind_when_it_comes_to_my_teaching_i_don_t_think_of_my_students_in_terms_of_their_race_or_ethnicity",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_the_gap_in_the_achievement_among_students_of_different_races_is_about_poverty_not_race",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_think_about_my_own_background_and_experiences_and_how_those_affect_my_instruction",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_try_to_keep_in_mind_the_limits_of_my_students_ability_and_give_them_assignments_that_i_know_they_can_do_so_that_they_do_not_become_discouraged",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_before_students_are_asked_to_engage_in_complex_learning_tasks_they_need_to_have_a_solid_grasp_of_basic_skills",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_it_is_not_fair_to_ask_students_who_are_struggling_with_english_to_take_on_challenging_academic_assignments",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_teachers_should_provide_all_students_the_opportunity_to_work_with_grade_level_texts_and_tasks"
+)
+
+### Existing Checks ###
+#### Math Instructional Practices ####
+exist_know_math_inst_prac <- sum(!is.na(diagnostic_survey$to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_am_color_blind_when_it_comes_to_my_teaching_i_don_t_think_of_my_students_in_terms_of_their_race_or_ethnicity)) >= 1
+
+exist_know_ela_inst_prac <- exist_know_math_inst_prac
+
+
+## Global options
+options(max.print = "75", width = 1000)
+knitr::opts_chunk$set(
+  echo = FALSE,
+  cache = F,
+  prompt = FALSE,
+  tidy = TRUE,
+  comment = NA,
+  message = FALSE,
+  warning = FALSE
+)
+```
+
+```{=html}
+<script src="js/hideOutput.js"></script>
+```
+#### Assets & Needs Assessment
+
+#### `r params$site`
+
+#### `r format(Sys.Date(), "%b")` 2022
+
+## Section 1: Mindsets
+
+### Equitable Mindsets Summary
+
+<center>
+
+```{r}
+if (exist_know_ela_inst_prac) {
+  
+  mindsets_data <- diagnostic_survey |>
+    select(all_of(c(equitable_questions, high_expectations_questions, crse_questions)))
+  
+  mindsets_count <- mindsets_data |>
+      summarise(across(everything(), ~ sum(!is.na(.x)))) |>
+      pivot_longer(everything())
+  
+  mindsets_n <- mean(mindsets_count$value)
+  
+  TeachingLab::tl_summary_table(
+    data = mindsets_data,
+    summarise = T,
+    prepost = F,
+    grouping = "summarise",
+    save = F,
+    n_size_single = mindsets_n
+  )
+  
+} else {
+  no_data_plot
+}
+```
+
+</center>
+
+### Recognizing Race and Culture Items
+
+::: {.fold .o}
+<center>
+
+```{r race-culture-ela}
+if (exist_know_ela_inst_prac) {
+  
+  equitable_count <- mindsets_data |>
+      select(all_of(equitable_questions)) |>
+      summarise(across(everything(), ~ sum(!is.na(.x)))) |>
+      pivot_longer(everything())
+  
+  equitable_n <- max(equitable_count$value)
+  
+  TeachingLab::tl_summary_table(
+    data = mindsets_data,
+    grouping = "equitable",
+    summarise = F,
+    prepost = F,
+    save = T,
+    n_size_single = equitable_n,
+    explain = F
+  )
+  
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+### High Expectations Items
+
+::: {.fold .o}
+<center>
+
+```{r high-expectations}
+if (exist_know_ela_inst_prac) {
+  high_expectations_count <- mindsets_data |>
+      select(all_of(high_expectations_questions)) |>
+      summarise(across(everything(), ~ sum(!is.na(.x)))) |>
+      pivot_longer(everything())
+
+  high_expectations_n <- max(high_expectations_count$value)
+  
+  TeachingLab::tl_summary_table(
+    data = mindsets_data,
+    grouping = "high_expectations",
+    prepost = F,
+    summarise = F,
+    save = T,
+    n_size_single = high_expectations_n,
+    explain = F
+  )
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+### Culturally Responsive and Sustaining Education Self-Efficacy Summary and Items
+
+::: {.fold .o}
+<center>
+
+```{r}
+if (nrow(diagnostic_survey) >= 1) {
+  
+  crse_data <- diagnostic_survey |>
+    select(all_of(crse_questions))
+
+  crse_count <- crse_data |>
+    summarise(across(everything(), ~ sum(!is.na(.x)))) |>
+    pivot_longer(everything())
+  
+  crse_n <- max(crse_count$value)
+
+  TeachingLab::tl_summary_table(
+    data = crse_data,
+    grouping = "crse",
+    summarise = T,
+    save = T,
+    prepost = F,
+    n_size_single = crse_n,
+    explain = F
+  )
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+## Section 2: Content and Pedagogical Content Knowledge
+
+<center>
+
+```{r}
+if (nrow(knowledge_assessments) >= 1) {
+  
+  knowledge_overall <- mean(knowledge_assessments_percents$final_percent, na.rm = T)
+
+  knowledge_assessments_n <- round(nrow(knowledge_assessments))
+
+  actual_answers <- answers[c(1, 2, 4, 6, 7, 8, 12, 13, 17, 18, 19, 20, 24, 25, 26, 27, 28,
+                              31, 32, 35, 36, 37, 41)]
+
+  answer1 <- paste(actual_answers[c(1, 2, 3)], collapse = "<br>")
+  answer2 <- actual_answers[c(4)]
+  answer3 <- paste(actual_answers[c(5, 6)], collapse = "<br>")
+  answer4 <- paste(actual_answers[c(7, 8)], collapse = "<br>")
+  answer5 <- actual_answers[c(9)]
+  answer6 <- actual_answers[c(10)]
+  answer7 <- paste(actual_answers[c(11, 12)], collapse = "<br>")
+  answer8 <- actual_answers[c(13)]
+  answer9 <- actual_answers[c(14)]
+  answer10 <- actual_answers[c(15)]
+  answer11 <- paste(actual_answers[c(16, 17)], collapse = "<br>")
+  answer12 <- paste(actual_answers[c(18, 19)], collapse = "<br>")
+  answer13 <- actual_answers[c(20)]
+  answer14 <- paste(actual_answers[c(21, 22)], collapse = "<br>")
+  answer15 <- actual_answers[c(23)]
+
+  knowledge_assessments_tbl <- tibble::tibble(
+    ` ` = c(
+      "<b>Overall % Correct</b>",
+      knowledge_assessments_percents$question
+    ),
+    `Percent Correct` = c(
+      knowledge_overall,
+      knowledge_assessments_percents$final_percent
+    )
+  ) |>
+    bind_cols(Answer = c(
+      " ",
+      answer1, answer2, answer3, answer4,
+      answer5, answer6, answer7, answer8,
+      answer9, answer10, answer11, answer12,
+      answer13, answer14, answer15
+    ))
+  
+  knowledge_assessments_gt <- knowledge_assessments_tbl |>
+    mutate(Construct = c("Overall",
+                         rep("Early Literacy Instruction", 3),
+                         "General ELA Instructional Shifts",
+                         rep("Text Complexity", 3),
+                         rep("Building Knowledge", 2),
+                         rep("Supporting Students with Unfinished Learning in ELA", 2),
+                         rep("Evidence / Close Reading", 2),
+                         rep("Fluency", 2))) |>
+    group_by(Construct) |>
+    summarise(`Percent Correct` = mean(`Percent Correct`)) |>
+    ungroup() |>
+    select(Construct, `Percent Correct`) |>
+    mutate(Construct = factor(Construct, levels = c("Overall",
+                                                    "Early Literacy Instruction",
+                                                    "General ELA Instructional Shifts",
+                                                    "Text Complexity",
+                                                    "Building Knowledge",
+                                                    "Supporting Students with Unfinished Learning in ELA",
+                                                    "Evidence / Close Reading",
+                                                    "Fluency"))) |>
+    arrange(Construct) |>
+    gt::gt() |>
+    gt::fmt_percent("Percent Correct",
+      scale_values = F,
+      decimals = 0
+    ) |>
+    gt::data_color(
+            columns = `Percent Correct`,
+            colors = scales::col_bin(
+              palette = c(
+                TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+              ),
+              domain = c(0, 100),
+              bins = c(0, 39, 79, 100)
+            )
+          ) |>
+    gt::fmt_missing(columns = `Percent Correct`,
+                    missing_text = "No Responses") |>
+    gt::tab_source_note(
+      source_note = paste0("n = ", knowledge_assessments_n)
+    ) |>
+    TeachingLab::gt_theme_tl()
+
+  knowledge_assessments_img <- gt::gtsave(
+    data = knowledge_assessments_gt,
+    path = here::here("images/report_images"),
+    filename = tempfile(fileext = ".png")
+  )
+
+  knitr::include_graphics(knowledge_assessments_img)
+} else {
+  no_data_plot
+}
+```
+
+</center>
+
+### Early Literacy Instruction
+
+::: {.fold .o}
+<center>
+
+```{r early-lit-instruction}
+if (!is.na(knowledge_assessments_tbl$`Percent Correct`[2])) {
+  early_lit_overall <- mean(knowledge_assessments_tbl$`Percent Correct`[2:4])
+  
+  knowledge_assessments_tbl$`Percent Correct`[1] <- early_lit_overall
+  
+  early_lit_gt <- knowledge_assessments_tbl |>
+    slice(1:4) |>
+    gt::gt() |>
+    gt::fmt_markdown(columns = c(` `, `Answer`)) %>%
+    gt::fmt_percent("Percent Correct",
+      scale_values = F,
+      decimals = 0
+    ) |>
+    gt::data_color(
+            columns = `Percent Correct`,
+            colors = scales::col_bin(
+              palette = c(
+                TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+              ),
+              domain = c(0, 100),
+              bins = c(0, 40, 80, 100)
+            )
+          ) |>
+    gt::tab_source_note(
+      source_note = paste0("n = ", knowledge_assessments_n)
+    ) |>
+    TeachingLab::gt_theme_tl()
+
+  early_lit_img <- gt::gtsave(
+    data = early_lit_gt,
+    path = here::here("images/report_images"),
+    filename = tempfile(fileext = ".png")
+  )
+
+  knitr::include_graphics(early_lit_img)
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+### General ELA Instructional Shifts
+
+::: {.fold .o}
+<center>
+
+```{r general-ela-instruction}
+if (nrow(knowledge_assessments) >= 1) {
+  general_ela_overall <- mean(knowledge_assessments_tbl$`Percent Correct`[5])
+
+  knowledge_assessments_tbl$`Percent Correct`[5] <- general_ela_overall
+
+  general_ela_gt <- knowledge_assessments_tbl |>
+    slice(c(5)) |>
+    gt::gt() |>
+    gt::fmt_markdown(columns = c(` `, `Answer`)) |>
+    gt::fmt_percent("Percent Correct",
+      scale_values = F,
+      decimals = 0
+    ) |>
+    gt::data_color(
+            columns = `Percent Correct`,
+            colors = scales::col_bin(
+              palette = c(
+                TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+              ),
+              domain = c(0, 100),
+              bins = c(0, 40, 80, 100)
+            )
+          ) |>
+    gt::tab_source_note(
+      source_note = paste0("n = ", knowledge_assessments_n)
+    ) |>
+    TeachingLab::gt_theme_tl()
+
+  general_ela_img <- gt::gtsave(
+    data = general_ela_gt,
+    path = here::here("images/report_images"),
+    filename = tempfile(fileext = ".png")
+  )
+
+  knitr::include_graphics(general_ela_img)
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+### Text Complexity
+
+::: {.fold .o}
+<center>
+
+```{r text-complexity}
+if (nrow(knowledge_assessments) >= 1) {
+  text_complexity_overall <- mean(knowledge_assessments_tbl$`Percent Correct`[6:8])
+  
+  knowledge_assessments_tbl$`Percent Correct`[1] <- text_complexity_overall
+  
+  text_complexity_gt <- knowledge_assessments_tbl |>
+    slice(c(1, 6:8)) |>
+    gt::gt() |>
+    gt::fmt_markdown(columns = c(` `, `Answer`)) %>%
+    gt::fmt_percent("Percent Correct",
+      scale_values = F,
+      decimals = 0
+    ) |>
+    gt::data_color(
+            columns = `Percent Correct`,
+            colors = scales::col_bin(
+              palette = c(
+                TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+              ),
+              domain = c(0, 100),
+              bins = c(0, 40, 80, 100)
+            )
+          ) |>
+    gt::tab_source_note(
+      source_note = paste0("n = ", knowledge_assessments_n)
+    ) |>
+    TeachingLab::gt_theme_tl()
+
+  text_complexity_img <- gt::gtsave(
+    data = text_complexity_gt,
+    path = here::here("images/report_images"),
+    filename = tempfile(fileext = ".png")
+  )
+
+  knitr::include_graphics(text_complexity_img)
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+### Building Knowledge
+
+::: {.fold .o}
+<center>
+
+```{r building-knowledge}
+if (nrow(knowledge_assessments) >= 1) {
+  building_knowledge_overall <- mean(knowledge_assessments_tbl$`Percent Correct`[9:10])
+  
+  knowledge_assessments_tbl$`Percent Correct`[1] <- building_knowledge_overall
+  
+  building_knowledge_gt <- knowledge_assessments_tbl |>
+    slice(c(1, 9:10)) |>
+    gt::gt() |>
+    gt::fmt_markdown(columns = c(` `, `Answer`)) %>%
+    gt::fmt_percent("Percent Correct",
+      scale_values = F,
+      decimals = 0
+    ) |>
+    gt::data_color(
+            columns = `Percent Correct`,
+            colors = scales::col_bin(
+              palette = c(
+                TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+              ),
+              domain = c(0, 100),
+              bins = c(0, 40, 80, 100)
+            )
+          ) |>
+    gt::tab_source_note(
+      source_note = paste0("n = ", knowledge_assessments_n)
+    ) |>
+    TeachingLab::gt_theme_tl()
+
+  building_knowledge_img <- gt::gtsave(
+    data = building_knowledge_gt,
+    path = here::here("images/report_images"),
+    filename = tempfile(fileext = ".png")
+  )
+
+  knitr::include_graphics(building_knowledge_img)
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+### Supporting Students with Unfinished Learning in ELA
+
+::: {.fold .o}
+<center>
+
+```{r supporting-students-unfinished}
+if (nrow(knowledge_assessments) >= 1) {
+  supporting_students_overall <- mean(knowledge_assessments_tbl$`Percent Correct`[11:12])
+  
+  knowledge_assessments_tbl$`Percent Correct`[1] <- supporting_students_overall
+  
+  supporting_students_gt <- knowledge_assessments_tbl |>
+    slice(c(1, 11:12)) |>
+    gt::gt() |>
+    gt::fmt_markdown(columns = c(` `, `Answer`)) %>%
+    gt::fmt_percent("Percent Correct",
+      scale_values = F,
+      decimals = 0
+    ) |>
+    gt::data_color(
+            columns = `Percent Correct`,
+            colors = scales::col_bin(
+              palette = c(
+                TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+              ),
+              domain = c(0, 100),
+              bins = c(0, 40, 80, 100)
+            )
+          ) |>
+    gt::tab_source_note(
+      source_note = paste0("n = ", knowledge_assessments_n)
+    ) |>
+    TeachingLab::gt_theme_tl()
+
+  supporting_students_img <- gt::gtsave(
+    data = supporting_students_gt,
+    path = here::here("images/report_images"),
+    filename = tempfile(fileext = ".png")
+  )
+
+  knitr::include_graphics(supporting_students_img)
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+### Evidence / Close Reading
+
+::: {.fold .o}
+<center>
+
+```{r evidence-close-reading}
+if (nrow(knowledge_assessments) >= 1) {
+  evidence_reading_overall <- mean(knowledge_assessments_tbl$`Percent Correct`[13:14])
+  
+  knowledge_assessments_tbl$`Percent Correct`[1] <- evidence_reading_overall
+  
+  evidence_reading_gt <- knowledge_assessments_tbl |>
+    slice(c(1, 13:14)) |>
+    gt::gt() |>
+    gt::fmt_markdown(columns = c(` `, `Answer`)) %>%
+    gt::fmt_percent("Percent Correct",
+      scale_values = F,
+      decimals = 0
+    ) |>
+    gt::data_color(
+            columns = `Percent Correct`,
+            colors = scales::col_bin(
+              palette = c(
+                TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+              ),
+              domain = c(0, 100),
+              bins = c(0, 40, 80, 100)
+            )
+          ) |>
+    gt::tab_source_note(
+      source_note = paste0("n = ", knowledge_assessments_n)
+    ) |>
+    TeachingLab::gt_theme_tl()
+
+  evidence_reading_img <- gt::gtsave(
+    data = evidence_reading_gt,
+    path = here::here("images/report_images"),
+    filename = tempfile(fileext = ".png")
+  )
+
+  knitr::include_graphics(evidence_reading_img)
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+### Fluency
+
+::: {.fold .o}
+<center>
+
+```{r fluency}
+if (nrow(knowledge_assessments) >= 1) {
+  fluency_overall <- mean(knowledge_assessments_tbl$`Percent Correct`[15:16])
+  
+  knowledge_assessments_tbl$`Percent Correct`[1] <- fluency_overall
+  
+  fluency_gt <- knowledge_assessments_tbl |>
+    slice(c(1, 15:16)) |>
+    gt::gt() |>
+    gt::fmt_markdown(columns = c(` `, `Answer`)) %>%
+    gt::fmt_percent("Percent Correct",
+      scale_values = F,
+      decimals = 0
+    ) |>
+    gt::data_color(
+            columns = `Percent Correct`,
+            colors = scales::col_bin(
+              palette = c(
+                TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+              ),
+              domain = c(0, 100),
+              bins = c(0, 40, 80, 100)
+            )
+          ) |>
+    gt::tab_source_note(
+      source_note = paste0("n = ", knowledge_assessments_n)
+    ) |>
+    TeachingLab::gt_theme_tl()
+
+  fluency_img <- gt::gtsave(
+    data = fluency_gt,
+    path = here::here("images/report_images"),
+    filename = tempfile(fileext = ".png")
+  )
+
+  knitr::include_graphics(fluency_img)
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+## Section 3: Instructional Practices
+
+### IPG Ratings
+
+<center>
+
+```{r ipg-ratings}
+if (1 != 1) {
+  no_data_plot
+} else {
+  no_data_plot
+}
+```
+
+</center>
+
+### IPG Core Action 1
+
+::: {.fold .o}
+<center>
+
+```{r ipg-core-action-1-ela}
+if (1 != 1) {
+  no_data_plot
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+### IPG Core Action 2
+
+::: {.fold .o}
+<center>
+
+```{r ipg-core-action-2-ela}
+if (1 != 1) {
+  no_data_plot
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+### IPG Core Action 3
+
+::: {.fold .o}
+<center>
+
+```{r ipg-core-action-3-ela}
+if (1 != 1) {
+  no_data_plot
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::

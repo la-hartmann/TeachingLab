@@ -1,0 +1,241 @@
+---
+title: "Teaching Lab Report"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  TeachingLab::TLDefault:
+    highlight: kate
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+library(TeachingLab)
+
+## Global options
+options(max.print="75")
+opts_chunk$set(echo=FALSE,
+	             cache=F,
+               prompt=FALSE,
+               tidy=TRUE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE,
+               fig.align = "center")
+opts_knit$set(width=75)
+```
+
+```{r}
+library(googlesheets4)
+library(tidyverse)
+library(ggtext)
+library(gt)
+library(here)
+
+data <- read_sheet("https://docs.google.com/spreadsheets/d/1ZZnizhPVjL8BBenwAeSKcTU1GYKpZYdEUe_-95V5Ej0/edit#gid=239657167",
+                   sheet = "Scoring2",
+                   col_names = c("Link", "ID", "Score", "Name", "Prepost", "Grade", "Curriculum"))
+
+data_clean <- data %>% 
+  filter(!str_detect(Score, "No")) %>%
+  # mutate(Score = as.numeric(as.character(Score))) %>%
+  # drop_na(Score) %>%
+  select(-1) %>%
+  mutate(Name = unlist(Name))
+```
+
+## Introduction
+
+As a brief introduction we provide the following tables that summarise the data:
+
+### Table 1: N Sizes
+
+```{r out.width = "200px"}
+knitr::include_graphics(path = here::here("Images/StudentWork/2020-2021/Table1.png"))
+```
+
+### TABLE 2 % ON GRADE LEVEL CREATION
+
+```{r}
+knitr::include_graphics(here::here("Images/StudentWork/2020-2021/Table2.png"))
+```
+
+### TABLE 3 AVERAGE SCORE (ALL)
+
+```{r}
+knitr::include_graphics(here::here("Images/StudentWork/2020-2021/Table3.png"))
+```
+
+### TABLE 4 AVERAGE SCORE (MATCHED)
+
+```{r}
+knitr::include_graphics(here::here("Images/StudentWork/2020-2021/Table4.png"))
+```
+
+### TABLE 5 AVERAGE SCORE (% WHO SCORE 2)
+
+```{r}
+knitr::include_graphics(here::here("Images/StudentWork/2020-2021/Table5.png"))
+```
+
+### TABLE 6 AVERAGE SCORE (% WHO SCORE 2 MATCHED)
+
+```{r}
+knitr::include_graphics(here::here("Images/StudentWork/2020-2021/Table6.png"))
+```
+
+### Table 7: Scores that moved out of 0, Percent that Improved/Sustained
+
+```{r}
+gt7 <- data_clean %>%
+  mutate(Score = as.numeric(unlist(as.character(Score)))) %>%
+  mutate(Score = replace_na(Score, 0)) %>%
+  group_by(ID) %>% 
+  filter(n() > 1) %>%
+  ungroup() %>%
+  # summarise(Score = round(sum(Score == 2)/n(), 2)) %>%
+  # mutate(Prepost = str_replace_all(Prepost, c("Pre" = "Fall", "Post" = "Spring"))) %>%
+  pivot_wider(names_from = "Prepost", values_from = "Score", names_sort = F) %>%
+  mutate(Improve = case_when(Post > Pre ~ 1,
+                             Post == Pre ~ 1,
+                             Pre > Post ~ 0)) %>%
+  group_by(Curriculum) %>%
+  summarise(Average = mean(Improve, na.rm = T))
+
+gt7 %>%
+  gt() %>%
+  tab_header(title = "\U1F605    Table 7: % Students Who Score Maintained or Improved    \U1F605") %>%
+  data_color(
+    columns = c(Average),
+    colors = scales::col_numeric(
+      palette = paletteer::paletteer_d(
+        palette = "ggsci::blue_material"
+      ) %>% as.character(),
+      domain = NULL
+    )
+  ) %>%
+  fmt_percent(decimals = 0, columns = c(Average)) %>%
+  tab_source_note(source_note = "ELA n = 18, Math n = 5") %>%
+  gt_theme_tl(all_caps = T) %>%
+  gtsave(here::here("Images/StudentWork/2020-2021/Table7.png"))
+```
+
+## Analysis
+
+Based on the above tables there is a clear improvement in math, and essentially no discernible effect in ELA courses, to emphasize this a visual investigation of the data follows:
+
+### Figure 1: Difference in Student Scores Fall and Spring
+
+```{r}
+data_compare <- data %>% 
+  filter(!str_detect(Score, "No Response|Below|Not")) %>%
+  mutate(Score = as.numeric(as.character(Score))) %>%
+  drop_na(Score) %>%
+  group_by(Prepost) %>%
+  summarise(Score = sum(Score)/length(Score))
+
+data_compare %>%
+  ggplot(aes(x = factor(Prepost, levels = c("Pre", "Post")), y = Score, fill = Prepost, color = Prepost)) +
+  geom_col() +
+  geom_text(position = position_stack(vjust = 1.03), aes(label = round(Score, 2)), fontface = "bold") +
+  scale_x_discrete(labels = c("Fall", "Spring")) +
+  scale_fill_manual(values = tl_palette(n = 5, color = "blue", theme = "dark")[c(2, 4)]) +
+  scale_color_manual(values = tl_palette(n = 5, color = "blue", theme = "dark")[c(2, 4)]) +
+  labs(x = "", y = "Average Score", title = "Difference in Student Scores<br> <span style = 'color:#0182B4;'>**Fall**</span> & <span style = 'color:#032E3F;'>**Spring**</span> Teaching Lab Services") +
+  ylim(c(0, 2)) +
+  theme_tl() +
+  theme(
+    legend.position = "none",
+    plot.title = element_markdown(lineheight = 1.1)
+  )
+
+ggsave(here::here("Images/StudentScores.png"), bg = "white")
+```
+
+### Figure 2: Individual Scores Fall and Spring: A Distributional Visual
+
+```{r include = F, eval = F}
+# First create gradient arrow
+# library(grid)
+# library(png)
+# m <- readPNG("mask.png", native=FALSE)
+# mask <- matrix(rgb(m[,,1],m[,,2],m[,,3]),
+#                nrow=nrow(m))
+# 
+# rmat <- matrix(rgb(colorRamp(c("#032E3F","#0182B4"))(seq(0,1,length=nrow(m))), maxColorValue=255),
+#                nrow=nrow(m), ncol=ncol(m))
+# 
+# grid.raster(rmat)
+```
+
+
+```{r}
+data_compare2 <- data %>% 
+  filter(!str_detect(Score, "No Response|Below|Not")) %>%
+  mutate(Score = as.numeric(as.character(Score))) %>%
+  drop_na(Score)
+
+image_df <- tibble(x = 2.5,
+                   y = 1.6,
+                   Prepost = "Post",
+                   image = here::here("Images/Miscellaneous/GradientUpArrow2.png"))
+
+data_compare2 %>%
+  ggplot(aes(x = factor(Prepost, levels = c("Pre", "Post")), y = Score, fill = Prepost, color = as.factor(Prepost))) +
+  # ggimage::geom_image(data = image_df, aes(x = x, y = y, image = image), nudge_x = -0.05, by = "height") + 
+  geom_jitter(width = 0.2) +
+  geom_hline(data = data_compare, aes(yintercept = Score, color = Prepost), linetype = "dashed") +
+  scale_x_discrete(labels = c("Fall", "Spring")) +
+  scale_fill_manual(values = tl_palette(n = 5, color = "blue", theme = "dark")[c(2, 4)]) +
+  scale_color_manual(values = tl_palette(n = 5, color = "blue", theme = "dark")[c(2, 4)]) +
+  labs(x = "", y = "Score", 
+       title = "Jittered Difference in Student Scores<br> <span style = 'color:#0182B4;'>**Fall**</span> & <span style = 'color:#032E3F;'>**Spring**</span> Teaching Lab Services",
+       caption = glue::glue("Fall n = {data_compare2 %>% filter(Prepost == 'Pre') %>% select(Prepost) %>% summarise(len = length(Prepost) %>% as_vector())}, Spring n = {data_compare2 %>% filter(Prepost == 'Post') %>% select(Prepost) %>% summarise(len = length(Prepost) %>% as_vector())}")) +
+  ylim(c(0, 2)) +
+  theme_tl() +
+  theme(
+    legend.position = "none",
+    plot.title = element_markdown(lineheight = 1.1)
+  )
+
+ggsave(here::here("Images/StudentScoresJittered.png"), bg = "white")
+```
+
+### Figure 3: Student Scores, ELA vs Math, Fall and Spring
+
+```{r}
+data_compare_facet <- data %>% 
+  filter(!str_detect(Score, "No Response|Below|Not")) %>%
+  mutate(Score = as.numeric(as.character(Score))) %>%
+  drop_na(Score) %>%
+  group_by(Prepost, Curriculum) %>%
+  summarise(Score = sum(Score)/length(Score),
+            n = n())
+
+data_compare2 %>%
+  ggplot(aes(x = factor(Prepost, levels = c("Pre", "Post")), y = Score, fill = Prepost, color = as.factor(Prepost))) +
+  geom_jitter(width = 0.2) +
+  geom_hline(data = data_compare_facet, aes(yintercept = Score, color = Prepost), linetype = "dashed") +
+  # annotation_custom(rasterGrob(rmat, width=unit(1,"npc"), height=unit(1, "npc")),
+  #                   x = 3, xmax=3.5, y=1.48, ymax=1.52) +
+  facet_wrap( ~ Curriculum) +
+  scale_x_discrete(labels = c("Fall", "Spring")) +
+  scale_fill_manual(values = tl_palette(n = 5, color = "blue", theme = "dark")[c(2, 4)]) +
+  scale_color_manual(values = tl_palette(n = 5, color = "blue", theme = "dark")[c(2, 4)]) +
+  labs(x = "", y = "Score", 
+       title = "Jittered Difference in Student Scores<br> <span style = 'color:#0182B4;'>**Fall**</span> & <span style = 'color:#032E3F;'>**Spring**</span> Teaching Lab Services",
+       caption = glue::glue("Fall ELA n = {data_compare_facet %>% filter(Prepost == 'Pre' & Curriculum == 'ELA') %>% ungroup() %>% select(n) %>% as_vector()}, Spring ELA n = {data_compare_facet %>% filter(Prepost == 'Post' & Curriculum == 'ELA') %>% ungroup() %>% select(n) %>% as_vector()}<br>Fall Math n = {data_compare_facet %>% filter(Prepost == 'Pre' & Curriculum == 'Math') %>% ungroup() %>% select(n) %>% as_vector()}, Spring Math n = {data_compare_facet %>% filter(Prepost == 'Post' & Curriculum == 'Math') %>% ungroup() %>% select(n) %>% as_vector()}")) +
+  ylim(c(0, 2)) +
+  theme_tl() +
+  theme(
+    legend.position = "none",
+    plot.title = element_markdown(lineheight = 1.1),
+    strip.text = element_text(hjust = 0.5),
+    plot.caption = element_markdown(lineheight = 1.1)
+  )
+
+ggsave(here::here("Images/StudentScoresJitteredCurriculum.png"), bg = "white")
+```
+
+
+## Conclusions
+
+To be written

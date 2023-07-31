@@ -1,0 +1,587 @@
+---
+title: "Graph Maker"
+author: "Duncan Gates"
+date: "5/19/2021"
+output: html_document
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(TeachingLab)
+library(tidyverse)
+library(ggtext)
+```
+
+# Segment Graphs
+
+## Graph 4: Educators' Average Scores on Content and Pedagogical Content Knowledge in Fall and Spring
+
+```{r}
+# graph4 <- data3 %>%
+#   slice(-6) %>%
+#   select(1:3) %>%
+#   pivot_longer(!rowname, names_to = "prepost", values_to = "mean_score") %>%
+#   rename(Question = rowname) %>%
+#   mutate(Question = str_to_title(Question)) %>%
+#   mutate(Question = str_replace_all(Question, "With", "with"))
+
+graph4 <- structure(list(Question = c("Overall Score", "Overall Score", 
+"Math Instructional Shifts", "Math Instructional Shifts", "Equitable Math Instruction", 
+"Equitable Math Instruction", "Supporting Students with<br>Unfinished Learning", 
+"Supporting Students with<br>Unfinished Learning", "Effective Teaching Practices", 
+"Effective Teaching Practices"), prepost = c("Average score\nDiagnostic", 
+"Average score\nFollow-up", "Average score\nDiagnostic", "Average score\nFollow-up", 
+"Average score\nDiagnostic", "Average score\nFollow-up", "Average score\nDiagnostic", 
+"Average score\nFollow-up", "Average score\nDiagnostic", "Average score\nFollow-up"
+), mean_score = c(54, 56, 44, 42, 61, 65, 61, 70, 49, 47)), row.names = c(NA, 
+-10L), class = c("tbl_df", "tbl", "data.frame"))
+
+graph4 <- graph4 %>% mutate(Question = str_replace_all(Question, "Supporting Students with Unfinished Learning", "Supporting Students with<br>Unfinished Learning"))
+
+graph4$Question <- factor(graph4$Question, levels = c("Effective Teaching Practices", "Supporting Students with<br>Unfinished Learning", "Equitable Math Instruction", 
+                                               "Math Instructional Shifts", "Overall Score"))
+
+graph4_segments <- tibble(
+  x = graph4 %>% filter(str_detect(prepost, "Follow")) %>% pull(mean_score),
+  xend = graph4 %>% filter(str_detect(prepost, "Diagnostic")) %>% pull(mean_score),
+  y = graph4 %>% filter(str_detect(prepost, "Follow")) %>% pull(Question),
+  yend = graph4 %>% filter(str_detect(prepost, "Diagnostic")) %>% pull(Question),
+  fall_text = c(58, 40, 66, 70, 45),
+  spring_text = c(52, 46, 60, 61, 51)
+)
+
+ggplot() +
+  geom_point(data = graph4, mapping = aes(color = prepost, x = mean_score, y = Question, size = mean_score)) +
+  geom_segment(data = graph4_segments, mapping = aes(x = x, xend = xend, y = y, yend = yend, alpha = 0.7), color = "black", size = 0.3, arrow = arrow(length = unit(0.1, "inches"))) +
+  geom_richtext(data = graph4_segments, fill = NA, label.color = NA,
+                aes(x = fall_text, y = y, label = paste0(x, "%")), 
+                color = "#ff7b43", vjust = -0.5, size = 4.85) +
+  geom_richtext(data = graph4_segments, fill = NA, label.color = NA,
+                aes(x = spring_text, y = y, label = paste0(xend, "%")), 
+                color = "#00acf0", vjust = -0.5, size = 4.85) +
+  scale_color_manual(values = rev(c("#ff7b43", "#00acf0"))) +
+  scale_x_continuous(labels = scales::percent_format(scale = 1), breaks = scales::pretty_breaks(n = 5),
+                     limits = c(0, 100)) +
+  labs(x = NULL, y = NULL,
+       title = "Educators' Average Scores on Math and Pedagogical<br>Content Knowledge in <span style = 'color:#ff7b43;'>Diagnostic</span> and <span style = 'color:#00acf0;'>Follow-up</span> Surveys") +
+  theme_bw() +
+  theme(panel.border = element_blank(),
+        legend.position = "none",
+        plot.title = element_markdown(hjust = 0.5, family = "Calibri", size = 20, lineheight = 1.15),
+        text = element_text(family = "Calibri"),
+        axis.text.y = element_markdown(hjust = 0.5, lineheight = 1.1, size = 14),
+        axis.text.x = element_markdown(size = 14))
+  ggsave(here("Images/Legacy Graphs/Graph 4.png"), width = 12, height = 8)
+```
+## Graph 3
+
+```{r}
+# graph3 <- data2 %>%
+#     select(1:3) %>%
+#     slice(-9) %>%
+#     pivot_longer(!rowname, names_to = "prepost", values_to = "mean_score") %>%
+#     rename(Question = rowname) %>%
+#     mutate(Question = str_to_title(Question)) %>%
+#     mutate(Question = str_replace_all(Question, "With", "with"))
+
+graph3 <- structure(list(Question = c("Overall Score", "Overall Score", 
+"Ela Early Literacy", "Ela Early Literacy", "Ela Instructional Shifts", 
+"Ela Instructional Shifts", "Fluency", "Fluency", "Text Complexity", 
+"Text Complexity", "Evidence & Close Reading", "Evidence & Close Reading", 
+"Building Knowledge", "Building Knowledge", "Supporting Students with Unfinished Learning", 
+"Supporting Students with Unfinished Learning"), prepost = c("Average score\nDiagnostic", 
+"Average score \nFollow-up", "Average score\nDiagnostic", "Average score \nFollow-up", 
+"Average score\nDiagnostic", "Average score \nFollow-up", "Average score\nDiagnostic", 
+"Average score \nFollow-up", "Average score\nDiagnostic", "Average score \nFollow-up", 
+"Average score\nDiagnostic", "Average score \nFollow-up", "Average score\nDiagnostic", 
+"Average score \nFollow-up", "Average score\nDiagnostic", "Average score \nFollow-up"
+), mean_score = c(45, 73, 39, NA, 32, 8, 51, 75, 38, 80, 58, 
+75, 40, 88, 59, 70)), row.names = c(NA, -16L), class = c("tbl_df", 
+"tbl", "data.frame"))
+  
+graph3 <- graph3 %>% mutate(Question = str_replace_all(str_wrap(Question, 20), "\n", "<br>"))
+  
+graph3$Question <- factor(graph3$Question, levels = rev(c("Overall Score", "Ela Early Literacy", "Ela Instructional<br>Shifts", 
+"Fluency", "Text Complexity", "Evidence & Close<br>Reading", 
+"Building Knowledge", "Supporting Students<br>with Unfinished<br>Learning"
+)))
+  
+graph3_segments <- tibble(
+    xend = graph3 %>% filter(str_detect(prepost, "Follow")) %>% pull(mean_score),
+    x = graph3 %>% filter(str_detect(prepost, "Diagnostic")) %>% pull(mean_score),
+    y = graph3 %>% filter(str_detect(prepost, "Follow")) %>% pull(Question),
+    yend = graph3 %>% filter(str_detect(prepost, "Diagnostic")) %>% pull(Question),
+    fall_text = x,
+    spring_text = xend
+  )
+  
+ggplot() +
+    geom_point(data = graph3, mapping = aes(color = prepost, x = mean_score, y = Question, size = mean_score)) +
+    geom_segment(data = graph3_segments, mapping = aes(x = x, xend = xend, y = y, yend = yend, alpha = 0.7), color = "black", size = 0.3, arrow = arrow(length = unit(0.1, "inches"))) +
+    geom_richtext(data = graph3_segments, fill = NA, label.color = NA,
+                  aes(x = fall_text, y = y, label = paste0(x, "%")), 
+                  color = "#ff7b43", vjust = -0.5, size = 4.85) +
+    geom_richtext(data = graph3_segments, fill = NA, label.color = NA,
+                  aes(x = spring_text, y = y, label = paste0(xend, "%")), 
+                  color = "#00acf0", vjust = -0.5, size = 4.85) +
+    scale_color_manual(values = rev(c("#00acf0", "#ff7b43"))) +
+    scale_x_continuous(labels = scales::percent_format(scale = 1), breaks = scales::pretty_breaks(n = 5),
+                       limits = c(0, 100)) +
+    labs(x = NULL, y = NULL,
+         title = "Educators' Average Scores on ELA Content and Pedagogical Content Knowledge in the <br> <span style = 'color:#ff7b43;'>Diagnostic</span> and <span style = 'color:#00acf0;'>Follow-up<span> Surveys") +
+    theme_bw() +
+    theme(panel.border = element_blank(),
+          legend.position = "none",
+          plot.title = element_markdown(hjust = 0.5, family = "Calibri", size = 20, lineheight = 1.15),
+          text = element_text(family = "Calibri"),
+          axis.text.y = element_markdown(hjust = 0.5, lineheight = 1.1, size = 14),
+          axis.text.x = element_markdown(size = 14)) +
+      ggsave(here("Images/Legacy Graphs/Graph 3.png"), width = 12, height = 8)
+```
+
+## Graph 2
+
+```{r}
+# graph2 <- data1 %>%
+#     select(1:3) %>%
+#     slice(-6) %>%
+#     pivot_longer(!rowname, names_to = "prepost", values_to = "mean_score") %>%
+#     rename(Question = rowname) %>%
+#     mutate(Question = str_to_title(Question)) %>%
+#     mutate(Question = str_replace_all(Question, "With", "with"))
+
+graph2 <- structure(list(Question = c("Overall Score", "Overall Score", 
+"Trust In Fellow Teachers", "Trust In Fellow Teachers", "Connectedness To Fellow Teachers", 
+"Connectedness To Fellow Teachers", "Have Influence Over Professional Learning", 
+"Have Influence Over Professional Learning", "I Am Confident That I Am Implementing The Curriculum In A Way That Maximizes Positive Impact For Student Learning", 
+"I Am Confident That I Am Implementing The Curriculum In A Way That Maximizes Positive Impact For Student Learning"
+), prepost = c("% of educators who agreed or strongly agreed\nDiagnostic", 
+"% of educators who agreed or strongly agreed\nFollow-up", "% of educators who agreed or strongly agreed\nDiagnostic", 
+"% of educators who agreed or strongly agreed\nFollow-up", "% of educators who agreed or strongly agreed\nDiagnostic", 
+"% of educators who agreed or strongly agreed\nFollow-up", "% of educators who agreed or strongly agreed\nDiagnostic", 
+"% of educators who agreed or strongly agreed\nFollow-up", "% of educators who agreed or strongly agreed\nDiagnostic", 
+"% of educators who agreed or strongly agreed\nFollow-up"), mean_score = c(66, 
+65, 92, 77, 84, 92, 32, 23, 55, 69)), row.names = c(NA, -10L), class = c("tbl_df", 
+"tbl", "data.frame"))
+  
+graph2 <- graph2 %>% mutate(Question = str_replace_all(str_wrap(Question, 20), "\n", "<br>"))
+  
+graph2$Question <- factor(graph2$Question, levels = rev(c("Overall Score", "Trust In Fellow<br>Teachers", "Connectedness To<br>Fellow Teachers", 
+"Have Influence<br>Over Professional<br>Learning", "I Am Confident That<br>I Am Implementing<br>The Curriculum In A<br>Way That Maximizes<br>Positive Impact For<br>Student Learning"
+)))
+  
+graph2_segments <- tibble(
+    xend = graph2 %>% filter(str_detect(prepost, "Follow")) %>% pull(mean_score),
+    x = graph2 %>% filter(str_detect(prepost, "Diagnostic")) %>% pull(mean_score),
+    y = graph2 %>% filter(str_detect(prepost, "Follow")) %>% pull(Question),
+    yend = graph2 %>% filter(str_detect(prepost, "Diagnostic")) %>% pull(Question),
+    fall_text = c(68, 92, 84, 32, 55),
+    spring_text = c(63, 77, 92, 23, 69)
+  )
+  
+ggplot() +
+    geom_point(data = graph2, mapping = aes(color = prepost, x = mean_score, y = Question, size = mean_score)) +
+    geom_segment(data = graph2_segments, mapping = aes(x = x, xend = xend, y = y, yend = yend, alpha = 0.7), color = "black", size = 0.3, arrow = arrow(length = unit(0.1, "inches"))) +
+    geom_richtext(data = graph2_segments, fill = NA, label.color = NA,
+                  aes(x = fall_text, y = y, label = paste0(x, "%")), 
+                  color = "#ff7b43", vjust = -0.5, size = 4.85) +
+    geom_richtext(data = graph2_segments, fill = NA, label.color = NA,
+                  aes(x = spring_text, y = y, label = paste0(xend, "%")), 
+                  color = "#00acf0", vjust = -0.5, size = 4.85) +
+    scale_color_manual(values = rev(c("#00acf0", "#ff7b43"))) +
+    scale_x_continuous(labels = scales::percent_format(scale = 1), breaks = scales::pretty_breaks(n = 5),
+                       limits = c(0, 100)) +
+    labs(x = NULL, y = NULL,
+         title = "Change in the Percent of Educators with Positive Perceptions of<br>School Culture and Climate from <span style = 'color:#ff7b43;'>Diagnostic</span> to <span style = 'color:#00acf0;'>Follow-up<span> Survey") +
+    theme_bw() +
+    theme(panel.border = element_blank(),
+          legend.position = "none",
+          plot.title = element_markdown(hjust = 0.5, family = "Calibri", size = 20, lineheight = 1.15),
+          text = element_text(family = "Calibri"),
+          axis.text.y = element_markdown(hjust = 0.5, lineheight = 1.1, size = 14),
+          axis.text.x = element_markdown(size = 14)) +
+      ggsave(here("Images/Legacy Graphs/Graph 2.png"), width = 12, height = 8)
+```
+
+## Graph 1
+
+```{r}
+# graph1 <- data4 %>%
+#     select(1:3) %>%
+#     slice(-6) %>%
+#     pivot_longer(!rowname, names_to = "prepost", values_to = "mean_score") %>%
+#     rename(Question = rowname) %>%
+#     mutate(Question = str_to_title(Question)) %>%
+#     mutate(Question = str_replace_all(Question, "With", "with"))
+
+graph1 <- structure(list(Question = c("Overall", "Overall", "Race & Ethnicity", 
+"Race & Ethnicity", "Growth Mindsets", "Growth Mindsets", "High Expectations", 
+"High Expectations", "Accountability", "Accountability"), prepost = c("Diagnostic\nOverall", 
+"Follow up\nOverall", "Diagnostic\nOverall", "Follow up\nOverall", 
+"Diagnostic\nOverall", "Follow up\nOverall", "Diagnostic\nOverall", 
+"Follow up\nOverall", "Diagnostic\nOverall", "Follow up\nOverall"
+), mean_score = c(75, 73, 52, 61, 96, 82, 56, 58, 97, 92)), row.names = c(NA, 
+-10L), class = c("tbl_df", "tbl", "data.frame"))
+  
+graph1 <- graph1 %>% mutate(Question = str_replace_all(str_wrap(Question, 20), "\n", "<br>"))
+  
+graph1$Question <- factor(graph1$Question, levels = rev(c("Overall", "Race & Ethnicity", "Growth Mindsets", "High Expectations", 
+"Accountability")))
+  
+graph1_segments <- tibble(
+    xend = graph1 %>% filter(str_detect(prepost, "Follow")) %>% pull(mean_score),
+    x = graph1 %>% filter(str_detect(prepost, "Diagnostic")) %>% pull(mean_score),
+    y = graph1 %>% filter(str_detect(prepost, "Follow")) %>% pull(Question),
+    yend = graph1 %>% filter(str_detect(prepost, "Diagnostic")) %>% pull(Question),
+    fall_text = c(77, 52, 96, 54, 97),
+    spring_text = c(71, 61, 82, 60, 91)
+  )
+  
+ggplot() +
+    geom_point(data = graph1, mapping = aes(color = prepost, x = mean_score, y = Question, size = mean_score)) +
+    geom_segment(data = graph1_segments, mapping = aes(x = x, xend = xend, y = y, yend = yend, alpha = 0.7), color = "black", size = 0.3, arrow = arrow(length = unit(0.1, "inches"))) +
+    geom_richtext(data = graph1_segments, fill = NA, label.color = NA,
+                  aes(x = fall_text, y = y, label = paste0(x, "%")), 
+                  color = "#ff7b43", vjust = -0.5, size = 4.85) +
+    geom_richtext(data = graph1_segments, fill = NA, label.color = NA,
+                  aes(x = spring_text, y = y, label = paste0(xend, "%")), 
+                  color = "#00acf0", vjust = -0.5, size = 4.85) +
+    scale_color_manual(values = rev(c("#00acf0", "#ff7b43"))) +
+    scale_x_continuous(labels = scales::percent_format(scale = 1), breaks = scales::pretty_breaks(n = 5),
+                       limits = c(0, 100)) +
+    labs(x = NULL, y = NULL,
+         title = "Educators' Average Scores on Mindsets and Beliefs in the <br> <span style = 'color:#ff7b43;'>Diagnostic</span> and <span style = 'color:#00acf0;'>Follow-up<span> Surveys") +
+    theme_bw() +
+    theme(panel.border = element_blank(),
+          legend.position = "none",
+          plot.title = element_markdown(hjust = 0.5, family = "Calibri", size = 20, lineheight = 1.15),
+          text = element_text(family = "Calibri"),
+          axis.text.y = element_markdown(hjust = 0.5, lineheight = 1.1, size = 14),
+          axis.text.x = element_markdown(size = 14)) +
+      ggsave(here("Images/Legacy Graphs/Graph 1.png"), width = 12, height = 8)
+```
+
+## CRT & Curriculum Based-PL Graph 1
+
+```{r}
+graph1 <- structure(list(Question = c("Overall", "Overall", "Race & Ethnicity", 
+"Race & Ethnicity", "Growth Mindsets", "Growth Mindsets", "High Expectations", 
+"High Expectations", "Accountability", "Accountability"), prepost = c("Diagnostic\nOverall", 
+"Follow up\nOverall", "Diagnostic\nOverall", "Follow up\nOverall", 
+"Diagnostic\nOverall", "Follow up\nOverall", "Diagnostic\nOverall", 
+"Follow up\nOverall", "Diagnostic\nOverall", "Follow up\nOverall"
+), mean_score = c(74, 76, 44, 44, 62, 68, 96, 95, 95, 96)), row.names = c(NA, 
+-10L), class = c("tbl_df", "tbl", "data.frame"))
+  
+graph1 <- graph1 %>% mutate(Question = str_replace_all(str_wrap(Question, 20), "\n", "<br>"))
+  
+graph1$Question <- factor(graph1$Question, levels = rev(c("Overall", "Race & Ethnicity", "Growth Mindsets", "High Expectations", 
+"Accountability")))
+  
+graph1_segments <- tibble(
+    xend = graph1 %>% filter(str_detect(prepost, "Follow")) %>% pull(mean_score),
+    x = graph1 %>% filter(str_detect(prepost, "Diagnostic")) %>% pull(mean_score),
+    y = graph1 %>% filter(str_detect(prepost, "Follow")) %>% pull(Question),
+    yend = graph1 %>% filter(str_detect(prepost, "Diagnostic")) %>% pull(Question),
+    fall_text = c(71, 41, 62, 98, 93),
+    spring_text = c(78, 47, 68, 93, 98)
+  )
+
+graph1_segments$xend[2] <- NA
+graph1_segments$x[2] <- NA
+  
+ggplot() +
+    geom_point(data = graph1, mapping = aes(color = prepost, x = mean_score, y = Question, size = mean_score)) +
+    geom_segment(data = graph1_segments, mapping = aes(x = x, xend = xend, y = y, yend = yend, alpha = 0.7), color = "black", size = 0.3, arrow = arrow(length = unit(0.1, "inches"))) +
+    geom_richtext(data = graph1_segments, fill = NA, label.color = NA,
+                  aes(x = fall_text, y = y, label = if_else(!is.na(x), paste0(x, "%"), "44%<br>before")), 
+                  color = "#ff7b43", vjust = -0.5, size = 4.85) +
+    geom_richtext(data = graph1_segments, fill = NA, label.color = NA,
+                  aes(x = spring_text, y = y, label = if_else(!is.na(x), paste0(xend, "%"), "44%<br> after")),  
+                  color = "#00acf0", vjust = -0.5, size = 4.85) +
+    scale_color_manual(values = rev(c("#00acf0", "#ff7b43"))) +
+    scale_x_continuous(labels = scales::percent_format(scale = 1), breaks = scales::pretty_breaks(n = 5),
+                       limits = c(0, 100)) +
+    labs(x = NULL, y = NULL,
+         title = "Educators' Average Scores on Mindsets and Beliefs in the <br> <span style = 'color:#ff7b43;'>Diagnostic</span> and <span style = 'color:#00acf0;'>Follow-up<span> Surveys") +
+    theme_bw() +
+    theme(panel.border = element_blank(),
+          legend.position = "none",
+          plot.title = element_markdown(hjust = 0.5, family = "Calibri", size = 20, lineheight = 1.15),
+          text = element_text(family = "Calibri"),
+          axis.text.y = element_markdown(hjust = 0.5, lineheight = 1.1, size = 14),
+          axis.text.x = element_markdown(size = 14)) +
+      ggsave(here("Images/2021 Graphs/Mindsets Graph 1.png"), width = 12, height = 8)
+```
+
+# Combined Plot
+
+```{r}
+library(ggtext)
+library(here)
+library(patchwork)
+
+graph1 <- structure(list(Question = c("Overall", "Overall", "Race & Ethnicity", 
+"Race & Ethnicity", "Growth Mindsets", "Growth Mindsets", "High Expectations", 
+"High Expectations", "Accountability", "Accountability"), prepost = c("Diagnostic\nOverall", 
+"Follow up\nOverall", "Diagnostic\nOverall", "Follow up\nOverall", 
+"Diagnostic\nOverall", "Follow up\nOverall", "Diagnostic\nOverall", 
+"Follow up\nOverall", "Diagnostic\nOverall", "Follow up\nOverall"
+), mean_score = c(74, 76, 44, 44, 62, 68, 96, 95, 95, 96)), row.names = c(NA, 
+-10L), class = c("tbl_df", "tbl", "data.frame"))
+  
+graph1 <- graph1 %>% mutate(Question = str_replace_all(str_wrap(Question, 20), "\n", "<br>"))
+  
+graph1$Question <- factor(graph1$Question, levels = rev(c("Overall", "Race & Ethnicity", "Growth Mindsets", "High Expectations", 
+"Accountability")))
+
+graph1_segments <- tibble(
+    xend = graph1 %>% filter(str_detect(prepost, "Follow")) %>% pull(mean_score),
+    x = graph1 %>% filter(str_detect(prepost, "Diagnostic")) %>% pull(mean_score),
+    y = graph1 %>% filter(str_detect(prepost, "Follow")) %>% pull(Question),
+    yend = graph1 %>% filter(str_detect(prepost, "Diagnostic")) %>% pull(Question),
+    fall_text = c(68, 34, 58, 100, 90),
+    spring_text = c(78, 47, 69, 90, 100)
+  )
+
+graph1_segments$xend[2] <- NA
+graph1_segments$x[2] <- NA
+
+p2 <- ggplot() +
+    geom_point(data = graph1, mapping = aes(color = prepost, x = mean_score, y = Question, size = mean_score)) +
+    geom_segment(data = graph1_segments, mapping = aes(x = x, xend = xend, y = y, yend = yend, alpha = 0.7), color = "black", size = 0.3, arrow = arrow(length = unit(0.1, "inches"))) +
+    geom_richtext(data = graph1_segments, fill = NA, label.color = NA,
+                  aes(x = fall_text, y = y, label = if_else(!is.na(x), paste0(x, "%"), "44%<br>before")), 
+                  color = "#ff7b43", vjust = -0.5, size = 4.85) +
+    geom_richtext(data = graph1_segments, fill = NA, label.color = NA,
+                  aes(x = spring_text, y = y, label = if_else(!is.na(x), paste0(xend, "%"), "44%<br> after")),  
+                  color = "#00acf0", vjust = -0.5, size = 4.85) +
+    scale_color_manual(values = rev(c("#00acf0", "#ff7b43"))) +
+    scale_x_continuous(labels = scales::percent_format(scale = 1), breaks = scales::pretty_breaks(n = 5),
+                       limits = c(0, 100)) +
+    labs(x = NULL, y = NULL,
+         title = "Educators' Average Scores on Mindsets and Beliefs in <br> the <span style = 'color:#ff7b43;'>Diagnostic</span> and <span style = 'color:#00acf0;'>Follow-up</span> Surveys 2020-2021") +
+    theme_bw() +
+    theme(panel.border = element_blank(),
+          legend.position = "none",
+          plot.title = element_markdown(hjust = 0.5, family = "Calibri", size = 16, lineheight = 1.15),
+          text = element_text(family = "Calibri"),
+          axis.text.y = element_markdown(hjust = 0.5, lineheight = 1.1, size = 14),
+          axis.text.x = element_markdown(size = 14))
+  
+graph2_segments <- tibble(
+    xend = graph2 %>% filter(str_detect(prepost, "Follow")) %>% pull(mean_score),
+    x = graph2 %>% filter(str_detect(prepost, "Diagnostic")) %>% pull(mean_score),
+    y = graph2 %>% filter(str_detect(prepost, "Follow")) %>% pull(Question),
+    yend = graph2 %>% filter(str_detect(prepost, "Diagnostic")) %>% pull(Question),
+    fall_text = c(69, 36, 92, 46, 87),
+    spring_text = c(55, 25, 81, 60, 74)
+  )
+
+# p1 <- ggplot() +
+#     geom_col(data = graph2, mapping = aes(color = prepost, x = mean_score, y = Question, size = mean_score), position = "dodge") +
+#     geom_segment(data = graph2_segments, mapping = aes(x = x, xend = xend, y = y, yend = yend, alpha = 0.7), color = "black", size = 0.3, arrow = arrow(length = unit(0.1, "inches"))) +
+#     geom_richtext(data = graph2_segments, fill = NA, label.color = NA,
+#                   aes(x = fall_text, y = y, label = if_else(!is.na(x), paste0(x, "%"), "44%<br>before")), 
+#                   color = "#ff7b43", vjust = -0.5, size = 4.85) +
+#     geom_richtext(data = graph2_segments, fill = NA, label.color = NA,
+#                   aes(x = spring_text, y = y, label = if_else(!is.na(x), paste0(xend, "%"), "44%<br> after")),  
+#                   color = "#00acf0", vjust = -0.5, size = 4.85) +
+#     scale_color_manual(values = rev(c("#00acf0", "#ff7b43"))) +
+#     scale_x_continuous(labels = scales::percent_format(scale = 1), breaks = scales::pretty_breaks(n = 5),
+#                        limits = c(0, 100)) +
+#     labs(x = NULL, y = NULL,
+#          title = "Educators' Average Scores on Mindsets and Beliefs in <br> the <span style = 'color:#ff7b43;'>Diagnostic</span> and <span style = 'color:#00acf0;'>Follow-up</span> Surveys 2019-2020") +
+#     theme_bw() +
+#     theme(panel.border = element_blank(),
+#           legend.position = "none",
+#           plot.title = element_markdown(hjust = 0.5, family = "Calibri", size = 16, lineheight = 1.15),
+#           text = element_text(family = "Calibri"),
+#           axis.text.y = element_markdown(hjust = 0.5, lineheight = 1.1, size = 14),
+#           axis.text.x = element_markdown(size = 14))
+
+
+graph2 <- tibble(
+  Question = c("Overall", "Race & Ethnicity", "Growth Mindsets", "High Expectations", "Belief in Impact of Professional Learning"), 
+prepost = c("Diagnostic\nOverall", "Follow up\nOverall", "Diagnostic\nOverall", "Follow up\nOverall", "Diagnostic\nOverall"), 
+mean_score = c(63, 30, 86, 55, 79))
+
+graph2 <- graph2 %>%
+  mutate(across(c(1), ~ str_replace_all(str_wrap(.x, 9), "\n", "<br>")))
+
+graph2$Question <- factor(graph2$Question, levels = c("Overall", "Race &<br>Ethnicity", "Growth<br>Mindsets", "High<br>Expectations", 
+"Belief in<br>Impact of<br>Professional<br>Learning"))
+
+p1 <- ggplot(graph2) +
+    geom_col(data = graph2, mapping = aes(x = mean_score, y = Question), fill = "#ff7b43",
+             alpha = 0.85) +
+  geom_text(fill = NA, label.color = NA, data = graph2,
+                mapping = aes(label = paste0(mean_score, "%"), x = mean_score, y = Question),
+            color = "#ff7b43",
+            vjust = -1.5, size = 4) +
+  coord_flip() +
+    scale_x_continuous(labels = scales::percent_format(scale = 1), breaks = scales::pretty_breaks(n = 5),
+                       limits = c(0, 100)) +
+    labs(x = NULL, y = NULL,
+         title = "Percent of Educators who Sustained or Improved Scores on Mindsets<br>and Beliefs between the Diagnostic and Follow-up Surveys 2019-2020") +
+    theme_bw() +
+    theme(panel.border = element_blank(),
+          legend.position = "none",
+          plot.title = element_markdown(hjust = 0.5, family = "Calibri", size = 15, lineheight = 1.15),
+          text = element_text(family = "Calibri"),
+          axis.text.y = element_markdown(hjust = 0.5, lineheight = 1.2, size = 14),
+          axis.text.x = element_markdown(size = 14, lineheight = 1.2))
+  
+p1 + p2 + plot_annotation(caption = "n = 118 in 2019-2020 matched sample vs.\n n = 116 in the 2020-2021 sample")
+ggsave(here("Images/2019-2020/Combined 2019-2021 Plots.png"), width = 14, height = 8)
+ggsave(here("Images/2020-2021/Combined 2019-2021 Plots.png"), width = 14, height = 8)
+```
+
+
+
+```{r}
+graph2 <- tibble(
+  Question = c("Overall", "Race & Ethnicity", "Growth Mindsets", "High Expectations", "Belief in Impact of Professional Learning"), 
+prepost = c("Diagnostic\nOverall", "Follow up\nOverall", "Diagnostic\nOverall", "Follow up\nOverall", "Diagnostic\nOverall"), 
+mean_score = c(63, 30, 86, 55, 79))
+
+graph2 <- graph2 %>%
+  mutate(across(c(1), ~ str_replace_all(str_wrap(.x, 9), "\n", "<br>")))
+
+graph2$Question <- factor(graph2$Question, levels = c("Overall", "Race &<br>Ethnicity", "Growth<br>Mindsets", "High<br>Expectations", 
+"Belief in<br>Impact of<br>Professional<br>Learning"))
+
+p1 <- ggplot(graph2) +
+    geom_col(data = graph2, mapping = aes(x = mean_score, y = Question), fill = "#ff7b43",
+             alpha = 0.85) +
+  geom_text(fill = NA, label.color = NA, data = graph2,
+                mapping = aes(label = paste0(mean_score, "%"), x = mean_score, y = Question),
+            color = "#ff7b43",
+            vjust = -1.5, size = 4) +
+  coord_flip() +
+    scale_x_continuous(labels = scales::percent_format(scale = 1), breaks = scales::pretty_breaks(n = 5),
+                       limits = c(0, 100)) +
+    labs(x = NULL, y = NULL,
+         title = "Percent of Educators who Sustained or Improved Scores on Mindsets<br>and Beliefs between the Diagnostic and Follow-up Surveys <style='color:#ff7b43'>2019-2020") +
+    theme_bw() +
+    theme(panel.border = element_blank(),
+          legend.position = "none",
+          plot.title = element_markdown(hjust = 0.5, family = "Calibri", size = 15, lineheight = 1.15),
+          text = element_text(family = "Calibri"),
+          axis.text.y = element_markdown(hjust = 0.5, lineheight = 1.2, size = 14),
+          axis.text.x = element_markdown(size = 14, lineheight = 1.2))
+
+data_2021 <- read_rds(here::here("Data/SY20-21/full_2021.rds"))
+
+positive_vector <- c("4", "5")
+negative_vector <- c("1", "2")
+
+mindsets_index <- tibble(question_pre = c("prerace1", "prerace2", "prehigh2", "prehigh3", "prehigh4", "prehigh1", "pregrowth1", "pregrowth2", "preacc1", "preacc2", "preacc3"),
+                question_post = c("postrace1", "postrace2", "posthigh2", "posthigh3", "posthigh4", "posthigh1", "postgrowth1", "postgrowth2", "postacc1", "postacc2", "postacc3"),
+                coding = list(negative_vector, negative_vector, negative_vector, negative_vector, negative_vector, positive_vector, negative_vector, negative_vector, positive_vector, positive_vector, positive_vector))
+
+mindsets <- pmap_df(list(mindsets_index$question_pre, mindsets_index$question_post, mindsets_index$coding), 
+                                   ~ score_question_improved(data_2021, 
+                                                             question_pre = ..1, question_post = ..2, coding = ..3, middle_value = "3"))
+
+graph2021 <- tibble(Question = c("Overall", "Race & Ethnicity", "Growth Mindsets", 
+                                 "High Expectations", "Belief in Impact of Professional Learning"), 
+                    prepost = c("Diagnostic\nOverall", "Follow up\nOverall", 
+                                "Diagnostic\nOverall", "Follow up\nOverall", 
+                                "Diagnostic\nOverall"), 
+                    mean_score = c(mindsets %>% summarise(mean(percent_improve_sustain)),
+                                   mindsets %>% slice(c(1:2)) %>% summarise(mean(percent_improve_sustain)),
+                                   mindsets %>% slice(c(7:8)) %>% summarise(mean(percent_improve_sustain)),
+                                   mindsets %>% slice(c(3:6)) %>% summarise(mean(percent_improve_sustain)),
+                                   mindsets %>% slice(c(9:11)) %>% summarise(mean(percent_improve_sustain)))) %>%
+  mutate(mean_score = round(as.numeric(mean_score)))
+
+graph2021 <- graph2021 %>%
+  mutate(across(c(1), ~ str_replace_all(str_wrap(.x, 9), "\n", "<br>")))
+
+graph2021$Question <- factor(graph2021$Question, levels = c("Overall", "Race &<br>Ethnicity", "Growth<br>Mindsets", "High<br>Expectations", 
+"Belief in<br>Impact of<br>Professional<br>Learning"))
+
+p2 <- ggplot(graph2021) +
+    geom_col(data = graph2021, mapping = aes(x = mean_score, y = Question), fill = "#04ABEB",
+             alpha = 0.85) +
+  geom_text(fill = NA, label.color = NA, data = graph2021,
+                mapping = aes(label = paste0(mean_score, "%"), x = mean_score, y = Question),
+            color = "#04ABEB",
+            vjust = -1.5, size = 4) +
+  coord_flip() +
+    scale_x_continuous(labels = scales::percent_format(scale = 1), breaks = scales::pretty_breaks(n = 5),
+                       limits = c(0, 100)) +
+    labs(x = NULL, y = NULL,
+         title = "Percent of Educators who Sustained or Improved Scores on Mindsets<br>and Beliefs between the Diagnostic and Follow-up Surveys 2020-2021") +
+    theme_bw() +
+    theme(panel.border = element_blank(),
+          legend.position = "none",
+          plot.title = element_markdown(hjust = 0.5, family = "Calibri", size = 15, lineheight = 1.15),
+          text = element_text(family = "Calibri"),
+          axis.text.y = element_markdown(hjust = 0.5, lineheight = 1.2, size = 14),
+          axis.text.x = element_markdown(size = 14, lineheight = 1.2))
+
+p1 + p2 + plot_annotation(caption = "n = 118 in 2019-2020 matched sample\n\n n = 38 in the 2020-2021 sample")
+ggsave(here("Images/2019-2020/Combined 2019-2021 Plot Update.png"), width = 14, height = 8)
+ggsave(here("Images/2020-2021/Combined 2019-2021 Plot Update.png"), width = 14, height = 8)
+```
+
+# One Plot
+
+```{r}
+graph3 <- tibble(
+  Question = c("Overall", "Overall", 
+               "Race & Ethnicity", "Race & Ethnicity", 
+               "Growth Mindsets", "Growth Mindsets", 
+               "High Expectations", "High Expectations"), 
+year = c(2019, 2020, 2019, 2020, 2019, 2020, 2019, 2020), 
+mean_score = c(63, 80, 30, 52, 86, 96, 55, 74))
+
+graph3 <- graph3 %>%
+  mutate(across(c(1), ~ str_replace_all(str_wrap(.x, 9), "\n", "<br>")))
+
+graph3$Question <- factor(graph3$Question, levels = c("Overall", "Race &<br>Ethnicity", "Growth<br>Mindsets", "High<br>Expectations", 
+"Belief in<br>Impact of<br>Professional<br>Learning"))
+
+(p3 <- ggplot(graph3) +
+  geom_col(data = graph3, mapping = aes(x = mean_score, y = Question, fill = factor(year)),
+             alpha = 0.85, position = "dodge") +
+  geom_text(fill = NA, label.color = NA, data = graph3,
+                mapping = aes(label = paste0(mean_score, "%"), x = mean_score, y = Question, color = factor(year)),
+            vjust = -1, 
+            size = 4, 
+            position = position_dodge(width = 1)) +
+  coord_flip() +
+  scale_x_continuous(labels = scales::percent_format(scale = 1), 
+                     breaks = scales::pretty_breaks(n = 5),
+                       limits = c(0, 100)) +
+  labs(y = "Components of equitable mindsets and beliefs about education", x = NULL,
+         title = "Percent of educators who sustained or improved scores on <br>mindsets and beliefs in <span style='color:#ff7b43'>SY19-20</span> and <span style='color:#04abeb'>SY20-21</span>"#,
+       # caption = "N = 116 for SY19-20, N = 38 for SY20-21"
+       ) +
+    scale_fill_manual(values = c("#ff7b43", "#04abeb")) +
+    scale_fill_manual(values = c("#ff7b43", "#04abeb")) +
+    theme_tl() +
+    theme(panel.border = element_blank(),
+          legend.position = "none",
+          plot.title = element_markdown(hjust = 0.5, family = "Calibri", size = 15, lineheight = 1.15),
+          text = element_text(family = "Calibri"),
+          axis.text.y = element_markdown(hjust = 0.5, lineheight = 1.2, size = 14),
+          axis.title.x = element_text(size = 18),
+          axis.text.x = element_markdown(size = 14, lineheight = 1.2)))
+
+ggsave(here::here("Images/2020-2021/ImpactReport/EducatorsImprovedSustained.png"), height = 8, width = 12)
+ggsave(here::here("Images/2019-2020/EducatorsImprovedSustained.png"), height = 8, width = 12)
+```
+
+
+
+
+
+
+
+
+

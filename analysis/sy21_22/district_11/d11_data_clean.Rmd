@@ -1,0 +1,794 @@
+---
+title: "D11 Analysis"
+author: "Duncan Gates"
+date: "5/4/2021"
+output: html_document
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F)
+library(tidyverse)
+library(scales)
+library(ggtext)
+library(glue)
+library(gt)
+library(ggfx)
+library(ggforce)
+library(here)
+
+data <- read_csv(here("Data/D11/D11 CRT PLC End of Course Survey 2.csv"), skip = 1)
+
+col <- grDevices::colorRampPalette(c("#040404", "#04ABEB"))
+```
+
+```{r}
+replace_vector <- c(
+  "(5) Strongly agree" = "Strongly agree",
+  "(4) Agree" = "Agree",
+  "(3) Neither agree nor disagree" = "Neither agree nor disagree"
+)
+
+colname_replace <- c(
+  "Adapt instruction to meet the needs of my students - Before the PLC" = "instruction_before_plc",
+  "Adapt instruction to meet the needs of my students - After the PLC" = "instruction_after_plc",
+  "Identify ways that the school culture (e.g., values, norms, and practices) is different from my students’ home culture - Before the PLC" = "identify_before_plc",
+  "Identify ways that the school culture (e.g., values, norms, and practices) is different from my students’ home culture - After the PLC" = "identify_after_plc",
+  "Build a sense of trust in my students - Before the PLC" = "trust_before_plc",
+  "Build a sense of trust in my students - After the PLC" = "trust_after_plc",
+  "Develop a community of learners when my class consists of students from diverse backgrounds - Before the PLC" = "learners_before_plc",
+  "Develop a community of learners when my class consists of students from diverse backgrounds - After the PLC" = "learners_after_plc",
+  "Use my students’ prior knowledge to help them make sense of new information - Before the PLC" = "students_before_plc",
+  "Use my students’ prior knowledge to help them make sense of new information - After the PLC" = "students_after_plc",
+  "Revise instructional material to include a better representation of cultural groups - Before the PLC" = "material_before_plc",
+  "Revise instructional material to include a better representation of cultural groups - After the PLC" = "material_after_plc",
+  "Help students feel like important members of the classroom - Before the PLC" = "help_before_plc",
+  "Help students feel like important members of the classroom - After the PLC" = "help_after_plc"
+)
+
+replace_10_vector <- c(
+  "10- I know how to do this extremely well." = "10",
+  "10- I knew how to do this extremely well." = "10",
+  "0- I did not know how to do this at all." = "0"
+)
+```
+
+
+```{r clean}
+clean_data <- data %>%
+  select(-c(1:9)) %>%
+  mutate(across(everything(), ~ str_replace_all(.x, replace_vector))) %>%
+  # rename_with( ~ str_replace_all(.x, colname_replace)) %>%
+  rename(Grade = Response)
+
+clean_data_2 <- clean_data %>%
+  select(24:37, `Open-Ended Response`) %>%
+  mutate(across(everything(), ~ str_replace_all(.x, replace_10_vector))) %>%
+  mutate(across(!`Open-Ended Response`, ~ as.numeric(as.character(.x))))
+
+# colnames(clean_data_2)[3] <- "identify_before_plc"
+# colnames(clean_data_2)[4] <- "identify_after_plc"
+
+# clean_data_2 %>% view()
+```
+
+
+# Before PLC
+
+```{r analyze_before}
+before_data <- clean_data_2 %>%
+  select(contains("Before"))
+
+bar_plot <- function(x) {
+  ggplot(data = before_data, aes(
+    x = factor(.data[[x]]),
+    fill = factor(.data[[x]])
+  )) +
+    geom_bar() +
+    scale_x_discrete() +
+    scale_y_continuous(breaks = pretty_breaks(n = 8)) +
+    scale_fill_manual(values = col(11)) +
+    labs(
+      y = "Frequency", x = NULL,
+      title = str_wrap(glue::glue("{x}"))
+    ) +
+    theme_bw() +
+    theme(
+      legend.position = "none",
+      panel.border = element_blank(),
+      plot.title = element_text(hjust = 0.5),
+      text = element_text(family = "Fira Sans"),
+      panel.grid.major.x = element_blank(),
+      panel.grid.minor.y = element_blank()
+    ) +
+    ggsave(here::here(paste0("Images/", .data[[x]]), ".png"))
+}
+```
+
+```{r map_plots}
+plot_names <- colnames(before_data)
+
+plots1 <- map(plot_names, ~ bar_plot(x = .x))
+
+walk2(.x = plots1, .y = plot_names, ~ ggsave(here::here(paste0("Images/", .y, ".png")), plot = .x, device = "png"))
+```
+
+
+# After PLC
+
+
+```{r analyze_after}
+after_data <- clean_data_2 %>%
+  select(contains("after"))
+```
+
+```{r plot2}
+bar_plot2 <- function(x) {
+  ggplot(data = after_data, aes(
+    x = factor(.data[[x]]),
+    fill = factor(.data[[x]])
+  )) +
+    geom_bar() +
+    scale_x_discrete() +
+    scale_y_continuous(breaks = pretty_breaks(n = 8)) +
+    scale_fill_manual(values = col(11)) +
+    labs(
+      y = "Frequency", x = NULL,
+      title = str_wrap(glue::glue("{x}"))
+    ) +
+    theme_bw() +
+    theme(
+      legend.position = "none",
+      panel.border = element_blank(),
+      plot.title = element_text(hjust = 0.5),
+      text = element_text(family = "Fira Sans"),
+      panel.grid.major.x = element_blank(),
+      panel.grid.minor.y = element_blank()
+    ) +
+    ggsave(here::here(paste0("Images/", .data[[x]]), ".png"))
+}
+```
+
+```{r map_data_2}
+plot_names2 <- colnames(after_data)
+
+plots <- map(plot_names2, ~ bar_plot2(x = .x))
+
+walk2(.x = plots, .y = plot_names2, ~ ggsave(here::here(paste0("Images/", .y, ".png")), plot = .x, device = "png"))
+```
+
+
+```{r}
+colnames(after_data) <- colnames(before_data)
+befafter <- bind_rows(before_data, after_data) %>%
+  mutate(prepost = c(rep("Before", 23), rep("After", 23))) %>%
+  rename_with(~ str_remove(., " - Before the PLC"))
+
+faceted <- befafter %>% 
+  pivot_longer(!prepost, names_to = "Question", values_to = "Score") %>%
+  mutate(Question = str_replace_all(str_wrap(Question, width = 20), "\n", "<br>")) %>%
+  mutate(prepost = factor(prepost, levels = c("Before", "After"))) %>%
+  mutate(Question = factor(Question, levels = c("Use my students’ prior<br>knowledge to help them make<br>sense of new information",
+                                                "Revise instructional<br>material to include a better<br>representation of cultural<br>groups", 
+                                                "Identify ways that the school<br>culture (e.g., values, norms,<br>and practices) is different<br>from my students’ home culture", 
+                                                "Help students feel like<br>important members of the<br>classroom",
+                                                "Develop a community of<br>learners when my class<br>consists of students from<br>diverse backgrounds", 
+                                                "Build a sense of trust in my<br>students",
+                                                "Adapt instruction to meet the<br>needs of my students"
+)))
+
+ggplot(data = faceted, aes(
+    x = factor(Score),
+    fill = factor(Score)
+  )) +
+    geom_bar() +
+  geom_text(aes(label = )) +
+  facet_wrap(Question ~ prepost, ncol = 2, labeller = labeller(.cols = label_value, .multi_line = F)) +
+    scale_x_discrete() +
+    scale_y_continuous(breaks = pretty_breaks(n = 8)) +
+    scale_fill_manual(values = col(11)) +
+    labs(
+      y = NULL, x = NULL,
+      title = "Distribution of Scores Before and After the PLC"
+    ) +
+    theme_bw() +
+    theme(
+      legend.position = "none",
+      panel.border = element_blank(),
+      plot.title = element_text(hjust = 0.5),
+      text = element_text(family = "Fira Sans"),
+      panel.grid.major.x = element_blank(),
+      panel.grid.minor.y = element_blank(),
+      strip.text = element_markdown(size = 13),
+      strip.background = element_rect(fill = NA, color = NA),
+    )
+# ggsave(here("Images/FacetedPLCD11.png"), width = 12, height = 18)
+```
+
+```{r version2}
+faceted <- befafter %>% 
+  pivot_longer(!prepost, names_to = "Question", values_to = "Score") %>%
+  mutate(prepost = str_replace_all(prepost, c("Before" = "Before PLC", "After" = "After PLC"))) %>%
+  # mutate(Question = str_replace_all(str_wrap(Question, width = 70), "\n", "<br>")) %>%
+  mutate(prepost = factor(prepost, levels = c("Before PLC", "After PLC"))) %>%
+  mutate(Question = factor(Question, levels = c("Use my students’ prior knowledge to help them make sense of new information",
+                                                "Revise instructional material to include a better representation of cultural groups", 
+                                                "Identify ways that the school culture (e.g., values, norms, and practices) is different from my students’ home culture", 
+                                                "Help students feel like important members of the classroom",
+                                                "Develop a community of learners when my class consists of students from diverse backgrounds", 
+                                                "Build a sense of trust in my students",
+                                                "Adapt instruction to meet the needs of my students"
+))) #%>%
+  # group_by(prepost, Question, Score) %>%
+  # summarise(n = n())
+
+ggplot(data = faceted, aes(
+    x = factor(Score),
+    fill = prepost
+  )) +
+    geom_bar(position = position_dodge()) +
+  # geom_text(aes(label = n, y = n, x = factor(Score)), position = position_dodge()) +
+  facet_wrap( ~ Question, ncol = 1) +
+    scale_x_discrete() +
+    scale_y_continuous(breaks = pretty_breaks(n = 8)) +
+    scale_fill_manual(values = col(2)) +
+  guides(fill = guide_legend(override.aes = list(size = 10))) +
+    labs(
+      y = NULL, x = NULL,
+      title = "Distribution of Scores Before and After the PLC"
+    ) +
+    theme_bw() +
+    theme(
+      legend.position = c(0.88, 1.015),
+      legend.title = element_blank(),
+      legend.background = element_rect(fill = "transparent"),
+      legend.text = element_text(size = 13),
+      legend.direction = "horizontal",
+      panel.border = element_blank(),
+      plot.title = element_text(hjust = 0.5, size = 15),
+      text = element_text(family = "Calibri"),
+      panel.grid.major.x = element_blank(),
+      panel.grid.minor.y = element_blank(),
+      strip.text = element_markdown(size = 13),
+      strip.background = element_rect(fill = NA, color = NA),
+    )
+# ggsave(here("Images/Faceted2PLCD11.png"), width = 12, height = 18)
+```
+
+```{r version3}
+faceted <- befafter %>% 
+  pivot_longer(!prepost, names_to = "Question", values_to = "Score") %>%
+  mutate(Question = str_replace_all(str_wrap(Question, width = 30), "\n", "<br>")) %>%
+  mutate(Question = factor(Question, levels = c("Use my students’ prior<br>knowledge to help them make<br>sense of new information",
+                                                "Revise instructional<br>material to include a better<br>representation of cultural<br>groups", 
+                                                "Identify ways that the school<br>culture (e.g., values, norms,<br>and practices) is different<br>from my students’ home culture", 
+                                                "Help students feel like<br>important members of the<br>classroom",
+                                                "Develop a community of<br>learners when my class<br>consists of students from<br>diverse backgrounds", 
+                                                "Build a sense of trust in my<br>students",
+                                                "Adapt instruction to meet the<br>needs of my students"
+))) %>%
+  group_by(prepost) %>%
+  mutate(overall_avg = mean(Score)) %>%
+  group_by(prepost, Question) %>%
+  mutate(question_average = mean(Score)) %>%
+  mutate(prepost = factor(prepost, levels = c("Before", "After"))) %>%
+  arrange(prepost)
+
+dotplot <- ggplot(faceted) +
+  geom_jitter(aes(x = Question, y = Score, color = Question), width = 0.07, height = 0.05, alpha = 0.5) +
+  geom_segment(aes(x = Question, xend = Question,
+                   y = overall_avg, yend = question_average, color = Question)) +
+  geom_hline(data = faceted %>% filter(prepost == "Before"), aes(yintercept = mean(Score)), linetype = "dashed", color = "gray70") +
+  geom_hline(data = faceted %>% filter(prepost == "After"), aes(yintercept = mean(Score)), linetype = "dashed", color = "gray70") +
+  stat_summary(geom = "point", fun = "mean", aes(x = Question, y = Score, color = Question), size = 5) +
+  facet_wrap( ~ prepost, ncol = 1, labeller = labeller(prepost = c(After = "After PLC", Before = "Before PLC"))) +
+  scale_y_continuous(breaks = pretty_breaks(n = 10)) +
+  # scale_color_manual(values = rev(col(10))) +
+  scale_color_manual(values = rev(tl_palette(n = 7, color = "tl_colors"))) +
+  labs(x = NULL, y = NULL) +
+  coord_flip() +
+  TeachingLab::theme_tl() +
+  theme(axis.text.y = element_markdown(hjust = 0.5, lineheight = 1.15, size = 14),
+        axis.text.x = element_markdown(size = 12),
+        legend.position = "none",
+        strip.text = element_text(hjust = 0.5, face = "bold", size = 14),
+        panel.grid.minor.x = element_blank()) 
+
+annotations <- tibble(
+  x = c(1.65, 7.2, 6.5, 6.5),
+  y = c(8, 9.5, 8, 5.5),
+  prepost = c("Before", "After", "Before", "After"),
+  label = c("The overall average<br>before PLC was 7.4",
+            "The overall average<br>after PLC was 8.8",
+            "Question average",
+            str_replace_all(str_wrap("The largest improvement was a 2 point improvement in perceived ability to adapt instruction to meet the needs of students", width = 50), "\n", "<br>")),
+  lineheight = c(1.05, 1.05, 1.05, 1.05)
+) %>%
+  mutate(prepost = factor(prepost, levels = c("Before", "After")))
+
+arrows <- tibble(
+  x1 = c(1.45, 6.9, 6.5, 6.9),
+  x2 = c(1.15, 6.4, 6.0, 7),
+  y1 = c(8, 9.5, 8.5, 7.2),
+  y2 = c(7.422360, 8.795031, 8.869565, 8.347826),
+  prepost = c("Before", "After", "Before", "After")
+) %>%
+  mutate(prepost = factor(prepost, levels = c("Before", "After")))
+
+dotplot +
+  geom_richtext(
+    data = annotations,
+    aes(x = x, y = y, label = label, lineheight = lineheight), 
+    family = "Calibri", size = 5, color = "gray20", fill = NA, label.color = NA
+    ) +
+  geom_curve(data = arrows,
+             aes(x = x1, y = y1, xend = x2, yend = y2),
+             arrow = arrow(length = unit(0.07, "inch")), size = 0.4,
+    color = "gray20", curvature = -0.3)
+ggsave(here("Images/AppendixD11.png"), width = 12, height = 14)
+```
+
+
+
+```{r}
+fall_spring <- bind_rows(
+  before_data %>%
+    rename_with(~ str_remove_all(., " - Before the PLC")),
+  after_data %>%
+    rename_with(~ str_remove_all(., " - After the PLC"))
+) %>%
+  mutate(season = c(rep("Before PLC", 23), rep("After PLC", 23))) %>%
+  group_by(season) %>%
+  summarise(across(everything(), ~ mean(.x))) %>%
+  pivot_longer(!season, names_to = "Question", values_to = "Mean") %>%
+  rename(PLC = season) %>%
+  mutate(Question = str_wrap(Question, width = 40)) %>%
+  mutate(Question = str_replace_all(Question, "\n", "<br>"))
+
+fall_spring_segments <- tibble(
+  x = fall_spring %>% slice(1:7) %>% select(Mean) %>% mutate(Mean = round(Mean, digits = 1)) %>% as_vector(),
+  xend = fall_spring %>% slice(8:14) %>% select(Mean) %>% mutate(Mean = round(Mean, digits = 1)) %>% as_vector(),
+  y = fall_spring %>% slice(1:7) %>% select(Question) %>% as_vector(),
+  yend = fall_spring %>% slice(8:14) %>% select(Question) %>% as_vector()
+)
+
+
+
+# fall_spring %>% gt::gt(groupname_col = "Question")
+```
+
+```{r plotting}
+ggplot() +
+  geom_point(data = fall_spring, mapping = aes(color = PLC, x = Mean, y = Question, size = Mean)) +
+  geom_segment(data = fall_spring_segments, mapping = aes(x = xend, xend = x, y = y, yend = yend), alpha = 0.7, color = "black", size = 0.3, arrow = arrow(length = unit(0.1, "inches"))) +
+  geom_richtext(
+    data = fall_spring_segments, fill = NA, label.color = NA,
+    aes(x = x, y = y, label = paste0(x)),
+    color = "#ff7b43", vjust = -0.5, size = 4.85
+  ) +
+  geom_richtext(
+    data = fall_spring_segments, fill = NA, label.color = NA,
+    aes(x = xend, y = y, label = paste0(xend)),
+    color = "#00acf0", vjust = -0.5, size = 4.85
+  ) +
+  scale_color_manual(values = c("#ff7b43", "#00acf0")) +
+  scale_size(guide = "none") +
+  scale_x_continuous(breaks = scales::pretty_breaks(n = 6), limits = c(5, 10)) +
+  guides(color = guide_legend(override.aes = list(size = 8), reverse = T)) +
+  labs(
+    x = NULL, y = NULL,
+    title = "Participants' perceived knowledge about CRT practices<br><span style = 'color:#00acf0;'>before PLC</span> and <span style = 'color:#ff7b43;'>after PLC</span>"
+  ) +
+  theme_bw() +
+  theme(
+    panel.border = element_blank(),
+    legend.position = c(0.9, 0.925),
+    legend.title = element_blank(),
+    legend.background = element_rect(fill = "transparent"),
+    legend.key = element_rect(fill = "transparent"),
+    legend.text = element_text(face = "bold"),
+    plot.title = element_markdown(hjust = 0.5, family = "Fira Sans", size = 20, lineheight = 1.15),
+    text = element_text(family = "Open Sans"),
+    axis.text.y = element_markdown(hjust = 0.5, lineheight = 1.1, size = 13),
+    axis.text.x = element_markdown(size = 14),
+    axis.line.x = element_line(size = 0.2),
+    panel.grid.minor.x = element_blank(),
+    axis.ticks.length.x = unit(0.2, "cm"),
+    axis.ticks.length.y = unit(0.2, "cm")
+  )
+
+ggsave(here("Images/2020-2021/ImpactReport/D11Beliefs.png"), width = 12, height = 8)
+```
+
+
+
+```{r}
+clean_data %>%
+  select(Grade) %>%
+  group_by(Grade) %>%
+  summarise(n())
+
+grade_replace <- c(
+  "1" = "1st",
+  "2" = "2nd",
+  "3" = "3rd",
+  "4" = "4th",
+  "5" = "5th"
+)
+
+clean_data %>%
+  mutate(Grade = str_replace_all(Grade, grade_replace)) %>%
+  mutate(Grade = factor(Grade, levels = c("Kindergarten", "1st", "2nd", "3rd", "4th", "5th"))) %>%
+  ggplot() +
+  geom_bar(aes(x = Grade, fill = Grade)) +
+  scale_x_discrete() +
+  scale_fill_manual(values = col(6)) +
+  labs(
+    y = NULL, x = NULL,
+    title = "Per Grade Frequency in Pilot CRT"
+  ) +
+  theme_bw() +
+  theme(
+    legend.position = "none",
+    panel.border = element_blank(),
+    plot.title = element_text(hjust = 0.5),
+    text = element_text(family = "Fira Sans"),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.y = element_blank()
+  ) +
+  ggsave(here::here("Images/GradeFrequencyD11.png"))
+```
+
+```{r}
+agree_vector <- c("Strongly agree", "Agree")
+
+item3 <- clean_data %>%
+  select(3:8, 18:19) %>%
+  # mutate(across(everything(), ~ str_replace_all(.x, replace_vector))) %>%
+  mutate(across(everything(), ~ str_remove(.x, "\\([:digit:]\\)"))) %>%
+  mutate(across(everything(), ~ str_trim(.x))) %>%
+  summarise(across(everything(), ~ sum(.x %in% agree_vector) / length(.x))) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "Percent") %>%
+  mutate(Question = str_wrap(Question, width = 60)) %>%
+  mutate(Question = str_replace_all(Question, "\n", "<br>")) %>%
+  mutate(Question = str_replace_all(Question, "S/he", "The facilitators"))
+
+
+(item3 %>%
+  gt::gt() %>%
+  tab_header(
+    title = md("**% That Agree or Strongly Agree**")
+  ) %>%
+  cols_label(
+    Question = md("**Question**"),
+    Percent = md("**Percent**")
+  ) %>%
+  cols_align(
+    align = "center",
+    columns = vars(`Percent`)
+  ) %>%
+  cols_align(
+    align = "left",
+    columns = vars(`Question`)
+  ) %>%
+  fmt_markdown(columns = T) %>%
+  fmt_percent(
+    columns = vars(`Percent`)
+  ) %>%
+  data_color(
+    columns = vars(`Percent`),
+    colors = scales::col_numeric(
+      palette = col(12)[6:12],
+      domain = NULL
+    )
+  ) %>%
+  tab_options(
+    table.font.names = "Fira Sans"
+  ) %>%
+  gtsave(here("Images/AgreeTableD11.png")))
+```
+
+
+```{r}
+calc_nps <- function(x) {
+  round(((length(which(x %in% c(9, 10))) / length(x)) - (length(which(x %in% c(0:6))) / length(x))) * 100, 2)
+}
+
+nps <- clean_data %>%
+  select(Response_4) %>%
+  mutate(NPS = str_replace_all(Response_4, "10- Extremely likely", "10")) %>%
+  mutate(NPS = factor(as.numeric(NPS))) %>%
+  select(-Response_4) %>%
+  group_by(NPS) %>%
+  mutate(number = round((n() / 23) * 100))
+
+calc_nps(nps$NPS)
+
+ggplot(data = nps) +
+  geom_bar(aes(x = 0, fill = NPS, y = number), stat = "identity", color = "white", size = 0.02) +
+  geom_text(aes(x = 0, y = 0, label = "NPS: 48"), family = "Fira Sans", size = 12) +
+  # geom_text(aes(x = 0, y = as.numeric(NPS) + , label = paste0(number %>% sort(), "%"))) +
+  coord_polar() +
+  scale_fill_manual(values = col(6)) +
+  # guides(fill = guide_colorbar()) +
+  labs(title = "60% of respondents gave a rating of <span style = 'color:#00acf0;'>9</span> or <span style = 'color:#00acf0;'>10</span> (14), while 13% (3)<br>gave a rating of <span style = 'color:#044660;'>6 or lower</span>, the lowest rating being a single <span style = 'color:#042532;'>5</span>.") +
+  theme_void() +
+  theme(
+    axis.line.x = element_line(),
+    plot.title = element_markdown(family = "Fira Sans", hjust = 0.5, lineheight = 1.25),
+    legend.position = "none"
+  ) +
+  ggsave(here("Images/D11_NPS.png"))
+
+(fake_plot <- ggplot(data = nps) +
+  geom_bar(aes(x = 0, y = NPS, color = as.numeric(NPS)), stat = "identity") +
+  scale_color_gradient(low = col(6)[2], high = col(6)[6]) +
+  guides(color = guide_colorbar(
+    title.position = "top", title.hjust = .5,
+    barwidth = unit(30, "lines"), barheight = unit(.5, "lines")
+  )) +
+  theme_bw() +
+  theme(legend.position = "top")
+) +
+  ggsave(here("Images/colorbar_plot.png"))
+```
+
+```{r}
+effective_vector <- c("Very effective", "Effective")
+
+question4 <- clean_data %>%
+  select(9:11) %>%
+  mutate(across(everything(), ~ str_remove(.x, "\\([:digit:]\\)"))) %>%
+  mutate(across(everything(), ~ str_trim(.x))) %>%
+  summarise(across(everything(), ~ sum(.x %in% effective_vector) / length(.x))) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "Percent") %>%
+  mutate(Question = str_wrap(Question, width = 60)) %>%
+  mutate(Question = str_replace_all(Question, "\n", "<br>"))
+
+question4 %>%
+  gt() %>%
+  tab_header(
+    title = md("**% That Rate Components of PLC as Effective or Very Effective in Supporting Learning**")
+  ) %>%
+  cols_label(
+    Question = md("**Question**"),
+    Percent = md("**Percent**")
+  ) %>%
+  cols_align(
+    align = "center",
+    columns = vars(`Percent`)
+  ) %>%
+  cols_align(
+    align = "left",
+    columns = vars(`Question`)
+  ) %>%
+  fmt_markdown(columns = T) %>%
+  fmt_percent(
+    columns = vars(`Percent`)
+  ) %>%
+  data_color(
+    columns = vars(`Percent`),
+    colors = scales::col_numeric(
+      palette = col(12)[6:12],
+      domain = NULL
+    )
+  ) %>%
+  tab_options(
+    table.font.names = "Fira Sans"
+  ) %>%
+  gtsave(here("Images/PLCEffectiveTableD11.png"))
+```
+
+
+```{r}
+question5 <- clean_data %>%
+  select(12:14) %>%
+  mutate(across(everything(), ~ str_remove(.x, "\\([:digit:]\\)"))) %>%
+  mutate(across(everything(), ~ str_trim(.x))) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "Time Length") %>%
+  group_by(Question, `Time Length`) %>%
+  summarise(count = n()) %>%
+  drop_na() %>%
+  group_by(Question) %>%
+  mutate(percent = count / sum(count)) %>%
+  mutate(Question = str_replace_all(Question, "Knowledge building", "Knowledge<br>building  "))
+
+y_vector <- c(0.625, 0.073, 0.625, 0.073, 0.625, 0.073, 0.025)
+
+question5 <- bind_cols(question5, y_vector) %>%
+  rename(y = ...5) %>%
+  mutate(color = if_else(y == 0.025, "TRUE", "FALSE")) %>%
+  mutate(`Time Length` = factor(`Time Length`, levels = c("Too much", "Just right", "Too little")))
+
+ggplot(question5) +
+  geom_col(aes(x = Question, y = `percent`, fill = `Time Length`), color = "black", size = 0.18) +
+  geom_text(aes(x = Question, y = y, label = if_else(y != 0.025, paste0(round(100 * percent, 2), "%"), "")), family = "Fira Sans") +
+  labs(x = NULL, y = NULL, title = "Session Length was Considered <span style = 'color:#04ABEB;'>Just Right</span> to <br>Support the Following Areas by Most") +
+  guides(color = F, fill = guide_legend(reverse = T)) +
+  scale_color_manual(values = c("FALSE" = "black", "TRUE" = "white")) +
+  scale_x_discrete() +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = c("#040404", "#04ABEB", "#045777")) +
+  coord_flip() +
+  theme_bw() +
+  theme(
+    legend.position = "bottom",
+    axis.text.y = element_markdown(),
+    panel.border = element_blank(),
+    plot.title = element_markdown(hjust = 0.5, family = "Fira Sans", lineheight = 1.25),
+    text = element_text(family = "Fira Sans"),
+    # panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank()
+  ) +
+  ggsave(here("Images/D11SessionLength.png"))
+```
+
+```{r}
+question6 <- clean_data %>%
+  select(15) %>%
+  rename(`Time Length` = Response_1) %>%
+  group_by(`Time Length`) %>%
+  summarise(count = n()) %>%
+  mutate(
+    fraction = count / sum(count),
+    ymax = cumsum(fraction)
+  )
+
+question6$ymin <- c(0, head(question6$ymax, n = -1))
+
+question6 <- question6 %>%
+  mutate(label_pos = (ymax + ymin) / 2) %>%
+  mutate(label = paste0(`Time Length`, "\n", round(fraction*100, 2), "%"))
+
+
+
+ggplot(question6, aes(ymax = ymax, ymin = ymin, xmax = 4, xmin = 2.25, fill = `Time Length`)) +
+  geom_rect(color = "black", size = 0.25) +
+  geom_text(x = 1.1, aes(y = label_pos, label = label, color = `Time Length`), size = 5) + # x here controls label position (inner / outer)
+  scale_fill_manual(values = rev(col(3))) +
+  scale_color_manual(values = rev(col(3))) +
+  labs(title = "Most thought 5 sessions were <span style = 'color:#04ABEB;'>just enough</span> time, but some<br> also thought they were <span style = 'color:#045777;'>not enough</span>.") +
+  coord_polar(theta = "y") +
+  xlim(c(-1, 4)) +
+  theme_void() +
+  theme(legend.position = "none",
+        text = element_text(family = "Fira Sans"),
+        plot.title = element_markdown(hjust = 0.5, family = "Fira Sans", lineheight = 1.15)) + 
+  ggsave(here("Images/question6.png"))
+```
+
+
+```{r}
+question7 <- clean_data %>% 
+  select(16) %>%
+  rename(Time = Response_2) %>%
+  group_by(`Time`) %>%
+  summarise(count = n()) %>%
+  mutate(
+    percent = count / sum(count),
+    color = if_else(Time == "Over 60 min",
+                    "TRUE",
+                    "FALSE"),
+    Time = factor(Time, levels = c("Over 60 min", "31-60 min", "0-30 min", "No pre/post work"))
+  )
+question7$y <- c(0.33, 0.73, 0.045, 0.94)
+
+
+
+ggplot(question7) +
+  geom_col(aes(x = 0, y = percent, fill = Time)) +
+  geom_text(aes(x = 0, y = y, label = paste0(round(100 * percent, 2), "%\n", "(", count, ")"),
+                color = color), family = "Fira Sans") +
+  labs(x = NULL, y = NULL, title = "Participants are ideally willing to engage in <span style = 'color:#043B50;'>0-30 mins</span> per session") +
+  guides(color = F, fill = guide_legend(reverse = T)) +
+  scale_color_manual(values = c("FALSE" = "black", "TRUE" = "white")) +
+  scale_x_discrete() +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = col(4)) +
+  coord_flip() +
+  theme_bw() +
+  theme(
+    legend.position = "bottom",
+    axis.text.y = element_markdown(),
+    panel.border = element_blank(),
+    plot.title = element_markdown(hjust = 0.5, family = "Fira Sans", lineheight = 1.25),
+    text = element_text(family = "Fira Sans"),
+    # panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank()
+  ) +
+  ggsave(here("Images/question7.png"))
+```
+
+```{r}
+item10 <- clean_data %>%
+  select(20:23) %>%
+  mutate(across(everything(), ~ str_remove(.x, "\\([:digit:]\\)"))) %>%
+  mutate(across(everything(), ~ str_trim(.x))) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "Understanding") %>%
+  group_by(Question, `Understanding`) %>%
+  summarise(count = n()) %>%
+  # drop_na() %>%
+  group_by(Question) %>%
+  mutate(percent = count / sum(count)) %>%
+  mutate(Understanding = str_wrap(Understanding, width = 20)) %>%
+  mutate(Understanding = str_replace_all(Understanding, "\n", "<br>")) %>%
+  mutate(Understanding = factor(Understanding, levels = c("I need to go over<br>this again", "I think I get it but<br>am not completely<br>comfortable", "I get it", "I can explain it to<br>someone else"))) %>%
+  mutate(Question = str_wrap(Question, width = 30)) %>%
+  mutate(Question = str_replace_all(Question, "\n", "<br>")) %>%
+  arrange(Understanding)
+
+
+ggplot(item10) +
+  geom_col(aes(x = fct_reorder(Question, percent), y = `percent`, fill = fct_rev(`Understanding`)), color = "black", size = 0.18, position = position_stack(reverse = F)) +
+  geom_text(aes(x = fct_reorder(Question, percent), y = `percent`, 
+                label = if_else(percent > 0.1, paste0(round(100 * percent, 2), "%"), "")),
+                position = position_stack(vjust = 0.5, reverse = F), 
+            family = "Fira Sans") +
+  labs(x = NULL, y = NULL, title = "Participants Report Understanding the Learning Targets") +
+  guides(color = F, fill = guide_legend(reverse = T, override.aes = list(size = 1))) +
+  scale_color_manual(values = c("FALSE" = "black", "TRUE" = "white")) +
+  scale_x_discrete() +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = rev(col(4))) +
+  coord_flip() +
+  theme_bw() +
+  theme(
+    legend.position = "bottom",
+    legend.text = element_markdown(size = 12),
+    legend.title = element_blank(),
+    legend.key.width = unit(1.15, "cm"),
+    axis.text.y = element_markdown(lineheight = 1.15, size = 14),
+    panel.border = element_blank(),
+    plot.title = element_markdown(hjust = 0.5, family = "Fira Sans", lineheight = 1.25, size = 16),
+    text = element_text(family = "Fira Sans"),
+    # panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank()
+  ) +
+  ggsave(here("Images/item10.png"), width = 12)
+```
+
+```{r}
+item11 <- clean_data %>%
+  select(24:37) %>%
+  mutate(across(everything(), ~ str_remove_all(.x, "[:alpha:]"))) %>%
+  mutate(across(everything(), ~ str_remove_all(.x, "\\."))) %>%
+  mutate(across(everything(), ~ str_remove_all(.x, "-"))) %>%
+  mutate(across(everything(), ~ as.numeric(.x))) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "Score") %>%
+  group_by(Question) %>%
+  summarise(mean_score = mean(Score)) %>%
+  mutate(prepost = case_when(row_number() %% 2 == 1~ "Post",
+                             row_number() %% 2 != 1 ~ "Pre")) %>%
+  mutate(Question = str_wrap(Question, width = 30)) %>%
+  mutate(Question = str_replace_all(Question, "\n", "<br>"))
+
+item11_segments <- tibble(
+  x = item11 %>% filter(str_detect(Question, "Before")) %>% pull(mean_score),
+  xend = item11 %>% filter(str_detect(Question, "After")) %>% pull(mean_score),
+  y = item11 %>% filter(str_detect(Question, "Before")) %>% pull(Question),
+  yend = item11 %>% filter(str_detect(Question, "After")) %>% pull(Question)
+)
+
+ggplot() +
+  geom_point(data = item11, mapping = aes(color = prepost, x = mean_score, y = Question, size = mean_score)) +
+  geom_segment(data = mindsets_segments, mapping = aes(x = x, xend = xend, y = y, yend = yend, alpha = 0.7), color = "black", size = 0.3, arrow = arrow(length = unit(0.1, "inches"))) +
+  geom_richtext(data = mindsets_segments, fill = NA, label.color = NA,
+                aes(x = text_fall, y = y, label = paste0(x, "%")), 
+                color = "#ff7b43", vjust = -0.5, size = 4.85) +
+  geom_richtext(data = mindsets_segments, fill = NA, label.color = NA,
+                aes(x = text_spring, y = y, label = paste0(xend, "%")), 
+                color = "#00acf0", vjust = -0.5, size = 4.85) +
+  scale_color_manual(values = c("#ff7b43", "#00acf0")) +
+  scale_x_continuous(labels = scales::percent_format(scale = 1), breaks = scales::pretty_breaks(n = 5)) +
+  labs(x = NULL, y = NULL,
+       title = "Educators holding growth mindsets and high expectations in <span style = 'color:#ff7b43;'>Fall</span> and <span style = 'color:#00acf0;'>Spring</span>") +
+  theme_bw() +
+  theme(panel.border = element_blank(),
+        legend.position = "none",
+        plot.title = element_markdown(hjust = 0.5, family = "Fira Sans", size = 20),
+        text = element_text(family = "Open Sans"),
+        axis.text.y = element_markdown(hjust = 0.5, lineheight = 1.1, size = 14),
+        axis.text.x = element_markdown(size = 14))
+```
+

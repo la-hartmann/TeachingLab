@@ -1,0 +1,291 @@
+---
+title: End of Course Delaware, DE Report
+author: Teaching Lab 
+date: \today
+params:
+  logo: teachinglab_logo.png
+  cover: cover.png
+  iblue: 04abeb
+  igray: d4dbde
+documentclass: article
+fontsize: 10
+papersize: a4paper
+output: 
+  IReports::businessReport:
+    keep_tex: TRUE
+    latex_engine: xelatex
+    resetStyleFiles: FALSE
+header-includes: 
+  - \newcommand{\logo}{`r gsub("_", "\\_", params$logo)`}
+  - \newcommand{\cover}{`r gsub("_", "\\_", params$cover)`}
+  - \newcommand{\iblue}{`r params$iblue`}
+  - \newcommand{\igray}{`r params$igray`}
+include-before:
+  - \renewcommand{\contentsname}{Table of Contents}
+  - \renewcommand{\pagename}{Page}
+  - \def\tightlist{}
+---
+
+
+
+```{r setup, include = FALSE}
+# packages
+library(tidyverse)
+library(gt)
+library(lubridate)
+library(TeachingLab)
+library(scales)
+library(knitr)
+
+# data
+course_survey <- readr::read_rds(here::here("data/course_survey_21_22.rds")) %>%
+  filter(date_created >= as.Date("2021-12-01"))
+
+# settings
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, dev = "cairo_pdf", 
+                      fig.width = 7, fig.height = 9.15, fig.align = "center")
+na_df <- c("none", "n/a", "N/A", "N/a", "NA", "na", "none", "none.", "na.", "NA.", "N/A.", "No Response", "nothing", 
+           "nothing.", "Nothing.", "0", "nada", "Nothing", "None", "None.")
+
+n <- course_survey %>%
+  nrow
+```
+
+\maketitle
+\tableofcontents
+\addcontentsline{toc}{section}{Contents}
+\clearpage
+
+\section{Likert Ratings}
+
+There have been `r n` responses given by Delaware Department of Education, DE participants, they largely gave positive feedback when asked questions about a variety of ways to assess the effectiveness of the facilitation of their courses.
+```{r}
+plot_agree <- course_survey %>%
+  select(c(
+          "How much do you agree with the following statements about this course? - I am satisfied with the overall quality of this course.",
+          "How much do you agree with the following statements about this course? - I am satisfied with how the course was facilitated.",
+          "How much do you agree with the following statements about this course? - The independent online work activities were well-designed to help me meet the learning targets.",
+          "How much do you agree with the following statements about this course? - I felt a sense of community with the other participants in this course. even though we were meeting virtually.",
+          "How much do you agree with the following statements about this course? - The strategies I’ve learned in this course will improve my instruction.",
+          "How much do you agree with the following statements about this course? - The strategies I’ve learned in this course will improve my coaching or supervision of teachers.",
+          "How much do you agree with the following statements about this course? - The strategies I’ve learned in the course are easy to implement.",
+          "How much do you agree with the following statements about this course? - I will apply what I have learned in this course to my practice in the next 4-6 weeks.",
+          "How much do you agree with the following statements about this course? - This course has supported me in being responsive to students' backgrounds, cultures, and points of view."
+        )) %>%
+        pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+        drop_na() %>%
+        dplyr::mutate(Question = str_remove_all(
+          Question,
+          "How much do you agree with the following statements about this course\\? - "
+        )) %>%
+        group_by(Question, Response) %>%
+        count() %>%
+        ungroup() %>%
+        group_by(Question) %>%
+        mutate(Question = str_wrap(Question, width = 30)) %>%
+        summarise(
+          n = n,
+          Response = Response,
+          Percent = n / sum(n) * 100
+        )
+  
+ggplot(data = plot_agree, aes(x = Question, y = Percent, fill = factor(Response))) +
+        geom_col() +
+        geom_text(aes(label = if_else(Percent >= 3, paste0(round(Percent), "%"), "")), position = position_stack(vjust = 0.5)) +
+        scale_fill_manual(values = c(
+          "(1) Strongly disagree" = "#040404", "(2) Disagree" = "#032E3F",
+          "(3) Neither agree nor disagree" = "#02587A", "(4) Agree" = "#0182B4", "(5) Strongly agree" = "#00ACF0"
+        )) +
+        labs(
+          fill = "", title = "Participant Perceptions of Course",
+          x = "", y = ""
+        ) +
+        coord_flip() +
+        guides(fill = guide_legend(reverse = T)) +
+        scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+        theme_tl(legend = T) +
+        theme(
+          axis.text.x = element_blank(),
+          axis.text.y = element_text(lineheight = 1.1, size = 12),
+          legend.position = "bottom",
+          plot.title = element_text(lineheight = 1.1, size = 16, face = "bold"),
+          plot.subtitle = element_text(size = 14, face = "bold"),
+          legend.key.size = unit(0.75, "cm"),
+          legend.text = element_text(size = 9)
+        )
+```
+
+
+
+\subsection{Percent Agree and Strongly Agree}
+
+
+
+
+In summary, we see the following % agree or strongly agree with the above statements:
+
+
+- `r plot_agree %>% filter(Question == "This course has supported\nme in being responsive\nto students' backgrounds,\ncultures, and points of view." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%")` strongly agree or agree that the course has supported me in being responsive to students' backgrounds, cultures, and points of view.
+- `r plot_agree %>% filter(Question == "The strategies I’ve learned\nin this course will improve my\ninstruction." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%")` strongly agree or agree that they've learned in this course will improve my instruction.
+- `r plot_agree %>% filter(Question == "The strategies I’ve learned\nin this course will improve\nmy coaching or supervision of\nteachers." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%")` strongly agree or agree that they facilitated the content clearly.
+- `r plot_agree %>% filter(Question == "The strategies I’ve learned\nin the course are easy to\nimplement." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%")` strongly agree or agree that the strategies I’ve learned in the course are easy to implement.
+- `r plot_agree %>% filter(Question == "The independent online work\nactivities were well-designed\nto help me meet the learning\ntargets." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%")` strongly agree or agree that the independent online work activities were well-designed to help me meet learning targets.
+- `r plot_agree %>% filter(Question == "I will apply what I have\nlearned in this course to\nmy practice in the next 4-6\nweeks." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%")` strongly agree or agree that they will apply what they have learned in the course to their practice in the next 4-6 weeks.
+- `r plot_agree %>% filter(Question == "I felt a sense of community\nwith the other participants\nin this course. even though we\nwere meeting virtually." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%")` strongly agree or agree that they felt a sense of community with the other participants in the course even though they were meeting virtually.
+- `r plot_agree %>% filter(Question == "I am satisfied with the\noverall quality of this\ncourse." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%")` strongly agree or agree that they responded to the group's needs.
+- `r plot_agree %>% filter(Question == "I am satisfied with how the\ncourse was facilitated." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%")` strongly agree or agree that they were satisfied with how the course was facilitated.
+
+
+\section{Qualitative Participant Feedback}
+
+Finally responses to the following questions are presented below:
+
+- What could have been better about today's session?
+
+- What went well in today's session?
+
+- What additional feedback do you have about their facilitation skills?
+
+\subsection{Overall, what went well in the course?}
+
+```{r include = F}
+course_survey %>%
+  select(`Overall, what went well in this course?`) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+  drop_na() %>%
+  filter(Response %!in% na_df) %>%
+  select(Response) %>%
+  slice(c(1:10)) %>%
+  quote_viz(
+        data = ., text_col = "Response", viz_type = "gt",
+        title = "Overall, what went well in the course?",
+        width = 60, align = "center"
+      ) %>%
+    gtsave("img1.png", path = here::here("Images/2021-2022/lindsay_de"), vwidth = 2000, vheight = 100, zoom = 0.75)
+# tibble(Quotes = "No Responses at this Site") %>%
+#     gt::gt() %>%
+#     gt_theme_tl() %>%
+#     gtsave("img1.png", path = here::here("Images/2021-2022/lindsay_de"), vwidth = 800, vheight = 700, zoom = 1)
+```
+
+```{r }
+knitr::include_graphics(here::here("Images/2021-2022/lindsay_de/img1.png"))
+```
+
+\subsection{Overall, what could have been better in this course?}
+
+```{r include = F}
+course_survey %>%
+  select(`Overall, what could have been better in this course?`) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+  drop_na() %>%
+  filter(Response %!in% na_df) %>%
+  select(Response) %>%
+  slice_sample(n = 10) %>%
+  quote_viz(
+        data = ., text_col = "Response", viz_type = "gt",
+        title = "Overall, what could have been better in this course?",
+        width = 60, align = "center"
+      ) %>%
+  gtsave("img2.png", path = here::here("Images/2021-2022/lindsay_de"), vwidth = 2000, vheight = 100, zoom = 0.85)
+# tibble(Quotes = "No Responses at this Site") %>%
+#     gt::gt() %>%
+#     gt_theme_tl() %>%
+#     gtsave("img2.png", path = here::here("Images/2021-2022/lindsay_de"), vwidth = 800, vheight = 700, zoom = 1)
+```
+
+```{r }
+knitr::include_graphics(here::here("Images/2021-2022/lindsay_de/img2.png"))
+```
+
+\subsection{What is the learning from this course that you are most excited about trying out?}
+
+```{r include = F}
+course_survey %>%
+  select(`What is the learning from this course that you are most excited about trying out?`) %>%
+  mutate(length = str_length(`What is the learning from this course that you are most excited about trying out?`)) %>%
+  arrange(desc(length)) %>%
+  filter(length < 200) %>%
+  select(-length) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+  drop_na() %>%
+  filter(Response %!in% na_df) %>%
+  select(Response) %>%
+  slice_sample(n = 10) %>%
+  quote_viz(
+          data = ., text_col = "Response", viz_type = "gt",
+          title = "What is the learning from this course that<br>you are most excited about trying out?",
+          width = 60, align = "center"
+        ) %>%
+    gtsave("img3.png", path = here::here("Images/2021-2022/lindsay_de"), vwidth = 2000, vheight = 100, zoom = 1)
+# tibble(Quotes = "No Responses at this Site") %>%
+#     gt::gt() %>%
+#     gt_theme_tl() %>%
+#     gtsave("img3.png", path = here::here("Images/2021-2022/lindsay_de"), vwidth = 800, vheight = 700, zoom = 1)
+```
+
+```{r }
+knitr::include_graphics(here::here("Images/2021-2022/lindsay_de/img3.png"))
+```
+
+
+\subsection{Which activities best supported your learning in this course?}
+
+```{r include = F}
+course_survey %>%
+  select(`Which activities best supported your learning in this course?`) %>%
+  mutate(length = str_length(`Which activities best supported your learning in this course?`)) %>%
+  arrange(desc(length)) %>%
+  filter(length < 200) %>%
+  select(-length) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+  drop_na() %>%
+  filter(Response %!in% na_df) %>%
+  select(Response) %>%
+  slice_sample(n = 10) %>%
+  quote_viz(
+          data = ., text_col = "Response", viz_type = "gt",
+          title = "What is the learning from this course that<br>you are most excited about trying out?",
+          width = 60, align = "center"
+        ) %>%
+    gtsave("img4.png", path = here::here("Images/2021-2022/lindsay_de"), vwidth = 2000, vheight = 100, zoom = 1)
+# tibble(Quotes = "No Responses at this Site") %>%
+#     gt::gt() %>%
+#     gt_theme_tl() %>%
+#     gtsave("img4.png", path = here::here("Images/2021-2022/lindsay_de"), vwidth = 800, vheight = 700, zoom = 1)
+```
+
+```{r }
+knitr::include_graphics(here::here("Images/2021-2022/lindsay_de/img4.png"))
+```
+
+
+\subsection{Feel free to leave us any additional comments, concerns, or questions.}
+
+```{r include = F}
+course_survey %>%
+  select(`Feel free to leave us any additional comments, concerns, or questions.`) %>%
+  mutate(length = str_length(`Feel free to leave us any additional comments, concerns, or questions.`)) %>%
+  arrange(desc(length)) %>%
+  filter(length < 200) %>%
+  select(-length) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+  drop_na() %>%
+  filter(Response %!in% na_df) %>%
+  select(Response) %>%
+  slice_sample(n = 10) %>%
+  quote_viz(
+          data = ., text_col = "Response", viz_type = "gt",
+          title = "What is the learning from this course that<br>you are most excited about trying out?",
+          width = 60, align = "center"
+        ) %>%
+  gtsave("img5.png", path = here::here("Images/2021-2022/lindsay_de"), vwidth = 800, vheight = 700, zoom = 1)
+# tibble(Quotes = "No Responses at this Site") %>%
+#     gt::gt() %>%
+#     gt_theme_tl() %>%
+#     gtsave("img5.png", path = here::here("Images/2021-2022/lindsay_de"), vwidth = 800, vheight = 700, zoom = 1)
+```
+
+```{r }
+knitr::include_graphics(here::here("Images/2021-2022/lindsay_de/img5.png"))
+```

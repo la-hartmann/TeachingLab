@@ -1,0 +1,814 @@
+---
+title: "Teaching Lab San Diego IM Report"
+subtitle: "Courses Include IM K-5 Inquiry Cycle I, and IM 6-12 Inquiry Cycle I"
+output: 
+  html_document:
+    css: "style.css"
+    theme:
+      bg: "white"
+      fg: "black"
+      primary: "#04abeb"
+      secondary: "#00DAC6"
+      base_font:
+        Calibri
+      heading_font:
+        Montserrat
+---
+
+```{r setup, include=FALSE}
+if (requireNamespace("thematic")) 
+  thematic::thematic_rmd(font = "auto")
+library(tidyverse)
+library(TeachingLab)
+knitr::opts_chunk$set(echo = F, warning = F, message = F)
+na_df <- c("none", "None", "n/a", "N/A", "N/a", "NA", "na", "none", "none.", "na.", "NA.", "N/A.", "No Response")
+# library(surveymonkey)
+# options(sm_oauth_token = "BjVjlV9MiVBgfe1XpS2xPS547c6gkAygKWAgm4Vv539-KbFct5lsqyVGRCZun0GDt21lnJrgn9hDvSjF.KybF58vc.P.jdeKJ8A2UEUHnE2.50e0lp.86EmQmy8-y9tm")
+# session_survey <- surveymonkey::fetch_survey_obj(id = 308115193) %>%
+#   surveymonkey::parse_survey() %>%
+#   dplyr::mutate(date_created = lubridate::date(date_created)) %>%
+#   dplyr::mutate(`Select your course.` = dplyr::coalesce(`Select your course.`, `Select your course._2`, `Select your course._3`,
+#                                           `Select your course._4`, `Select your course._5`, `Select your course._6`)) %>%
+#   dplyr::mutate(Date = lubridate::mdy(`Select the date for this session. - \n    Date / Time\n`)) %>%
+#   # Fix this cluttering of names the others result in a bunch of differernt formats
+#   dplyr::mutate(dplyr::across(c("Select the name of your facilitator.", "Select the name of your facilitator. - Other (please specify)",
+#                   "Select the name of your facilitator._2", "Select the name of your facilitator. - Other (please specify)_2",
+#                   "Select the name of your facilitator._3", "Select the name of your facilitator. - Other (please specify)_3"), ~ dplyr::na_if(.x, "Name"))) %>%
+#   dplyr::mutate(Facilitator = dplyr::coalesce(`Select the name of your facilitator.`,
+#                                 `Select the name of your facilitator._2`,
+#                                 `Select the name of your facilitator._3`,
+#                                 `Select the name of your facilitator. - Other (please specify)_2`,
+#                                 `Select the name of your facilitator. - Other (please specify)_3`),
+#          Facilitation_Feedback = dplyr::coalesce(`What additional feedback do you have about their facilitation skills?`,
+#                                           `What additional feedback do you have about their facilitation skills?_2`,
+#                                           `What additional feedback do you have about their facilitation skills?_3`)) %>%
+# dplyr::mutate(`How much do you agree with the following statements about this facilitator today? - They demonstrated  deep knowledge of the content they facilitated.` =
+#          dplyr::coalesce(`How much do you agree with the following statements about this facilitator today? - They demonstrated  deep knowledge of the content they facilitated.`,
+#                   `How much do you agree with the following statements about this facilitator today? - They demonstrated  deep knowledge of the content they facilitated._2`,
+#                   `How much do you agree with the following statements about this facilitator today? - They demonstrated  deep knowledge of the content they facilitated._3`)) %>%
+# dplyr::mutate(`How much do you agree with the following statements about this facilitator today? - They facilitated the content clearly.` =
+#          dplyr::coalesce(`How much do you agree with the following statements about this facilitator today? - They facilitated the content clearly.`,
+#                   `How much do you agree with the following statements about this facilitator today? - They facilitated the content clearly._2`,
+#                   `How much do you agree with the following statements about this facilitator today? - They facilitated the content clearly._3`)) %>%
+# dplyr::mutate(`How much do you agree with the following statements about this facilitator today? - They effectively built a safe learning community.` =
+#          dplyr::coalesce(`How much do you agree with the following statements about this facilitator today? - They effectively built a safe learning community.`,
+#                   `How much do you agree with the following statements about this facilitator today? - They effectively built a safe learning community._2`,
+#                   `How much do you agree with the following statements about this facilitator today? - They effectively built a safe learning community._3`)) %>%
+# dplyr::mutate(`How much do you agree with the following statements about this facilitator today? - They were fully prepared for the session.` =
+#          dplyr::coalesce(`How much do you agree with the following statements about this facilitator today? - They were fully prepared for the session.`,
+#                   `How much do you agree with the following statements about this facilitator today? - They were fully prepared for the session._2`,
+#                   `How much do you agree with the following statements about this facilitator today? - They were fully prepared for the session._3`)) %>%
+# dplyr::mutate(`How much do you agree with the following statements about this facilitator today? - They responded to the group’s needs.` =
+#          dplyr::coalesce(`How much do you agree with the following statements about this facilitator today? - They responded to the group’s needs.`,
+#                   `How much do you agree with the following statements about this facilitator today? - They responded to the group’s needs._2`,
+#                   `How much do you agree with the following statements about this facilitator today? - They responded to the group’s needs._3`))
+# 
+# filtered <- session_survey %>%
+#   dplyr::filter(`Select your site (district, parish, network, or school).` == "San Diego Unified School District, CA") %>%
+#   dplyr::filter(Date >= as.Date("2021-10-05"))
+
+# write_rds(filtered, here::here("Data-Clean/surveymonkey_session_sandiego2.rds"))
+
+df <- read_rds(here::here("Data-Clean/surveymonkey_session_sandiego2.rds")) %>%
+  select(-survey_id, -collector_id, -respondent_id, -date_created, -date_modified, -response_status) %>%
+  rename(`How much do you agree with the following statements about this facilitator today? - They responded to the group's needs.` = `How much do you agree with the following statements about this facilitator today? - They responded to the group’s needs.`) %>%
+  dplyr::filter(`Select your course.` %in% c("IM 6-12: Cycle of Inquiry I: Eliciting Student Thinking",
+                                             "IM K-5 Cycle of Inquiry I: Eliciting Student Thinking"))
+
+df_split <- df %>%
+  group_by(Facilitator) %>%
+  group_split()
+
+map(1:length(df_split), ~ assign(df_split[[.x]]$Facilitator[1] %>% str_replace_all(., " ", "_"), 
+                                 df_split[[.x]],
+                                 envir = .GlobalEnv))
+
+course_survey <- read_rds(here::here("data/course_surveymonkey.rds")) %>%
+  filter(`Select your site (district, parish, network, or school).` == "San Diego Unified School District")
+```
+
+
+Below I compile participant feedback for all quantifiable questions for each facilitator on the left side of the tab, and qualitative feedback on the right side.
+
+## Facilitator Feedback {.tabset .tabset-pills}
+
+
+### Bethany Brown
+
+<div class = "row">
+<div class = "col-md-6">
+
+#### Quantitative
+
+```{r fig.width = 10, fig.height = 10}
+bethany_agree <- Bethany_Brown %>%
+  select(c(
+          "How much do you agree with the following statements about this facilitator today? - They demonstrated  deep knowledge of the content they facilitated.",
+          "How much do you agree with the following statements about this facilitator today? - They facilitated the content clearly.",
+          "How much do you agree with the following statements about this facilitator today? - They effectively built a safe learning community.",
+          "How much do you agree with the following statements about this facilitator today? - They were fully prepared for the session.",
+          "How much do you agree with the following statements about this facilitator today? - They responded to the group's needs."
+        )) %>%
+        pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+        drop_na() %>%
+        dplyr::mutate(Question = str_remove_all(
+          Question,
+          "How much do you agree with the following statements about this facilitator today\\? - "
+        )) %>%
+        group_by(Question, Response) %>%
+        count() %>%
+        ungroup() %>%
+        group_by(Question) %>%
+        mutate(Question = str_wrap(Question, width = 30)) %>%
+        summarise(
+          n = n,
+          Response = Response,
+          Percent = n / sum(n) * 100
+        )
+bethany_agree %>%
+  ggplot(aes(x = Question, y = Percent, fill = factor(Response))) +
+        geom_col() +
+        geom_text(aes(label = if_else(Percent >= 3, paste0(round(Percent), "%"), "")), position = position_stack(vjust = 0.5)) +
+        scale_fill_manual(values = c(
+          "(1) Strongly disagree" = "#040404", "(2) Disagree" = "#032E3F",
+          "(3) Neither agree nor disagree" = "#02587A", "(4) Agree" = "#0182B4", "(5) Strongly agree" = "#00ACF0"
+        )) +
+        labs(
+          fill = "", title = "Percent that Agree/Strongly Agree with\nEach of the Following Statements",
+          x = "", y = "", caption = paste0("n = ", bethany_agree %>% group_by(Question) %>% 
+            summarise(n = sum(n)) %>% select(n) %>% slice(1))
+        ) +
+        coord_flip() +
+        guides(fill = guide_legend(reverse = T)) +
+        scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+        theme_tl(legend = T) +
+        theme(
+          axis.text.x = element_blank(),
+          axis.text.y = element_text(lineheight = 1.1, size = 14),
+          legend.position = "bottom",
+          plot.title = element_text(lineheight = 1.1, size = 20, face = "bold"),
+          legend.key.size = unit(1.25, "cm"),
+          legend.text = element_text(size = 9)
+        )
+```
+
+</div>
+
+<div class = "col-md-5">
+
+#### Qualitative
+
+```{r fig.align = "left"}
+Bethany_Brown %>%
+  select(Facilitation_Feedback, `What went well in today’s session?`, `What could have been better about today’s session?`) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+  drop_na() %>%
+  filter(Response %!in% na_df) %>%
+  mutate(Question = str_replace_all(Question, "Facilitation_Feedback", "What additional feedback do you have about their facilitation skills?")) %>%
+  TeachingLab::quote_viz(., text_col = "Response", extra_cols = "Question", align = "left",
+                         title = glue::glue("All Responses for {Bethany_Brown$Facilitator[1]}"),
+                         width = 90)
+```
+
+</div>
+</div>
+
+### Callie Herring
+
+<div class = "row">
+<div class = "col-md-6">
+
+#### Quantitative
+
+```{r fig.width = 10, fig.height = 10}
+callie_agree <- Callie_Herring %>%
+  select(c(
+          "How much do you agree with the following statements about this facilitator today? - They demonstrated  deep knowledge of the content they facilitated.",
+          "How much do you agree with the following statements about this facilitator today? - They facilitated the content clearly.",
+          "How much do you agree with the following statements about this facilitator today? - They effectively built a safe learning community.",
+          "How much do you agree with the following statements about this facilitator today? - They were fully prepared for the session.",
+          "How much do you agree with the following statements about this facilitator today? - They responded to the group's needs."
+        )) %>%
+        pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+        drop_na() %>%
+        dplyr::mutate(Question = str_remove_all(
+          Question,
+          "How much do you agree with the following statements about this facilitator today\\? - "
+        )) %>%
+        group_by(Question, Response) %>%
+        count() %>%
+        ungroup() %>%
+        group_by(Question) %>%
+        mutate(Question = str_wrap(Question, width = 30)) %>%
+        summarise(
+          n = n,
+          Response = Response,
+          Percent = n / sum(n) * 100
+        )
+callie_agree %>%
+  ggplot(aes(x = Question, y = Percent, fill = factor(Response))) +
+        geom_col() +
+        geom_text(aes(label = if_else(Percent >= 3, paste0(round(Percent), "%"), "")), position = position_stack(vjust = 0.5)) +
+        scale_fill_manual(values = c(
+          "(1) Strongly disagree" = "#040404", "(2) Disagree" = "#032E3F",
+          "(3) Neither agree nor disagree" = "#02587A", "(4) Agree" = "#0182B4", "(5) Strongly agree" = "#00ACF0"
+        )) +
+        labs(
+          fill = "", title = "Percent that Agree/Strongly Agree with\nEach of the Following Statements",
+          x = "", y = "", caption = paste0("n = ", callie_agree %>% group_by(Question) %>% 
+            summarise(n = sum(n)) %>% select(n) %>% slice(1))
+        ) +
+        coord_flip() +
+        guides(fill = guide_legend(reverse = T)) +
+        scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+        theme_tl(legend = T) +
+        theme(
+          axis.text.x = element_blank(),
+          axis.text.y = element_text(lineheight = 1.1, size = 14),
+          legend.position = "bottom",
+          plot.title = element_text(lineheight = 1.1, size = 20, face = "bold"),
+          legend.key.size = unit(1.25, "cm"),
+          legend.text = element_text(size = 9)
+        )
+```
+
+</div>
+
+<div class = "col-md-5">
+
+#### Qualitative
+
+```{r fig.align = "left"}
+Callie_Herring %>%
+  select(Facilitation_Feedback, `What went well in today’s session?`, `What could have been better about today’s session?`) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+  drop_na() %>%
+  filter(Response %!in% na_df) %>%
+  mutate(Question = str_replace_all(Question, "Facilitation_Feedback", "What additional feedback do you have about their facilitation skills?")) %>%
+  TeachingLab::quote_viz(., text_col = "Response", extra_cols = "Question", align = "left",
+                         title = glue::glue("All Responses for {Callie_Herring$Facilitator[1]}"),
+                         width = 90)
+```
+
+</div>
+</div>
+
+### Emily Griffin
+
+<div class = "row">
+<div class = "col-md-6">
+
+#### Quantitative
+
+```{r fig.width = 10, fig.height = 10}
+emily_agree <- Emily_Griffin %>%
+  select(c(
+          "How much do you agree with the following statements about this facilitator today? - They demonstrated  deep knowledge of the content they facilitated.",
+          "How much do you agree with the following statements about this facilitator today? - They facilitated the content clearly.",
+          "How much do you agree with the following statements about this facilitator today? - They effectively built a safe learning community.",
+          "How much do you agree with the following statements about this facilitator today? - They were fully prepared for the session.",
+          "How much do you agree with the following statements about this facilitator today? - They responded to the group's needs."
+        )) %>%
+        pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+        drop_na() %>%
+        dplyr::mutate(Question = str_remove_all(
+          Question,
+          "How much do you agree with the following statements about this facilitator today\\? - "
+        )) %>%
+        group_by(Question, Response) %>%
+        count() %>%
+        ungroup() %>%
+        group_by(Question) %>%
+        mutate(Question = str_wrap(Question, width = 30)) %>%
+        summarise(
+          n = n,
+          Response = Response,
+          Percent = n / sum(n) * 100
+        )
+emily_agree %>%
+  ggplot(aes(x = Question, y = Percent, fill = factor(Response))) +
+        geom_col() +
+        geom_text(aes(label = if_else(Percent >= 3, paste0(round(Percent), "%"), "")), position = position_stack(vjust = 0.5)) +
+        scale_fill_manual(values = c(
+          "(1) Strongly disagree" = "#040404", "(2) Disagree" = "#032E3F",
+          "(3) Neither agree nor disagree" = "#02587A", "(4) Agree" = "#0182B4", "(5) Strongly agree" = "#00ACF0"
+        )) +
+        labs(
+          fill = "", title = "Percent that Agree/Strongly Agree with\nEach of the Following Statements",
+          x = "", y = "", caption = paste0("n = ", emily_agree %>% group_by(Question) %>% 
+            summarise(n = sum(n)) %>% select(n) %>% slice(1))
+        ) +
+        coord_flip() +
+        guides(fill = guide_legend(reverse = T)) +
+        scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+        theme_tl(legend = T) +
+        theme(
+          axis.text.x = element_blank(),
+          axis.text.y = element_text(lineheight = 1.1, size = 14),
+          legend.position = "bottom",
+          plot.title = element_text(lineheight = 1.1, size = 20, face = "bold"),
+          legend.key.size = unit(1.25, "cm"),
+          legend.text = element_text(size = 9)
+        )
+```
+
+</div>
+
+<div class = "col-md-5">
+
+#### Qualitative
+
+```{r fig.align = "left"}
+Emily_Griffin %>%
+  select(Facilitation_Feedback, `What went well in today’s session?`, `What could have been better about today’s session?`) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+  drop_na() %>%
+  filter(Response %!in% na_df) %>%
+  mutate(Question = str_replace_all(Question, "Facilitation_Feedback", "What additional feedback do you have about their facilitation skills?")) %>%
+  TeachingLab::quote_viz(., text_col = "Response", extra_cols = "Question", align = "left",
+                         title = glue::glue("All Responses for {Emily_Griffin$Facilitator[1]}"),
+                         width = 90)
+```
+
+</div>
+</div>
+
+### Emily Howard
+
+<div class = "row">
+<div class = "col-md-6">
+
+#### Quantitative
+
+```{r fig.width = 10, fig.height = 10}
+emily2_agree <- Emily_Howard %>%
+  select(c(
+          "How much do you agree with the following statements about this facilitator today? - They demonstrated  deep knowledge of the content they facilitated.",
+          "How much do you agree with the following statements about this facilitator today? - They facilitated the content clearly.",
+          "How much do you agree with the following statements about this facilitator today? - They effectively built a safe learning community.",
+          "How much do you agree with the following statements about this facilitator today? - They were fully prepared for the session.",
+          "How much do you agree with the following statements about this facilitator today? - They responded to the group's needs."
+        )) %>%
+        pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+        drop_na() %>%
+        dplyr::mutate(Question = str_remove_all(
+          Question,
+          "How much do you agree with the following statements about this facilitator today\\? - "
+        )) %>%
+        group_by(Question, Response) %>%
+        count() %>%
+        ungroup() %>%
+        group_by(Question) %>%
+        mutate(Question = str_wrap(Question, width = 30)) %>%
+        summarise(
+          n = n,
+          Response = Response,
+          Percent = n / sum(n) * 100
+        )
+emily2_agree %>%
+  ggplot(aes(x = Question, y = Percent, fill = factor(Response))) +
+        geom_col() +
+        geom_text(aes(label = if_else(Percent >= 3, paste0(round(Percent), "%"), "")), position = position_stack(vjust = 0.5)) +
+        scale_fill_manual(values = c(
+          "(1) Strongly disagree" = "#040404", "(2) Disagree" = "#032E3F",
+          "(3) Neither agree nor disagree" = "#02587A", "(4) Agree" = "#0182B4", "(5) Strongly agree" = "#00ACF0"
+        )) +
+        labs(
+          fill = "", title = "Percent that Agree/Strongly Agree with\nEach of the Following Statements",
+          x = "", y = "", caption = paste0("n = ", emily2_agree %>% group_by(Question) %>% 
+            summarise(n = sum(n)) %>% select(n) %>% slice(1))
+        ) +
+        coord_flip() +
+        guides(fill = guide_legend(reverse = T)) +
+        scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+        theme_tl(legend = T) +
+        theme(
+          axis.text.x = element_blank(),
+          axis.text.y = element_text(lineheight = 1.1, size = 14),
+          legend.position = "bottom",
+          plot.title = element_text(lineheight = 1.1, size = 20, face = "bold"),
+          legend.key.size = unit(1.25, "cm"),
+          legend.text = element_text(size = 9)
+        )
+```
+
+</div>
+
+<div class = "col-md-5">
+
+#### Qualitative
+
+```{r fig.align = "left"}
+Emily_Howard %>%
+  select(Facilitation_Feedback, `What went well in today’s session?`, `What could have been better about today’s session?`) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+  drop_na() %>%
+  filter(Response %!in% na_df) %>%
+  mutate(Question = str_replace_all(Question, "Facilitation_Feedback", "What additional feedback do you have about their facilitation skills?")) %>%
+  TeachingLab::quote_viz(., text_col = "Response", extra_cols = "Question", align = "left",
+                         title = glue::glue("All Responses for {Emily_Howard$Facilitator[1]}"),
+                         width = 90)
+```
+
+</div>
+</div>
+
+### Gregory Leap
+
+<div class = "row">
+<div class = "col-md-6">
+
+#### Quantitative
+
+```{r fig.width = 10, fig.height = 10}
+gregory_agree <- Gregory_Leap %>%
+  select(c(
+          "How much do you agree with the following statements about this facilitator today? - They demonstrated  deep knowledge of the content they facilitated.",
+          "How much do you agree with the following statements about this facilitator today? - They facilitated the content clearly.",
+          "How much do you agree with the following statements about this facilitator today? - They effectively built a safe learning community.",
+          "How much do you agree with the following statements about this facilitator today? - They were fully prepared for the session.",
+          "How much do you agree with the following statements about this facilitator today? - They responded to the group's needs."
+        )) %>%
+        pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+        drop_na() %>%
+        dplyr::mutate(Question = str_remove_all(
+          Question,
+          "How much do you agree with the following statements about this facilitator today\\? - "
+        )) %>%
+        group_by(Question, Response) %>%
+        count() %>%
+        ungroup() %>%
+        group_by(Question) %>%
+        mutate(Question = str_wrap(Question, width = 30)) %>%
+        summarise(
+          n = n,
+          Response = Response,
+          Percent = n / sum(n) * 100
+        )
+gregory_agree %>%
+  ggplot(aes(x = Question, y = Percent, fill = factor(Response))) +
+        geom_col() +
+        geom_text(aes(label = if_else(Percent >= 3, paste0(round(Percent), "%"), "")), position = position_stack(vjust = 0.5)) +
+        scale_fill_manual(values = c(
+          "(1) Strongly disagree" = "#040404", "(2) Disagree" = "#032E3F",
+          "(3) Neither agree nor disagree" = "#02587A", "(4) Agree" = "#0182B4", "(5) Strongly agree" = "#00ACF0"
+        )) +
+        labs(
+          fill = "", title = "Percent that Agree/Strongly Agree with\nEach of the Following Statements",
+          x = "", y = "", caption = paste0("n = ", gregory_agree %>% group_by(Question) %>% 
+            summarise(n = sum(n)) %>% select(n) %>% slice(1))
+        ) +
+        coord_flip() +
+        guides(fill = guide_legend(reverse = T)) +
+        scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+        theme_tl(legend = T) +
+        theme(
+          axis.text.x = element_blank(),
+          axis.text.y = element_text(lineheight = 1.1, size = 14),
+          legend.position = "bottom",
+          plot.title = element_text(lineheight = 1.1, size = 20, face = "bold"),
+          legend.key.size = unit(1.25, "cm"),
+          legend.text = element_text(size = 9)
+        )
+```
+
+</div>
+
+<div class = "col-md-5">
+
+#### Qualitative
+
+```{r fig.align = "left"}
+Gregory_Leap %>%
+  select(Facilitation_Feedback, `What went well in today’s session?`, `What could have been better about today’s session?`) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+  drop_na() %>%
+  filter(Response %!in% na_df) %>%
+  mutate(Question = str_replace_all(Question, "Facilitation_Feedback", "What additional feedback do you have about their facilitation skills?")) %>%
+  TeachingLab::quote_viz(., text_col = "Response", extra_cols = "Question", align = "left",
+                         title = glue::glue("All Responses for {Gregory_Leap$Facilitator[1]}"),
+                         width = 90)
+```
+
+</div>
+</div>
+
+### Hanady Elsayed
+
+<div class = "row">
+<div class = "col-md-6">
+
+#### Quantitative
+
+```{r fig.width = 10, fig.height = 10}
+hanady_agree <- Hanady_Elsayed %>%
+  select(c(
+          "How much do you agree with the following statements about this facilitator today? - They demonstrated  deep knowledge of the content they facilitated.",
+          "How much do you agree with the following statements about this facilitator today? - They facilitated the content clearly.",
+          "How much do you agree with the following statements about this facilitator today? - They effectively built a safe learning community.",
+          "How much do you agree with the following statements about this facilitator today? - They were fully prepared for the session.",
+          "How much do you agree with the following statements about this facilitator today? - They responded to the group's needs."
+        )) %>%
+        pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+        drop_na() %>%
+        dplyr::mutate(Question = str_remove_all(
+          Question,
+          "How much do you agree with the following statements about this facilitator today\\? - "
+        )) %>%
+        group_by(Question, Response) %>%
+        count() %>%
+        ungroup() %>%
+        group_by(Question) %>%
+        mutate(Question = str_wrap(Question, width = 30)) %>%
+        summarise(
+          n = n,
+          Response = Response,
+          Percent = n / sum(n) * 100
+        )
+hanady_agree %>%
+  ggplot(aes(x = Question, y = Percent, fill = factor(Response))) +
+        geom_col() +
+        geom_text(aes(label = if_else(Percent >= 3, paste0(round(Percent), "%"), "")), position = position_stack(vjust = 0.5)) +
+        scale_fill_manual(values = c(
+          "(1) Strongly disagree" = "#040404", "(2) Disagree" = "#032E3F",
+          "(3) Neither agree nor disagree" = "#02587A", "(4) Agree" = "#0182B4", "(5) Strongly agree" = "#00ACF0"
+        )) +
+        labs(
+          fill = "", title = "Percent that Agree/Strongly Agree with\nEach of the Following Statements",
+          x = "", y = "", caption = paste0("n = ", hanady_agree %>% group_by(Question) %>% 
+            summarise(n = sum(n)) %>% select(n) %>% slice(1))
+        ) +
+        coord_flip() +
+        guides(fill = guide_legend(reverse = T)) +
+        scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+        theme_tl(legend = T) +
+        theme(
+          axis.text.x = element_blank(),
+          axis.text.y = element_text(lineheight = 1.1, size = 14),
+          legend.position = "bottom",
+          plot.title = element_text(lineheight = 1.1, size = 20, face = "bold"),
+          legend.key.size = unit(1.25, "cm"),
+          legend.text = element_text(size = 9)
+        )
+```
+
+</div>
+
+<div class = "col-md-5">
+
+#### Qualitative
+
+```{r fig.align = "left"}
+Hanady_Elsayed %>%
+  select(Facilitation_Feedback, `What went well in today’s session?`, `What could have been better about today’s session?`) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+  drop_na() %>%
+  filter(Response %!in% na_df) %>%
+  mutate(Question = str_replace_all(Question, "Facilitation_Feedback", "What additional feedback do you have about their facilitation skills?")) %>%
+  TeachingLab::quote_viz(., text_col = "Response", extra_cols = "Question", align = "left",
+                         title = glue::glue("All Responses for {Hanady_Elsayed$Facilitator[1]}"),
+                         width = 90)
+```
+
+</div>
+</div>
+
+### Kelsey Wasser
+
+<div class = "row">
+<div class = "col-md-6">
+
+#### Quantitative
+
+```{r fig.width = 10, fig.height = 10}
+kelsey_agree <- Kelsey_Wasser %>%
+  select(c(
+          "How much do you agree with the following statements about this facilitator today? - They demonstrated  deep knowledge of the content they facilitated.",
+          "How much do you agree with the following statements about this facilitator today? - They facilitated the content clearly.",
+          "How much do you agree with the following statements about this facilitator today? - They effectively built a safe learning community.",
+          "How much do you agree with the following statements about this facilitator today? - They were fully prepared for the session.",
+          "How much do you agree with the following statements about this facilitator today? - They responded to the group's needs."
+        )) %>%
+        pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+        drop_na() %>%
+        dplyr::mutate(Question = str_remove_all(
+          Question,
+          "How much do you agree with the following statements about this facilitator today\\? - "
+        )) %>%
+        group_by(Question, Response) %>%
+        count() %>%
+        ungroup() %>%
+        group_by(Question) %>%
+        mutate(Question = str_wrap(Question, width = 30)) %>%
+        summarise(
+          n = n,
+          Response = Response,
+          Percent = n / sum(n) * 100
+        )
+kelsey_agree %>%
+  ggplot(aes(x = Question, y = Percent, fill = factor(Response))) +
+        geom_col() +
+        geom_text(aes(label = if_else(Percent >= 3, paste0(round(Percent), "%"), "")), position = position_stack(vjust = 0.5)) +
+        scale_fill_manual(values = c(
+          "(1) Strongly disagree" = "#040404", "(2) Disagree" = "#032E3F",
+          "(3) Neither agree nor disagree" = "#02587A", "(4) Agree" = "#0182B4", "(5) Strongly agree" = "#00ACF0"
+        )) +
+        labs(
+          fill = "", title = "Percent that Agree/Strongly Agree with\nEach of the Following Statements",
+          x = "", y = "", caption = paste0("n = ", kelsey_agree %>% group_by(Question) %>% 
+            summarise(n = sum(n)) %>% select(n) %>% slice(1))
+        ) +
+        coord_flip() +
+        guides(fill = guide_legend(reverse = T)) +
+        scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+        theme_tl(legend = T) +
+        theme(
+          axis.text.x = element_blank(),
+          axis.text.y = element_text(lineheight = 1.1, size = 14),
+          legend.position = "bottom",
+          plot.title = element_text(lineheight = 1.1, size = 20, face = "bold"),
+          legend.key.size = unit(1.25, "cm"),
+          legend.text = element_text(size = 9)
+        )
+```
+
+</div>
+
+<div class = "col-md-5">
+
+#### Qualitative
+
+```{r fig.align = "left"}
+Kelsey_Wasser %>%
+  select(Facilitation_Feedback, `What went well in today’s session?`, `What could have been better about today’s session?`) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+  drop_na() %>%
+  filter(Response %!in% na_df) %>%
+  mutate(Question = str_replace_all(Question, "Facilitation_Feedback", "What additional feedback do you have about their facilitation skills?")) %>%
+  TeachingLab::quote_viz(., text_col = "Response", extra_cols = "Question", align = "left",
+                         title = glue::glue("All Responses for {Kelsey_Wasser$Facilitator[1]}"),
+                         width = 90)
+```
+
+</div>
+</div>
+
+### Kimberly Robertson
+
+<div class = "row">
+<div class = "col-md-6">
+
+#### Quantitative
+
+```{r fig.width = 10, fig.height = 10}
+kimberly_agree <- Kimberly_Robertson %>%
+  select(c(
+          "How much do you agree with the following statements about this facilitator today? - They demonstrated  deep knowledge of the content they facilitated.",
+          "How much do you agree with the following statements about this facilitator today? - They facilitated the content clearly.",
+          "How much do you agree with the following statements about this facilitator today? - They effectively built a safe learning community.",
+          "How much do you agree with the following statements about this facilitator today? - They were fully prepared for the session.",
+          "How much do you agree with the following statements about this facilitator today? - They responded to the group's needs."
+        )) %>%
+        pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+        drop_na() %>%
+        dplyr::mutate(Question = str_remove_all(
+          Question,
+          "How much do you agree with the following statements about this facilitator today\\? - "
+        )) %>%
+        group_by(Question, Response) %>%
+        count() %>%
+        ungroup() %>%
+        group_by(Question) %>%
+        mutate(Question = str_wrap(Question, width = 30)) %>%
+        summarise(
+          n = n,
+          Response = Response,
+          Percent = n / sum(n) * 100
+        )
+kimberly_agree %>%
+  ggplot(aes(x = Question, y = Percent, fill = factor(Response))) +
+        geom_col() +
+        geom_text(aes(label = if_else(Percent >= 3, paste0(round(Percent), "%"), "")), position = position_stack(vjust = 0.5)) +
+        scale_fill_manual(values = c(
+          "(1) Strongly disagree" = "#040404", "(2) Disagree" = "#032E3F",
+          "(3) Neither agree nor disagree" = "#02587A", "(4) Agree" = "#0182B4", "(5) Strongly agree" = "#00ACF0"
+        )) +
+        labs(
+          fill = "", title = "Percent that Agree/Strongly Agree with\nEach of the Following Statements",
+          x = "", y = "", caption = paste0("n = ", kimberly_agree %>% group_by(Question) %>% 
+            summarise(n = sum(n)) %>% select(n) %>% slice(1))
+        ) +
+        coord_flip() +
+        guides(fill = guide_legend(reverse = T)) +
+        scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+        theme_tl(legend = T) +
+        theme(
+          axis.text.x = element_blank(),
+          axis.text.y = element_text(lineheight = 1.1, size = 14),
+          legend.position = "bottom",
+          plot.title = element_text(lineheight = 1.1, size = 20, face = "bold"),
+          legend.key.size = unit(1.25, "cm"),
+          legend.text = element_text(size = 9)
+        )
+```
+
+</div>
+
+<div class = "col-md-5">
+
+#### Qualitative
+
+```{r fig.align = "left"}
+Kimberly_Robertson %>%
+  select(Facilitation_Feedback, `What went well in today’s session?`, `What could have been better about today’s session?`) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+  drop_na() %>%
+  filter(Response %!in% na_df) %>%
+  mutate(Question = str_replace_all(Question, "Facilitation_Feedback", "What additional feedback do you have about their facilitation skills?")) %>%
+  TeachingLab::quote_viz(., text_col = "Response", extra_cols = "Question", align = "left",
+                         title = glue::glue("All Responses for {Kimberly_Robertson$Facilitator[1]}"),
+                         width = 90)
+```
+
+</div>
+</div>
+
+### Kelsey Wasser
+
+<div class = "row">
+<div class = "col-md-6">
+
+#### Quantitative
+
+```{r fig.width = 10, fig.height = 10}
+kristen_agree <- Kristen_Taylor %>%
+  select(c(
+          "How much do you agree with the following statements about this facilitator today? - They demonstrated  deep knowledge of the content they facilitated.",
+          "How much do you agree with the following statements about this facilitator today? - They facilitated the content clearly.",
+          "How much do you agree with the following statements about this facilitator today? - They effectively built a safe learning community.",
+          "How much do you agree with the following statements about this facilitator today? - They were fully prepared for the session.",
+          "How much do you agree with the following statements about this facilitator today? - They responded to the group's needs."
+        )) %>%
+        pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+        drop_na() %>%
+        dplyr::mutate(Question = str_remove_all(
+          Question,
+          "How much do you agree with the following statements about this facilitator today\\? - "
+        )) %>%
+        group_by(Question, Response) %>%
+        count() %>%
+        ungroup() %>%
+        group_by(Question) %>%
+        mutate(Question = str_wrap(Question, width = 30)) %>%
+        summarise(
+          n = n,
+          Response = Response,
+          Percent = n / sum(n) * 100
+        )
+kristen_agree %>%
+  ggplot(aes(x = Question, y = Percent, fill = factor(Response))) +
+        geom_col() +
+        geom_text(aes(label = if_else(Percent >= 3, paste0(round(Percent), "%"), "")), position = position_stack(vjust = 0.5)) +
+        scale_fill_manual(values = c(
+          "(1) Strongly disagree" = "#040404", "(2) Disagree" = "#032E3F",
+          "(3) Neither agree nor disagree" = "#02587A", "(4) Agree" = "#0182B4", "(5) Strongly agree" = "#00ACF0"
+        )) +
+        labs(
+          fill = "", title = "Percent that Agree/Strongly Agree with\nEach of the Following Statements",
+          x = "", y = "", caption = paste0("n = ", kristen_agree %>% group_by(Question) %>% 
+            summarise(n = sum(n)) %>% select(n) %>% slice(1))
+        ) +
+        coord_flip() +
+        guides(fill = guide_legend(reverse = T)) +
+        scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+        theme_tl(legend = T) +
+        theme(
+          axis.text.x = element_blank(),
+          axis.text.y = element_text(lineheight = 1.1, size = 14),
+          legend.position = "bottom",
+          plot.title = element_text(lineheight = 1.1, size = 20, face = "bold"),
+          legend.key.size = unit(1.25, "cm"),
+          legend.text = element_text(size = 9)
+        )
+```
+
+</div>
+
+<div class = "col-md-5">
+
+#### Qualitative
+
+```{r fig.align = "left"}
+Kristen_Taylor %>%
+  select(Facilitation_Feedback, `What went well in today’s session?`, `What could have been better about today’s session?`) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+  drop_na() %>%
+  filter(Response %!in% na_df) %>%
+  mutate(Question = str_replace_all(Question, "Facilitation_Feedback", "What additional feedback do you have about their facilitation skills?")) %>%
+  TeachingLab::quote_viz(., text_col = "Response", extra_cols = "Question", align = "left",
+                         title = glue::glue("All Responses for {Kristen_Taylor$Facilitator[1]}"),
+                         width = 90)
+```
+
+</div>
+</div>

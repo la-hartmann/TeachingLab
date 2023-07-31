@@ -1,0 +1,9 @@
+body .main-container {
+  max-width: 1800px;
+  margin-left: 100px;
+  margin-right: auto;
+}
+
+h1 {
+  text-align: center;
+}

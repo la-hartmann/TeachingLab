@@ -1,0 +1,29 @@
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans');
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@600'); /* https://developers.google.com/fonts/docs/css2 */
+
+* {
+  font-family: Open Sans;
+}
+.input-date {
+    font-family: Open Sans;
+}
+
+.dateRangeInput {
+  font-family: Open Sans;
+}
+
+/*.rangeinput-date {
+  font-family: Open Sans;
+}*/
+
+.input-daterange input {
+  font-family: Open Sans;
+}
+
+.selectize-input {
+        height: 25px;
+        width: 300px;
+        font-size: 10pt;
+        padding-top: 3px;
+        text-align: center;
+      }

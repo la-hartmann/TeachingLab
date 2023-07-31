@@ -1,0 +1,1435 @@
+---
+params:
+  matched: "unmatched"
+  partner: "All Partners"
+title: "Teaching Lab ELA (K-2) Report"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  TeachingLab::TLDefault:
+    css: styles.css
+    self_contained: true # Other options are downcute, material, readthedown, html_clean, html_docco, lockdown, https://github.com/juba/rmdformats
+    thumbnails: false
+    lightbox: true
+    gallery: false
+    highlight: kate # Also can do tango
+    number_sections: false
+    includes:
+      in_header: header.html
+      after_body: footer.html
+---
+
+
+```{r setup, include=FALSE}
+library(knitr)
+library(rmdformats)
+library(glue)
+library(gt)
+devtools::load_all()
+library(TeachingLab)
+library(tidyverse)
+library(ggtext)
+library(here)
+
+# d11_replace <- c("NYC District 11 - District-wide, NY" = "District 11",
+#     "NYC District 11 - PS 89, NY" = "District 11", "NYC District 11 - PS 21, NY" = "District 11",
+#     "NYC District 11 - IS 355, NY" = "District 11", "NYC District 11 - PS 96, NY" = "District 11",
+#     "NYC District 11 - PS 87, NY" = "District 11", "Legacy Early College, SC" = "District 11", "NYC District 11 - PS 103, NY" = "District 11", "NYC District 11 - PS 189, NY" = "District 11",
+#     "NYC District 11 - PS 498, NY" = "District 11")
+
+if (params$partner != "All Partners") {
+  
+  matched_2021 <- read_rds(here::here("Data-Clean/Data-move/SY20-21/matched_2021.rds")) %>%
+    filter(post_site == "params$partner" | pre_site == params$partner)
+  
+  data <- if (params$matched == "matched") {
+    read_rds(here::here("Data-Clean/Data-move/SY20-21/matched_2021.rds")) %>%
+      filter(pre_site == params$partner)
+  } else if (params$matched == "unmatched") {
+    read_rds(here::here("Data-Clean/Data-move/SY20-21/full_2021.rds")) %>%
+      filter(pre_site == params$partner)
+  }
+} else if (params$partner == "All Partners") {
+  
+  matched_2021 <- read_rds(here::here("Data-Clean/Data-move/SY20-21/matched_2021.rds")) %>%
+    filter((post_postelalevel == "Yes" & post_subject == "ELA/Literacy") | (pre_subject == "ELA/Literacy" & pre_preelalevel == "Yes"))
+  
+  data <- if (params$matched == "matched") {
+    read_rds(here::here("Data-Clean/Data-move/SY20-21/matched_2021.rds")) %>%
+      filter((post_postelalevel == "Yes" & post_subject == "ELA/Literacy") | (pre_subject == "ELA/Literacy" & pre_preelalevel == "Yes"))
+  } else if (params$matched == "unmatched") {
+    read_rds(here::here("Data-Clean/Data-move/SY20-21/full_2021.rds")) %>%
+      filter((post_postelalevel == "Yes" & post_subject == "ELA/Literacy") | (pre_subject == "ELA/Literacy" & pre_preelalevel == "Yes"))
+  }
+}
+
+
+
+# Create vectors for correctness
+positive_vector <- c("4", "5")
+negative_vector <- c("1", "2")
+
+## Global options
+options(max.print = "75")
+opts_chunk$set(
+  echo = FALSE,
+  # cache = TRUE,
+  prompt = FALSE,
+  tidy = TRUE,
+  comment = NA,
+  message = FALSE,
+  warning = FALSE
+)
+opts_knit$set(width = 75)
+```
+
+```{r}
+htmltools::tagList(rmarkdown::html_dependency_font_awesome()) # Needed so fa's in footer will show
+```
+
+#### 2020-2021 Report
+
+## Background
+
+In SY20-21, Teaching Lab administered online diagnostic and follow-up surveys of educators participating in Teaching Lab’s professional learning in order to measure growth and improvement in three different areas: 1) Educator Mindsets and Beliefs, 2) School Environment, and 3) Content and Pedagogical Content Knowledge. There were `r data %>% filter(pre == T) %>% nrow()` educators who completed the diagnostic survey, `r data %>% filter(post == T) %>% nrow()` educators who completed the follow-up survey, and `r matched_2021 %>% nrow()` educators who completed both.
+
+
+## Summary of Results
+
+### Methodology and Presentation of Results
+
+We have provided two types of results for each section:
+The results in the `r colorize("first three columns", "#04ABEB")` of the table refer to the `r colorize("overall group averages", "#04ABEB")`. We provide the `r colorize("group average for the diagnostic", "#04ABEB")` and `r colorize("follow-up", "#04ABEB")` surveys as well as the `r colorize("percentage point change", "#04ABEB")` (increase or decrease) over this time. It is important to note that the group that completed the diagnostic survey and the group that completed the follow-up survey are different in size.
+The results in the `r colorize("fourth column", "#55BBC7")` reflect the percentage of educators who improved their responses or sustained the highest level response from the diagnostic to follow-up survey. This group of educators is the same for both surveys and is smaller in size.
+
+### Section 1: Mindsets and Beliefs
+Educators were asked a series of questions about their mindsets toward instruction and students on a 5-point Likert scale from 1- Strongly disagree to 5- Strongly agree. The questions focused on four core constructs surrounding mindsets and beliefs, specifically the recognition of race and culture, growth mindsets, high expectations, and taking accountability for equitable instruction.
+
+
+---------------------------------------
+
+^[Methodological Note 1] <div class = "myFooter"> Methodological note: Mindsets and Beliefs questions were scored in the following way: for positively coded items, “1” and “2" were worth 0 points, “3” was worth 1 point, and “4" and “5” were worth 2 points. This was reversed for negatively coded items where “4" and “5” were 0 points, “3" was 1 point, and “1” and “2" were 2 points. Educators were considered to have improved if their score on the follow-up survey was higher than that of the diagnostic survey. (e.g., they responded “4” on the diagnostic and “5" in the follow-up for positively coded items, they responded “4” on the diagnostic and “3" in the follow-up for negatively coded items). Educators who responded with the highest-level responses (“4” and “5" or “1” and “2", depending on the item) on both the diagnostic and follow-up surveys were considered to have sustained equitable mindsets, growth mindsets, high expectations, and/or accountability for equitable instruction. </div>
+
+&nbsp;
+&nbsp;
+&nbsp;
+
+
+
+```{r}
+# data2 <- data %>%
+#   filter(post_site == "Delaware Department of Education, DE" | pre_site == "Delaware Department of Education, DE")
+mindsets_index <- tibble(question_pre = c("prerace1", "prerace2", "prehigh2", "prehigh3", "prehigh4", "prehigh1", "pregrowth1", "pregrowth2", "preacc1", "preacc2", "preacc3"),
+                question_post = c("postrace1", "postrace2", "posthigh2", "posthigh3", "posthigh4", "posthigh1", "postgrowth1", "postgrowth2", "postacc1", "postacc2", "postacc3"),
+                coding = list("negative", "negative", "negative", "negative", "negative", "positive", "negative", "negative", "positive", "positive", "positive"))
+
+mindsets <- pmap_df(list(mindsets_index$question_pre, mindsets_index$question_post, mindsets_index$coding), 
+                                   ~ score_question_mindsets(data, 
+                                                             question_pre = ..1, question_post = ..2, coding = ..3, likert = 5)) %>%
+  mutate(across(c(1, 3, 5), ~ round2(.x, 0))) %>%
+  rename(pre_percent = score_pre, post_percent = score_post)
+
+mindsets_gt <- tibble(
+  rowname = c("Overall score", "Recognition of race & culture", "Holding growth mindsets", "Having high expectations and beliefs", "Taking accountability for equitable instruction"),
+  `% of educators who held growth mindsets and/or high expectations Fall` = c(mindsets %>% 
+                                                                                summarise(mean(pre_percent, na.rm = T)) %>% 
+                                                                                as_vector(),
+                                                                              mindsets %>% 
+                                                                                slice(c(1:2)) %>% 
+                                                                                summarise(mean(pre_percent, na.rm = T)) %>% 
+                                                                                as_vector(), 
+                                                                              mindsets %>% 
+                                                                                slice(c(3:6)) %>% 
+                                                                                summarise(mean(pre_percent, na.rm = T)) %>% 
+                                                                                as_vector(), 
+                                                                              mindsets %>% 
+                                                                                slice(c(7:8)) %>% 
+                                                                                summarise(mean(pre_percent, na.rm = T)) %>% 
+                                                                                as_vector(), 
+                                                                              mindsets %>% 
+                                                                                slice(c(9:11)) %>% 
+                                                                                summarise(mean(pre_percent, na.rm = T)) %>% 
+                                                                                as_vector()),
+  `% of educators who held growth mindsets and/or high expectations Spring` = c(mindsets %>% 
+                                                                                summarise(mean(post_percent, na.rm = T)) %>% 
+                                                                                as_vector(),
+                                                                              mindsets %>% 
+                                                                                slice(c(1:2)) %>% 
+                                                                                summarise(mean(post_percent, na.rm = T)) %>% 
+                                                                                as_vector(), 
+                                                                              mindsets %>% 
+                                                                                slice(c(3:6)) %>% 
+                                                                                summarise(mean(post_percent, na.rm = T)) %>% 
+                                                                                as_vector(), 
+                                                                              mindsets %>% 
+                                                                                slice(c(7:8)) %>% 
+                                                                                summarise(mean(post_percent, na.rm = T)) %>% 
+                                                                                as_vector(), 
+                                                                              mindsets %>% 
+                                                                                slice(c(9:11)) %>% 
+                                                                                summarise(mean(post_percent, na.rm = T)) %>% 
+                                                                                as_vector()),
+  `Percentage point change of educators who held growth mindsets and/or high expectations Fall to Spring` = c(
+    `% of educators who held growth mindsets and/or high expectations Spring` - `% of educators who held growth mindsets and/or high expectations Fall`
+  ),
+  `% of educators who improved or sustained growth mindsets and/or high expectations` = c(mindsets %>% 
+                                                                                summarise(mean(percent_improve_sustain, na.rm = T)) %>% 
+                                                                                as_vector(),
+                                                                              mindsets %>% 
+                                                                                slice(c(1:2)) %>% 
+                                                                                summarise(mean(percent_improve_sustain, na.rm = T)) %>% 
+                                                                                as_vector(), 
+                                                                              mindsets %>% 
+                                                                                slice(c(3:6)) %>% 
+                                                                                summarise(mean(percent_improve_sustain, na.rm = T)) %>% 
+                                                                                as_vector(), 
+                                                                              mindsets %>% 
+                                                                                slice(c(7:8)) %>% 
+                                                                                summarise(mean(percent_improve_sustain, na.rm = T)) %>% 
+                                                                                as_vector(), 
+                                                                              mindsets %>% 
+                                                                                slice(c(9:11)) %>% 
+                                                                                summarise(mean(percent_improve_sustain, na.rm = T)) %>% 
+                                                                                as_vector())
+) %>%
+  mutate(across(!c(1), ~ round2(.x, 0)))
+
+n2 <- mindsets$n1[1]
+n1 <- mindsets$n2[1]
+n3 <- sum(!is.na(matched_2021$prerace1))
+
+# n3 <- if_else(n3 > n1, n3, n1)
+
+mindsets_gt2 <- mindsets_gt %>%
+  bind_rows(tibble(rowname = "", 
+              `% of educators who held growth mindsets and/or high expectations Fall` = n2, 
+              `% of educators who held growth mindsets and/or high expectations Spring` = n1, 
+              `Percentage point change of educators who held growth mindsets and/or high expectations Fall to Spring` = NA, 
+              `% of educators who improved or sustained growth mindsets and/or high expectations` = n3)) %>%
+  mutate(across(everything(), ~ replace_na(.x, NA)))
+
+table_maker(data = mindsets_gt2, 
+            column_names = colnames(data)[2:5], 
+            title = "Educators’ Averages Scores on Equitable Mindsets and Beliefs", 
+            spanner = "Average Scores on Equitable Mindsets & Beliefs", 
+            n1 = n3, n2 = c(n1, n2), 
+            rows_positive = c(which(!str_detect(mindsets_gt$`Percentage point change of educators who held growth mindsets and/or high expectations Fall to Spring`, "-"))),
+            rows_negative = c(which(str_detect(mindsets_gt$`Percentage point change of educators who held growth mindsets and/or high expectations Fall to Spring`, "-"))),
+            improve_col = "% of Educators that Improved or Sustained High Scores", 
+            bottom_row = 6) #%>%
+  # gtsave("Downloads/quickimage.png")
+```
+
+
+The plot illustrates educators’ average scores from the diagnostic and follow-up surveys, which corresponds to the information in the first three columns of the table. `r colorize("Orange represents the diagnostic scores", "#FF7B43")`, and `r colorize("blue represents the follow-up scores", "#04ABEB")`. The arrows represent the directionality, showing an increase or decrease in the average scores.
+
+
+```{r}
+mindsets_graph <- data.frame(
+  stringsAsFactors = FALSE,
+          Question = c("Overall","Overall",
+                       "Race & Ethnicity","Race & Ethnicity","Growth Mindsets",
+                       "Growth Mindsets","High Expectations","High Expectations",
+                       "Accountability","Accountability"),
+           prepost = c("Diagnostic\nOverall",
+                       "Follow up\nOverall","Diagnostic\nOverall","Follow up\nOverall",
+                       "Diagnostic\nOverall","Follow up\nOverall",
+                       "Diagnostic\nOverall","Follow up\nOverall","Diagnostic\nOverall",
+                       "Follow up\nOverall"),
+        mean_score = c(mindsets_gt$`% of educators who held growth mindsets and/or high expectations Fall`[1],
+                       mindsets_gt$`% of educators who held growth mindsets and/or high expectations Spring`[1], 
+                       mindsets_gt$`% of educators who held growth mindsets and/or high expectations Fall`[2], 
+                       mindsets_gt$`% of educators who held growth mindsets and/or high expectations Spring`[2], 
+                       mindsets_gt$`% of educators who held growth mindsets and/or high expectations Fall`[3], 
+                       mindsets_gt$`% of educators who held growth mindsets and/or high expectations Spring`[3], 
+                       mindsets_gt$`% of educators who held growth mindsets and/or high expectations Fall`[4], 
+                       mindsets_gt$`% of educators who held growth mindsets and/or high expectations Spring`[4], 
+                       mindsets_gt$`% of educators who held growth mindsets and/or high expectations Fall`[5], 
+                       mindsets_gt$`% of educators who held growth mindsets and/or high expectations Spring`[5])
+)
+
+mindsets_graph <- mindsets_graph %>% mutate(Question = str_replace_all(str_wrap(Question, 20), "\n", "<br>"))
+  
+mindsets_graph$Question <- factor(mindsets_graph$Question, levels = rev(c("Overall", "Race & Ethnicity", "Growth Mindsets", "High Expectations", 
+"Accountability")))
+  
+mindsets_graph_segments <- tibble(
+    xend = mindsets_graph %>% filter(str_detect(prepost, "Follow")) %>% pull(mean_score),
+    x = mindsets_graph %>% filter(str_detect(prepost, "Diagnostic")) %>% pull(mean_score),
+    y = mindsets_graph %>% filter(str_detect(prepost, "Follow")) %>% pull(Question),
+    yend = mindsets_graph %>% filter(str_detect(prepost, "Diagnostic")) %>% pull(Question),
+    fall_text = case_when(xend - x < 0 ~ x + 4,
+                          xend - x <= 3 & xend - x >= 0 ~ x - 4,
+                          xend - x > 3 ~ x),
+    spring_text = case_when(xend - x < 0 ~ xend - 4,
+                          xend - x <= 3 & xend - x >= 0 ~ xend + 4,
+                          xend - x > 3 ~ xend)
+  )
+
+ggplot() +
+    geom_point(data = mindsets_graph, mapping = aes(color = prepost, x = mean_score, y = Question, size = mean_score)) +
+    geom_segment(data = mindsets_graph_segments, mapping = aes(x = x, xend = xend, y = y, yend = yend, alpha = 0.7), color = "black", size = 0.3, arrow = arrow(length = unit(0.1, "inches"))) +
+    geom_richtext(data = mindsets_graph_segments, fill = NA, label.color = NA,
+                  aes(x = fall_text, y = y, label = paste0(x, "%")), 
+                  color = "#ff7b43", vjust = -0.5, size = 4.85) +
+    geom_richtext(data = mindsets_graph_segments, fill = NA, label.color = NA,
+                  aes(x = spring_text, y = y, label = paste0(xend, "%")), 
+                  color = "#00acf0", vjust = -0.5, size = 4.85) +
+    scale_color_manual(values = rev(c("#00acf0", "#ff7b43"))) +
+    scale_x_continuous(labels = scales::percent_format(scale = 1), breaks = scales::pretty_breaks(n = 5),
+                       limits = c(0, 100)) +
+    labs(x = NULL, y = NULL,
+         title = "Educators' Average Scores on Mindsets and Beliefs in the <br> <span style = 'color:#ff7b43;'>Diagnostic</span> and <span style = 'color:#00acf0;'>Follow-up<span> Surveys") +
+    theme_bw() +
+    theme(panel.border = element_blank(),
+          legend.position = "none",
+          plot.title = element_markdown(hjust = 0.5, family = "Calibri", size = 20, lineheight = 1.15),
+          text = element_text(family = "Calibri"),
+          axis.text.y = element_markdown(hjust = 0.5, lineheight = 1.1, size = 14),
+          axis.text.x = element_markdown(size = 14))
+```
+
+
+### Section 2: School Environment
+Educators were asked about their school environment, including culture and climate on a 5-point Likert scale from 1- Strongly disagree to 5- Strongly agree. Specifically, educators were asked about trust and connectedness to other educators, their role in shaping their own professional learning, and confidence in implementing the curriculum in a way that maximizes positive impact for student learning. 
+
+
+---------------------------------------
+
+
+^[Methodological Note 2] <div class = "myFooter">Methodological note: Educators were considered to have positive perceptions if they responded “4” or “5" on the scale. They were considered to have improved on an item if their response on the follow-up survey was at least one response higher than the diagnostic response (e.g., they responded “3” on the diagnostic and “4" on the follow-up). Educators who responded with the highest-level responses (“4” or “5") on both the diagnostic and follow-up surveys were considered to have sustained positive perceptions.</div>
+
+&nbsp;
+&nbsp;
+&nbsp;
+
+
+
+```{r}
+environment_index <- tibble(question_pre = c("preschool1", "preschool2", "preschool3", "preschool4", "preobs1", "preobs2", "preobs3"),
+                question_post = c("postschool1", "postschool2", "postschool3", "postschool4", "postobs1", "postobs2", "postobs3"),
+                coding = list(positive_vector, positive_vector, positive_vector, positive_vector, positive_vector, positive_vector, positive_vector))
+
+environment <- pmap_df(list(environment_index$question_pre, environment_index$question_post, environment_index$coding), 
+        ~ score_question_improved(data, 
+                                  question_pre = ..1, question_post = ..2, coding = ..3, middle_value = "3")) %>%
+  slice(c(1:4)) %>%
+  mutate(across(c(1, 3), ~ round2(.x, 0)))
+
+environment_gt <- tibble(
+  rowname = c("Overall score", "Trust in fellow teachers", "Connectedness to fellow teachers", 
+              "Have influence over professional learning", 
+              "I am confident that I am implementing the curriculum in a way that maximizes positive impact for student learning"),
+  `% of educators who held growth mindsets and/or high expectations Fall` = c(environment %>% 
+                                                                                summarise(mean(pre_percent, na.rm = T)) %>% 
+                                                                                as_vector(),
+                                                                              environment %>% 
+                                                                                slice(c(1)) %>% 
+                                                                                summarise(mean(pre_percent, na.rm = T)) %>% 
+                                                                                as_vector(), 
+                                                                              environment %>% 
+                                                                                slice(c(2)) %>% 
+                                                                                summarise(mean(pre_percent, na.rm = T)) %>% 
+                                                                                as_vector(), 
+                                                                              environment %>% 
+                                                                                slice(c(3)) %>% 
+                                                                                summarise(mean(pre_percent, na.rm = T)) %>% 
+                                                                                as_vector(), 
+                                                                              environment %>% 
+                                                                                slice(c(4)) %>% 
+                                                                                summarise(mean(pre_percent, na.rm = T)) %>% 
+                                                                                as_vector()),
+  `% of educators who held growth mindsets and/or high expectations Spring` = c(environment %>% 
+                                                                                summarise(mean(post_percent, na.rm = T)) %>% 
+                                                                                as_vector(),
+                                                                              environment %>% 
+                                                                                slice(c(1)) %>% 
+                                                                                summarise(mean(post_percent, na.rm = T)) %>% 
+                                                                                as_vector(), 
+                                                                              environment %>% 
+                                                                                slice(c(2)) %>% 
+                                                                                summarise(mean(post_percent, na.rm = T)) %>% 
+                                                                                as_vector(), 
+                                                                              environment %>% 
+                                                                                slice(c(3)) %>% 
+                                                                                summarise(mean(post_percent, na.rm = T)) %>% 
+                                                                                as_vector(), 
+                                                                              environment %>% 
+                                                                                slice(c(4)) %>% 
+                                                                                summarise(mean(post_percent, na.rm = T)) %>% 
+                                                                                as_vector()),
+  `Percentage point change of educators who held growth mindsets and/or high expectations Fall to Spring` = c(
+    `% of educators who held growth mindsets and/or high expectations Spring` - `% of educators who held growth mindsets and/or high expectations Fall`
+  ),
+  `% of educators who improved or sustained growth mindsets and/or high expectations` = c(environment %>% 
+                                                                                summarise(mean(percent_improve_sustain, na.rm = T)) %>% 
+                                                                                as_vector(),
+                                                                              environment %>% 
+                                                                                slice(c(1)) %>% 
+                                                                                summarise(mean(percent_improve_sustain, na.rm = T)) %>% 
+                                                                                as_vector(), 
+                                                                              environment %>% 
+                                                                                slice(c(2)) %>% 
+                                                                                summarise(mean(percent_improve_sustain, na.rm = T)) %>% 
+                                                                                as_vector(), 
+                                                                              environment %>% 
+                                                                                slice(c(3)) %>% 
+                                                                                summarise(mean(percent_improve_sustain, na.rm = T)) %>% 
+                                                                                as_vector(), 
+                                                                              environment %>% 
+                                                                                slice(c(4)) %>% 
+                                                                                summarise(mean(percent_improve_sustain, na.rm = T)) %>% 
+                                                                                as_vector())
+) %>%
+  mutate(across(!c(1), ~ round2(.x, 0)))
+
+n2 <- environment$n1[1]
+n1 <- environment$n2[1]
+n3 <- sum(!is.na(matched_2021$preschool1))
+
+# n3 <- if_else(n3 > n1, n3, n1)
+
+environment_gt2 <- environment_gt %>%
+  bind_rows(tibble(rowname = "", 
+              `% of educators who held growth mindsets and/or high expectations Fall` = n2, 
+              `% of educators who held growth mindsets and/or high expectations Spring` = n1, 
+              `Percentage point change of educators who held growth mindsets and/or high expectations Fall to Spring` = NA, 
+              `% of educators who improved or sustained growth mindsets and/or high expectations` = n3)) %>%
+  mutate(across(everything(), ~ replace_na(.x, NA)))
+
+table_maker(data = environment_gt2, 
+            column_names = colnames(data)[2:5], 
+            title = "Educators’ Perceptions of School Culture and Climate, by Survey Administration", 
+            spanner = "% of Educators with Positive Perceptions of School Culture and Climate", 
+            n1 = n3, n2 = c(n1, n2), 
+            rows_positive = c(which(!str_detect(environment_gt$`Percentage point change of educators who held growth mindsets and/or high expectations Fall to Spring`, "-"))),
+            rows_negative = c(which(str_detect(environment_gt$`Percentage point change of educators who held growth mindsets and/or high expectations Fall to Spring`, "-"))),
+            improve_col = "% of Educators that Improved or Sustained Positive Perceptions",
+            bottom_row = 6)
+```
+
+
+The plot illustrates the shifts in educators’ reported culture and climate, which corresponds to the information in the first three columns of the table. `r colorize("Orange represents", "#FF7B43")` the percentage of educators with positive perceptions in the `r colorize("diagnostic survey", "#FF7B43")`, and `r colorize("blue represents", "#04ABEB")` the percentage in the `r colorize("follow-up survey", "#04ABEB")`. The arrows represent the directionality, showing an increase or decrease in the percent of educators who agreed or strongly agreed with the items.
+
+
+```{r}
+environment_graph <- data.frame(
+  stringsAsFactors = FALSE,
+          Question = c("Overall","Overall",
+                       "Trust in fellow teachers","Trust in fellow teachers","Connectedness to fellow teachers",
+                       "Connectedness to fellow teachers","Have influence over professional learning","Have influence over professional learning",
+                       "I am confident that I am implementing the curriculum in a way that maximizes positive impact for student learning","I am confident that I am implementing the curriculum in a way that maximizes positive impact for student learning"),
+           prepost = c("Diagnostic\nOverall",
+                       "Follow up\nOverall","Diagnostic\nOverall","Follow up\nOverall",
+                       "Diagnostic\nOverall","Follow up\nOverall",
+                       "Diagnostic\nOverall","Follow up\nOverall","Diagnostic\nOverall",
+                       "Follow up\nOverall"),
+        mean_score = c(environment_gt$`% of educators who held growth mindsets and/or high expectations Fall`[1],
+                       environment_gt$`% of educators who held growth mindsets and/or high expectations Spring`[1], 
+                       environment_gt$`% of educators who held growth mindsets and/or high expectations Fall`[2], 
+                       environment_gt$`% of educators who held growth mindsets and/or high expectations Spring`[2], 
+                       environment_gt$`% of educators who held growth mindsets and/or high expectations Fall`[3], 
+                       environment_gt$`% of educators who held growth mindsets and/or high expectations Spring`[3], 
+                       environment_gt$`% of educators who held growth mindsets and/or high expectations Fall`[4], 
+                       environment_gt$`% of educators who held growth mindsets and/or high expectations Spring`[4], 
+                       environment_gt$`% of educators who held growth mindsets and/or high expectations Fall`[5], 
+                       environment_gt$`% of educators who held growth mindsets and/or high expectations Spring`[5])
+)
+
+environment_graph <- environment_graph %>% mutate(Question = str_replace_all(str_wrap(Question, 30), "\n", "<br>"))
+  
+environment_graph$Question <- factor(environment_graph$Question, levels = rev(environment_graph$Question %>% unique()))
+  
+environment_graph_segments <- tibble(
+    xend = environment_graph %>% filter(str_detect(prepost, "Follow")) %>% pull(mean_score),
+    x = environment_graph %>% filter(str_detect(prepost, "Diagnostic")) %>% pull(mean_score),
+    y = environment_graph %>% filter(str_detect(prepost, "Follow")) %>% pull(Question),
+    yend = environment_graph %>% filter(str_detect(prepost, "Diagnostic")) %>% pull(Question),
+    fall_text = case_when(xend - x < 0 ~ x + 4,
+                          xend - x <= 3 & xend - x >= 0 ~ x - 4,
+                          xend - x > 3 ~ x),
+    spring_text = case_when(xend - x < 0 ~ xend - 4,
+                          xend - x <= 3 & xend - x >= 0 ~ xend + 4,
+                          xend - x > 3 ~ xend)
+  )
+
+ggplot() +
+    geom_point(data = environment_graph, mapping = aes(color = prepost, x = mean_score, y = Question, size = mean_score)) +
+    geom_segment(data = environment_graph_segments, mapping = aes(x = x, xend = xend, y = y, yend = yend, alpha = 0.7), color = "black", size = 0.3, arrow = arrow(length = unit(0.1, "inches"))) +
+    geom_richtext(data = environment_graph_segments, fill = NA, label.color = NA,
+                  aes(x = fall_text, y = y, label = paste0(x, "%")), 
+                  color = "#ff7b43", vjust = -0.5, size = 4.85) +
+    geom_richtext(data = environment_graph_segments, fill = NA, label.color = NA,
+                  aes(x = spring_text, y = y, label = paste0(xend, "%")), 
+                  color = "#00acf0", vjust = -0.5, size = 4.85) +
+    scale_color_manual(values = rev(c("#00acf0", "#ff7b43"))) +
+    scale_x_continuous(labels = scales::percent_format(scale = 1), breaks = scales::pretty_breaks(n = 5),
+                       limits = c(0, 100)) +
+    scale_y_discrete(expand = c(0, 1)) +
+    labs(x = NULL, y = NULL,
+         title = "Shifts in Educators’ Perceptions of School Culture and Climate from the <br> <span style = 'color:#ff7b43;'>Diagnostic</span> to <span style = 'color:#00acf0;'>Follow-up<span> Survey") +
+    theme_bw() +
+    theme(panel.border = element_blank(),
+          legend.position = "none",
+          plot.title = element_markdown(hjust = 0.5, family = "Calibri", size = 20, lineheight = 1.15),
+          text = element_text(family = "Calibri"),
+          axis.text.y = element_markdown(hjust = 0.5, lineheight = 1.1, size = 11),
+          axis.text.x = element_markdown(size = 14))
+```
+
+### Section 3: Content and Pedagogical Content Knowledge
+Educators were asked a series of questions about their knowledge of instructional shifts and evidence-based instructional practices in their content area.
+
+### Section 3a: ELA Content and Pedagogical Content Knowledge 
+In ELA, the questions focused on seven core constructs, as shown in the table.
+
+
+```{r}
+if (sum(!is.na(data$preelagen1a)) == 0 & sum(!is.na(data$postelagen1a)) == 0) {
+  ggplot() +
+    geom_text(data = tibble(label = "There was no ELA\ndata from this site.", x = 0, y = 0), aes(label = label, x = x, y = y), size = 14, family = "Calibri") + 
+    theme_void()
+} else {
+  ela_index <- tibble(question_pre = c("preelagen1a", "preelagen1b", "preelagen1c", "preelagen1d", 
+  "preelagen2", "preelafluency1a", "preelafluency1b", "preelafluency1c", 
+  "preelafluency1d", "preelafluency2", "preelatext1", "preelatext2a", 
+  "preelatext2b", "preelatext2c", "preelatext2d", "preelaevi1a", 
+  "preelaevi1b", "preelaevi1c", "preelaevi1d", "preelaevi2", 
+  "preelaknow1", "preelaknow2", "preelasupp1", "preelasupp2a", 
+  "preelasupp2b", "preelasupp2c", "preelasupp2d"),
+                  question_post = c("postelagen1a", "postelagen1b", "postelagen1c", "postelagen1d", 
+  "postelagen2", "postelafluency1a", "postelafluency1b", "postelafluency1c", 
+  "postelafluency1d", "postelafluency2", "postelatext1", "postelatext2a", 
+  "postelatext2b", "postelatext2c", "postelatext2d", "postelaevi1a", 
+  "postelaevi1b", "postelaevi1c", "postelaevi1d", "postelaevi2", 
+  "postelaknow1", "postelaknow2", "postelasupp1", "postelasupp2a", 
+  "postelasupp2b", "postelasupp2c", "postelasupp2d"),
+                  coding = list("Yes", 
+                                "Yes", 
+                                "No", 
+                                "No", 
+                                "A complex text that is worthy of reading multiple times.", 
+                                "TRUE", 
+                                "TRUE", 
+                                "FALSE", 
+                                "FALSE", 
+                                "Students independently read aloud texts at their reading level.", 
+                                "Ability to read complex text independently and proficiently.", 
+                                "Yes", 
+                                "Yes", 
+                                "No", 
+                                "No", 
+                                "TRUE", 
+                                "TRUE", 
+                                "FALSE", 
+                                "FALSE", 
+                                "Students pull out evidence from the text to explain their thinking in response to questions.", 
+                                "Students with low reading ability and a lot of knowledge about the food chain.", 
+                                "Have students read a series of additional texts at a variety of complexity levels on the topic.", 
+                                "Provide students with lower reading abilities an audio version of the main text to listen to before reading the main text in class.",
+                                "Yes", 
+                                "Yes", 
+                                "No", 
+                                "No"))
+  
+  ela <- pmap_df(list(ela_index$question_pre, ela_index$question_post, ela_index$coding), ~ 
+                                  TeachingLab::score_question_improved(data, question_pre = ..1, question_post = ..2, 
+                                                          coding = ..3, middle_value = "I'm not sure")) %>%
+    mutate(across(c(1, 3), ~ round2(.x, 0))) %>%
+    distinct(question, .keep_all = T)
+  
+  ela_gt <- tibble(
+    rowname = c("Overall score", "ELA instructional shifts", "Fluency", 
+                "Text complexity", "Close reading", "Building knowledge",
+                "Supporting students with unfinished learning"),
+    `% of educators who held growth mindsets and/or high expectations Fall` = c(ela %>% 
+                                                                                  summarise(mean(pre_percent, na.rm = T)) %>% 
+                                                                                  as_vector(),
+                                                                                ela %>% 
+                                                                                  slice(c(1:5)) %>% 
+                                                                                  summarise(mean(pre_percent, na.rm = T)) %>% 
+                                                                                  as_vector(), 
+                                                                                ela %>% 
+                                                                                  slice(c(6:10)) %>% 
+                                                                                  summarise(mean(pre_percent, na.rm = T)) %>% 
+                                                                                  as_vector(), 
+                                                                                ela %>% 
+                                                                                  slice(c(11:15)) %>% 
+                                                                                  summarise(mean(pre_percent, na.rm = T)) %>% 
+                                                                                  as_vector(), 
+                                                                                ela %>% 
+                                                                                  slice(c(16:20)) %>% 
+                                                                                  summarise(mean(pre_percent, na.rm = T)) %>% 
+                                                                                  as_vector(),
+                                                                                ela %>% 
+                                                                                  slice(c(21:22)) %>% 
+                                                                                  summarise(mean(pre_percent, na.rm = T)) %>% 
+                                                                                  as_vector(),
+                                                                                ela %>% 
+                                                                                  slice(c(23:27)) %>% 
+                                                                                  summarise(mean(pre_percent, na.rm = T)) %>% 
+                                                                                  as_vector()),
+    `% of educators who held growth mindsets and/or high expectations Spring` = c(ela %>% 
+                                                                                  summarise(mean(post_percent, na.rm = T)) %>% 
+                                                                                  as_vector(),
+                                                                                ela %>% 
+                                                                                  slice(c(1:5)) %>% 
+                                                                                  summarise(mean(post_percent, na.rm = T)) %>% 
+                                                                                  as_vector(), 
+                                                                                ela %>% 
+                                                                                  slice(c(6:10)) %>% 
+                                                                                  summarise(mean(post_percent, na.rm = T)) %>% 
+                                                                                  as_vector(), 
+                                                                                ela %>% 
+                                                                                  slice(c(11:15)) %>% 
+                                                                                  summarise(mean(post_percent, na.rm = T)) %>% 
+                                                                                  as_vector(), 
+                                                                                ela %>% 
+                                                                                  slice(c(16:20)) %>% 
+                                                                                  summarise(mean(post_percent, na.rm = T)) %>% 
+                                                                                  as_vector(),
+                                                                                ela %>% 
+                                                                                  slice(c(21:22)) %>% 
+                                                                                  summarise(mean(post_percent, na.rm = T)) %>% 
+                                                                                  as_vector(),
+                                                                                ela %>% 
+                                                                                  slice(c(23:27)) %>% 
+                                                                                  summarise(mean(post_percent, na.rm = T)) %>% 
+                                                                                  as_vector()),
+    `Percentage point change of educators who held growth mindsets and/or high expectations Fall to Spring` = c(
+      `% of educators who held growth mindsets and/or high expectations Spring` - `% of educators who held growth mindsets and/or high expectations Fall`
+    ),
+    `% of educators who improved or sustained growth mindsets and/or high expectations` = c(ela %>% 
+                                                                                  summarise(mean(percent_improve_sustain, na.rm = T)) %>% 
+                                                                                  as_vector(),
+                                                                                ela %>% 
+                                                                                  slice(c(1:5)) %>% 
+                                                                                  summarise(mean(percent_improve_sustain, na.rm = T)) %>% 
+                                                                                  as_vector(), 
+                                                                                ela %>% 
+                                                                                  slice(c(6:10)) %>% 
+                                                                                  summarise(mean(percent_improve_sustain, na.rm = T)) %>% 
+                                                                                  as_vector(), 
+                                                                                ela %>% 
+                                                                                  slice(c(11:15)) %>% 
+                                                                                  summarise(mean(percent_improve_sustain, na.rm = T)) %>% 
+                                                                                  as_vector(), 
+                                                                                ela %>% 
+                                                                                  slice(c(16:20)) %>% 
+                                                                                  summarise(mean(percent_improve_sustain, na.rm = T)) %>% 
+                                                                                  as_vector(),
+                                                                                ela %>% 
+                                                                                  slice(c(21:22)) %>% 
+                                                                                  summarise(mean(percent_improve_sustain, na.rm = T)) %>% 
+                                                                                  as_vector(),
+                                                                                ela %>% 
+                                                                                  slice(c(23:27)) %>% 
+                                                                                  summarise(mean(percent_improve_sustain, na.rm = T)) %>% 
+                                                                                  as_vector())
+  ) %>%
+    mutate(across(!c(1), ~ round2(.x, 0)))
+  
+  n2 <- ela$n1[1]
+  n1 <- ela$n2[1]
+  n3 <- sum(!is.na(matched_2021$preelagen1a))
+  
+  # n3 <- if_else(n3 > n1, n3, n1)
+  
+  ela_gt2 <- ela_gt %>%
+    bind_rows(tibble(rowname = "", 
+                `% of educators who held growth mindsets and/or high expectations Fall` = n2, 
+                `% of educators who held growth mindsets and/or high expectations Spring` = n1, 
+                `Percentage point change of educators who held growth mindsets and/or high expectations Fall to Spring` = NA, 
+                `% of educators who improved or sustained growth mindsets and/or high expectations` = n3)) %>%
+    mutate(across(everything(), ~ replace_na(.x, NA)))
+  
+  table_maker(data = ela_gt2, 
+              column_names = colnames(data)[2:5], 
+              title = "Educators’ Average Scores on ELA Content and Pedagogical Content Knowledge", 
+              spanner = "Average Scores of Educators with ELA Content & Pedagogical Content Knowledge", 
+              n1 = n3, n2 = c(n1, n2), 
+              rows_positive = c(which(!str_detect(ela_gt$`Percentage point change of educators who held growth mindsets and/or high expectations Fall to Spring`, "-"))),
+              rows_negative = c(which(str_detect(ela_gt$`Percentage point change of educators who held growth mindsets and/or high expectations Fall to Spring`, "-"))),
+              improve_col = "% of Educators that Improved or Sustained High Scores",
+              bottom_row = 8)
+}
+```
+
+
+The plot illustrates the shift in educators’ average scores for ELA content and pedagogical content knowledge, which corresponds to the information in the first three columns of the table. `r colorize("Orange represents the diagnostic scores", "#FF7B43")`, and `r colorize("blue represents the follow-up scores", "#04ABEB")`. The arrows represent the directionality, showing an increase or decrease of average scores. 
+
+
+```{r}
+if (sum(!is.na(data$preelagen1a)) == 0 & sum(!is.na(data$postelagen1a)) == 0) {
+  ggplot() +
+    geom_text(data = tibble(label = "There was no ELA\ndata from this site.", x = 0, y = 0), aes(label = label, x = x, y = y), size = 14, family = "Calibri") + 
+    theme_void()
+} else {
+  ela_graph <- data.frame(
+    stringsAsFactors = FALSE,
+            Question = c("Overall","Overall",
+                         "ELA instructional shifts","ELA instructional shifts",
+                         "Fluency","Fluency",
+                         "Text complexity","Text complexity",
+                         "Close reading","Close reading",
+                         "Building knowledge", "Building knowledge",
+                         "Supporting students with unfinished learning", "Supporting students with unfinished learning"),
+             prepost = c("Diagnostic\nOverall","Follow up\nOverall",
+                         "Diagnostic\nOverall","Follow up\nOverall",
+                         "Diagnostic\nOverall","Follow up\nOverall",
+                         "Diagnostic\nOverall","Follow up\nOverall",
+                         "Diagnostic\nOverall","Follow up\nOverall",
+                         "Diagnostic\nOverall","Follow up\nOverall",
+                         "Diagnostic\nOverall","Follow up\nOverall"),
+          mean_score = c(ela_gt$`% of educators who held growth mindsets and/or high expectations Fall`[1],
+                         ela_gt$`% of educators who held growth mindsets and/or high expectations Spring`[1], 
+                         ela_gt$`% of educators who held growth mindsets and/or high expectations Fall`[2], 
+                         ela_gt$`% of educators who held growth mindsets and/or high expectations Spring`[2], 
+                         ela_gt$`% of educators who held growth mindsets and/or high expectations Fall`[3], 
+                         ela_gt$`% of educators who held growth mindsets and/or high expectations Spring`[3], 
+                         ela_gt$`% of educators who held growth mindsets and/or high expectations Fall`[4], 
+                         ela_gt$`% of educators who held growth mindsets and/or high expectations Spring`[4], 
+                         ela_gt$`% of educators who held growth mindsets and/or high expectations Fall`[5], 
+                         ela_gt$`% of educators who held growth mindsets and/or high expectations Spring`[5],
+                         ela_gt$`% of educators who held growth mindsets and/or high expectations Fall`[6], 
+                         ela_gt$`% of educators who held growth mindsets and/or high expectations Spring`[6],
+                         ela_gt$`% of educators who held growth mindsets and/or high expectations Fall`[7], 
+                         ela_gt$`% of educators who held growth mindsets and/or high expectations Spring`[7])
+  )
+  
+  ela_graph <- ela_graph %>% mutate(Question = str_replace_all(str_wrap(Question, 30), "\n", "<br>"))
+    
+  ela_graph$Question <- factor(ela_graph$Question, levels = rev(ela_graph$Question %>% unique()))
+    
+  ela_graph_segments <- tibble(
+      xend = ela_graph %>% filter(str_detect(prepost, "Follow")) %>% pull(mean_score),
+      x = ela_graph %>% filter(str_detect(prepost, "Diagnostic")) %>% pull(mean_score),
+      y = ela_graph %>% filter(str_detect(prepost, "Follow")) %>% pull(Question),
+      yend = ela_graph %>% filter(str_detect(prepost, "Diagnostic")) %>% pull(Question),
+      fall_text = case_when(xend - x < 0 ~ x + 6,
+                            xend - x <= 3 & xend - x >= 0 ~ x - 6,
+                            xend - x > 3 ~ x),
+      spring_text = case_when(xend - x < 0 ~ xend - 6,
+                            xend - x <= 3 & xend - x >= 0 ~ xend + 6,
+                            xend - x > 3 ~ xend)
+    )
+  
+  ggplot() +
+      geom_point(data = ela_graph, mapping = aes(color = prepost, x = mean_score, y = Question, size = mean_score)) +
+      geom_segment(data = ela_graph_segments, mapping = aes(x = x, xend = xend, y = y, yend = yend, alpha = 0.7), color = "black", size = 0.3, arrow = arrow(length = unit(0.1, "inches"))) +
+      geom_richtext(data = ela_graph_segments, fill = NA, label.color = NA,
+                    aes(x = fall_text, y = y, label = paste0(x, "%")), 
+                    color = "#ff7b43", vjust = -0.3, size = 4.85) +
+      geom_richtext(data = ela_graph_segments, fill = NA, label.color = NA,
+                    aes(x = spring_text, y = y, label = paste0(xend, "%")), 
+                    color = "#00acf0", vjust = -0.3, size = 4.85) +
+      scale_color_manual(values = rev(c("#00acf0", "#ff7b43"))) +
+      scale_x_continuous(labels = scales::percent_format(scale = 1), breaks = scales::pretty_breaks(n = 5),
+                         limits = c(0, 100)) +
+      scale_y_discrete(expand = c(0, 1)) +
+      labs(x = NULL, y = NULL,
+           title = "Educators' Average Scores on<br> ELA Content and Pedagogical Content Knowledge<br>in the <span style = 'color:#ff7b43;'>Diagnostic</span> and <span style = 'color:#00acf0;'>Follow-up<span> Surveys") +
+      theme_bw() +
+      theme(panel.border = element_blank(),
+            legend.position = "none",
+            plot.title = element_markdown(hjust = 0.5, family = "Calibri", size = 20, lineheight = 1.15),
+            text = element_text(family = "Calibri"),
+            axis.text.y = element_markdown(hjust = 0.5, lineheight = 1.1, size = 14),
+            axis.text.x = element_markdown(size = 14))
+}
+# ggsave(here::here("Images/2020-2021/ImpactReport/ELAImprove.png"), width = 12, height = 8)
+```
+
+
+### Section 4: Teacher Observations by Administrators
+
+Coaches, leaders, and/or administrators were asked about the areas they focus on when observing teachers in general and also whether they observe differences in teaching practices between teachers who have participated in Teaching Lab professional learning and teachers who have not.
+
+First, coaches, leaders, and/or administrators were asked whether they focus on the following areas when observing teachers: 
+The lesson is focused on a high-quality text or task.
+The questions and tasks address the analytical thinking required by the grade-level standards.
+All students have opportunities to engage in the work of the lesson.
+
+
+```{r}
+if (sum(!is.na(data$preobs1)) == 0 & sum(!is.na(data$postobs1)) == 0) {
+  ggplot() +
+    geom_text(data = tibble(label = "There was no teacher observation\ndata from this site.", x = 0, y = 0), aes(label = label, x = x, y = y), size = 14, family = "Calibri") + 
+    theme_void()
+} else {
+  admin_index <- tibble(question_pre = c("preobs1",
+                                    "preobs2",
+                                    "preobs3"),
+                  question_post = c("postobs1",
+                                    "postobs2",
+                                    "postobs3"),
+                  coding = list(positive_vector, positive_vector, positive_vector))
+  
+  admin <- pmap_df(list(admin_index$question_pre, admin_index$question_post, admin_index$coding), 
+          ~ score_question_improved(data, question_pre = ..1, question_post = ..2, 
+                                    coding = ..3, middle_value = "3")) %>%
+    mutate(across(c(1, 3), ~ round2(.x, 0)))
+  
+  admin_gt <- tibble(
+    rowname = c("When observing teachers, I focus on…", 
+                "Whether the lesson is focused on a high-quality text or task", 
+                "Whether the questions and tasks address the analytical thinking required by the grade-level standards", 
+                "Whether all students have opportunities to engage in the work of the lesson"),
+    `% of educators who held growth mindsets and/or high expectations Fall` = c(admin %>% 
+                                                                                  summarise(mean(pre_percent, na.rm = T)) %>% 
+                                                                                  as_vector(),
+                                                                                admin %>% 
+                                                                                  slice(c(1)) %>% 
+                                                                                  summarise(mean(pre_percent, na.rm = T)) %>% 
+                                                                                  as_vector(), 
+                                                                                admin %>% 
+                                                                                  slice(c(2)) %>% 
+                                                                                  summarise(mean(pre_percent, na.rm = T)) %>% 
+                                                                                  as_vector(), 
+                                                                                admin %>% 
+                                                                                  slice(c(3)) %>% 
+                                                                                  summarise(mean(pre_percent, na.rm = T)) %>% 
+                                                                                  as_vector()),
+    `% of educators who held growth mindsets and/or high expectations Spring` = c(admin %>% 
+                                                                                  summarise(mean(post_percent, na.rm = T)) %>% 
+                                                                                  as_vector(),
+                                                                                admin %>% 
+                                                                                  slice(c(1)) %>% 
+                                                                                  summarise(mean(post_percent, na.rm = T)) %>% 
+                                                                                  as_vector(), 
+                                                                                admin %>% 
+                                                                                  slice(c(2)) %>% 
+                                                                                  summarise(mean(post_percent, na.rm = T)) %>% 
+                                                                                  as_vector(), 
+                                                                                admin %>% 
+                                                                                  slice(c(3)) %>% 
+                                                                                  summarise(mean(post_percent, na.rm = T)) %>% 
+                                                                                  as_vector()),
+    `Percentage point change of educators who held growth mindsets and/or high expectations Fall to Spring` = c(
+      `% of educators who held growth mindsets and/or high expectations Spring` - `% of educators who held growth mindsets and/or high expectations Fall`
+    ),
+    `% of educators who improved or sustained growth mindsets and/or high expectations` = c(admin %>% 
+                                                                                  summarise(mean(percent_improve_sustain, na.rm = T)) %>% 
+                                                                                  as_vector(),
+                                                                                admin %>% 
+                                                                                  slice(c(1)) %>% 
+                                                                                  summarise(mean(percent_improve_sustain, na.rm = T)) %>% 
+                                                                                  as_vector(), 
+                                                                                admin %>% 
+                                                                                  slice(c(2)) %>% 
+                                                                                  summarise(mean(percent_improve_sustain, na.rm = T)) %>% 
+                                                                                  as_vector(), 
+                                                                                admin %>% 
+                                                                                  slice(c(3)) %>% 
+                                                                                  summarise(mean(percent_improve_sustain, na.rm = T)) %>% 
+                                                                                  as_vector())
+  ) %>%
+    mutate(across(!c(1), ~ round2(.x, 0)))
+  
+  n2 <- admin$n1[1]
+  n1 <- admin$n2[1]
+  n3 <- sum(!is.na(matched_2021$preobs1))
+  
+  # n3 <- if_else(n3 > n1, n3, n1)
+  
+  admin_gt2 <- admin_gt %>%
+    bind_rows(tibble(rowname = "", 
+                `% of educators who held growth mindsets and/or high expectations Fall` = n2, 
+                `% of educators who held growth mindsets and/or high expectations Spring` = n1, 
+                `Percentage point change of educators who held growth mindsets and/or high expectations Fall to Spring` = NA, 
+                `% of educators who improved or sustained growth mindsets and/or high expectations` = n3)) %>%
+    mutate(across(everything(), ~ replace_na(.x, NA)))
+  
+  table_maker(data = admin_gt2, 
+              column_names = colnames(data)[2:5], 
+              title = "Observation Practices of Coaches, Leaders, and Administrators, by Survey Administration", 
+              spanner = "% of Coaches, Leaders, and Administrators who Agreed or Strongly Agreed", 
+              n1 = n3, n2 = c(n1, n2), 
+              rows_positive = c(which(!str_detect(admin_gt$`Percentage point change of educators who held growth mindsets and/or high expectations Fall to Spring`, "-"))),
+              rows_negative = c(which(str_detect(admin_gt$`Percentage point change of educators who held growth mindsets and/or high expectations Fall to Spring`, "-"))),
+              improve_col = "% of Educators that Improved or Sustained",
+              bottom_row = 5)
+}
+```
+
+
+The plot illustrates the shifts in coaches, leaders, and/or administrators’ reported observation practices, which corresponds to the information in the first three columns of the table. `r colorize("Orange represents", "#FF7B43")` the percentage who always or almost always focus on these aspects in the `r colorize("diagnostic survey", "#FF7B43")`, and `r colorize("blue represents", "#04ABEB")` the percentage in the `r colorize("follow-up survey", "#04ABEB")`. The arrows represent the directionality, showing an increase or decrease in the percent of educators who  always or almost always focus on these aspects.
+
+
+```{r}
+if (sum(!is.na(data$preobs1)) == 0 & sum(!is.na(data$postobs1)) == 0) {
+  ggplot() +
+    geom_text(data = tibble(label = "There was no teacher observation\ndata from this site.", x = 0, y = 0), aes(label = label, x = x, y = y), size = 14, family = "Calibri") + 
+    theme_void()
+} else {
+  admin_graph <- data.frame(
+    stringsAsFactors = FALSE,
+            Question = c("Overall","Overall",
+                         "Whether the lesson is focused on a high-quality text or task","Whether the lesson is focused on a high-quality text or task",
+                         "Whether the questions and tasks address the analytical thinking required by the grade-level standards","Whether the questions and tasks address the analytical thinking required by the grade-level standards",
+                         "Whether all students have opportunities to engage in the work of the lesson","Whether all students have opportunities to engage in the work of the lesson"),
+             prepost = c("Diagnostic\nOverall","Follow up\nOverall",
+                         "Diagnostic\nOverall","Follow up\nOverall",
+                         "Diagnostic\nOverall","Follow up\nOverall",
+                         "Diagnostic\nOverall","Follow up\nOverall"),
+          mean_score = c(admin_gt$`% of educators who held growth mindsets and/or high expectations Fall`[1],
+                         admin_gt$`% of educators who held growth mindsets and/or high expectations Spring`[1], 
+                         admin_gt$`% of educators who held growth mindsets and/or high expectations Fall`[2], 
+                         admin_gt$`% of educators who held growth mindsets and/or high expectations Spring`[2], 
+                         admin_gt$`% of educators who held growth mindsets and/or high expectations Fall`[3], 
+                         admin_gt$`% of educators who held growth mindsets and/or high expectations Spring`[3], 
+                         admin_gt$`% of educators who held growth mindsets and/or high expectations Fall`[4], 
+                         admin_gt$`% of educators who held growth mindsets and/or high expectations Spring`[4])
+  )
+  
+  admin_graph <- admin_graph %>% mutate(Question = str_replace_all(str_wrap(Question, 25), "\n", "<br>"))
+    
+  admin_graph$Question <- factor(admin_graph$Question, levels = rev(admin_graph$Question %>% unique()))
+    
+  admin_graph_segments <- tibble(
+      xend = admin_graph %>% filter(str_detect(prepost, "Follow")) %>% pull(mean_score),
+      x = admin_graph %>% filter(str_detect(prepost, "Diagnostic")) %>% pull(mean_score),
+      y = admin_graph %>% filter(str_detect(prepost, "Follow")) %>% pull(Question),
+      yend = admin_graph %>% filter(str_detect(prepost, "Diagnostic")) %>% pull(Question),
+      fall_text = case_when(xend - x < 0 ~ x + 4,
+                            xend - x <= 3 & xend - x >= 0 ~ x - 4,
+                            xend - x > 3 ~ x),
+      spring_text = case_when(xend - x < 0 ~ xend - 4,
+                            xend - x <= 3 & xend - x >= 0 ~ xend + 4,
+                            xend - x > 3 ~ xend)
+    )
+  
+  ggplot() +
+      geom_point(data = admin_graph, mapping = aes(color = prepost, x = mean_score, y = Question, size = mean_score)) +
+      geom_segment(data = admin_graph_segments, mapping = aes(x = x, xend = xend, y = y, yend = yend, alpha = 0.7), color = "black", size = 0.3, arrow = arrow(length = unit(0.1, "inches"))) +
+      geom_richtext(data = admin_graph_segments, fill = NA, label.color = NA,
+                    aes(x = fall_text, y = y, label = paste0(x, "%")), 
+                    color = "#ff7b43", vjust = -0.3, size = 4.85) +
+      geom_richtext(data = admin_graph_segments, fill = NA, label.color = NA,
+                    aes(x = spring_text, y = y, label = paste0(xend, "%")), 
+                    color = "#00acf0", vjust = -0.3, size = 4.85) +
+      scale_color_manual(values = rev(c("#00acf0", "#ff7b43"))) +
+      scale_x_continuous(labels = scales::percent_format(scale = 1), breaks = scales::pretty_breaks(n = 5),
+                         limits = c(0, 100)) +
+      scale_y_discrete(expand = c(0, 0.5)) +
+      labs(x = NULL, y = NULL,
+           title = "Shifts in Observation Practices of<br>Coaches, Leaders, and Administrators from the <br> <span style = 'color:#ff7b43;'>Diagnostic</span> and <span style = 'color:#00acf0;'>Follow-up<span> Surveys") +
+      theme_bw() +
+      theme(panel.border = element_blank(),
+            legend.position = "none",
+            plot.title = element_markdown(hjust = 0.5, family = "Calibri", size = 20, lineheight = 1.15),
+            text = element_text(family = "Calibri"),
+            axis.text.y = element_markdown(hjust = 0.5, lineheight = 1.1, size = 12),
+            axis.text.x = element_markdown(size = 14))
+}
+```
+
+
+Coaches, leaders, and/or administrators were also asked to compare teaching practices between Teaching Lab participants and non-Teaching Lab participants in the follow-up survey. They were asked about the same three areas above.
+
+
+```{r}
+if (sum(!is.na(data$postadmin1)) == 0) {
+  ggplot() +
+    geom_text(data = tibble(label = "There was no administrator\ndata from this site.", x = 0, y = 0), aes(label = label, x = x, y = y), size = 14, family = "Calibri") + 
+    theme_void()
+} else {
+  teacher_index <- tibble::tibble(question_pre = c("postadmin1",
+  "postadmin2",
+  "postadmin3"),
+                question_post = c("postadmin4",
+  "postadmin5",
+  "postadmin6"),
+                coding = list(c("Often", "Almost always"), c("Often", "Almost always"), c("Often", "Almost always")))
+
+  teacher <- purrr::pmap_df(list(teacher_index$question_pre, teacher_index$question_post, teacher_index$coding),
+          ~ TeachingLab::score_question_improved(data, question_pre = ..1, question_post = ..2,
+                                    coding = ..3, middle_value = "no middle value")) %>%
+    dplyr::distinct(question, .keep_all = T)
+
+  n1_teacher <- teacher$n1[1]
+  n2_teacher <- teacher$n2[1]
+  # 
+  teacher %>%
+    dplyr::select(`TL Teachers` = pre_percent, `Non-TL Teachers` = post_percent) %>%
+    dplyr::mutate(question = c("The lesson is focused on a high-quality text or task",
+                        "The questions and tasks address the analytical thinking required by the grade-level standards",
+                        "All students have opportunities to engage in the work of the lesson")) %>%
+    gt::gt(rowname_col = "question") %>%
+    tab_header(gt::html("<strong>Differences in Teaching Practices between Teaching Lab Participants and Non-participants, as Reported by Coaches, Leaders, and Administrators")) %>%
+    gt::fmt_percent(
+      columns = c(1, 2),
+      scale_values = F,
+      decimals = 0
+    ) %>%
+    gt::tab_style(
+      style = list(
+        cell_fill(color = "#89d7f7")
+      ),
+      locations = cells_body(
+        columns = c(1),
+        rows = `TL Teachers` < 40
+      )
+    ) %>%
+    gt::tab_style(
+      style = list(
+        cell_fill(color = "#52c6f4")
+      ),
+      locations = cells_body(
+        columns = c(1),
+        rows = `TL Teachers` >= 40
+      )
+    ) %>%
+    gt::tab_style(
+      style = list(
+        cell_fill(color = "#00ACF0")
+      ),
+      locations = cells_body(
+        columns = c(1),
+        rows = `TL Teachers` > 80
+      )
+    ) %>%
+    gt::tab_style(
+      style = list(
+        cell_fill(color = "#89d7f7")
+      ),
+      locations = cells_body(
+        columns = c(2),
+        rows = `Non-TL Teachers` < 40
+      )
+    ) %>%
+    gt::tab_style(
+      style = list(
+        cell_fill(color = "#52c6f4")
+      ),
+      locations = cells_body(
+        columns = c(2),
+        rows = `Non-TL Teachers` >= 40
+      )
+    ) %>%
+    gt::tab_style(
+      style = list(
+        cell_fill(color = "#00ACF0")
+      ),
+      locations = cells_body(
+        columns = c(2),
+        rows = `Non-TL Teachers` > 80
+      )
+    ) %>%
+    gt::tab_footnote(footnote = glue::glue("n = {n1_teacher}"),
+                 locations = cells_column_labels(
+                   columns = c(1)
+                 )) %>%
+    gt::tab_footnote(footnote = glue::glue("n = {n2_teacher}"),
+                 locations = cells_column_labels(
+                   columns = c(2)
+                 )) %>%
+    TeachingLab::gt_theme_tl()
+}
+```
+
+
+The graph illustrates the differences in teaching practices between teachers who have participated in Teaching Lab professional learning and teachers who have not, as reported by the coaches, leaders, and/or administrators.
+
+
+```{r}
+if (sum(!is.na(data$postadmin1)) == 0) {
+  ggplot() +
+    geom_text(data = tibble(label = "There was no teacher observation\ndata from this site.", x = 0, y = 0), aes(label = label, x = x, y = y), size = 14, family = "Calibri") + 
+    theme_void()
+} else {
+  teacher_graph <- teacher %>%
+    select(`TL Teachers` = pre_percent, `Non-TL Teachers` = post_percent) %>%
+    mutate(question = c("The lesson is focused on a high-quality text or task",
+                        "The questions and tasks address the analytical thinking required by the grade-level standards",
+                        "All students have opportunities to engage in the work of the lesson")) %>%
+    relocate(question, .before = 1) %>%
+    pivot_longer(!c(1), names_to = "TL", values_to = "Percent") %>%
+    mutate(Percent = round(Percent)) %>%
+    mutate(question = str_replace_all(str_wrap(question, 30), "\n", "<br>"))
+  
+  ggplot(teacher_graph) +
+    geom_col(aes(y = Percent, x = question, fill = TL), position = "dodge") +
+    geom_text(aes(y = Percent, x = question, color = TL, label = paste0(Percent, "%")), 
+              position = position_dodge(width = 1), vjust = -0.5) +
+    # geom_text(aes(x = 3.5, y = 100, label = paste0("*n = ", n2_teacher)), size = 5, family = "Calibri") +
+    labs(x = "",
+         y = "",
+         title = "Comparison of Teacher Practices of <span style = 'color:#00acf0;'>Teaching Lab Participants</span> and <span style = 'color:#000000;'>Non-Participants<span>, <br>as Reported by Coaches, Leaders, and Administrators",
+         fill = "") +
+    scale_y_continuous(labels = scales::percent_format(scale = 1), expand = c(0.1, 0), limits = c(0, 100)) +
+    scale_fill_manual(values = tl_palette(color = "blue", n = 2, theme = "dark")) +
+    scale_color_manual(values = tl_palette(color = "blue", n = 2, theme = "dark")) +
+    theme_tl() +
+    theme(axis.text.x = element_markdown(lineheight = 1.1, size = 10),
+          axis.text.y = element_text(size = 10),
+          plot.title = element_markdown(lineheight = 1.1, size = 14),
+          legend.position = "none")
+}
+
+# ggsave(here::here("Images/2020-2021/ImpactReport/AdministratorComparison.png"), width = 12, height = 8)
+```
+
+
+### Section 5: Lab Leaders
+Lab Leaders were asked about their engagement in different activities, such as leading professional learning, leading PLC meetings, coaching teachers, sharing information and resources, and improving their own instructional practices.
+
+
+```{r}
+# lableaders <- data %>%
+#   filter(post_lableader == "Yes") %>%
+#   summarise(n()) %>%
+#   as_vector()
+# 
+# lableader_df <- data %>%
+#   drop_na(post_ll4a) %>%
+#   select(post_ll4a)
+# library(splitstackshape)
+# lableader_df <- splitstackshape::cSplit(lableader_df, "post_ll4a", ",") %>%
+#   as_tibble() %>%
+#   pivot_longer(everything()) %>%
+#   select(sums = value) %>%
+#   drop_na(sums) %>%
+#   group_by(sums) %>%
+#   count(sort = T) %>%
+#   ungroup() %>%
+#   mutate(percent = n/sum(n)) %>%
+#   select(post_ll4a = sums, `n()/lableaders` = percent)
+lableaders <- 7
+lableader_df <- readr::read_rds(here::here("data-raw/lableader_df_ela2.rds"))
+
+
+# lableader_df <- tibble(post_ll4a = c("Improved my own instructional practice",
+#                             "Led PLC meetings for teachers", 
+#                             "Coached teachers",
+#                             "Shared information or resources with teachers"),
+#                        `n()/lableaders` = c(0.33333333, 0.16666667, 0.5, 0.5))
+
+
+if (lableaders > 0) {
+  lableader_df %>%
+    gt::gt(rowname_col = "post_ll4a") %>%
+    gt::cols_label(
+      `n()/lableaders` = gt::html("<strong><span style = 'color:#00acf0;'>% of Lab Leaders who engaged in the activity")
+    ) %>%
+    gt::fmt_percent(
+      columns = c(2),
+      decimals = 0
+    ) %>%
+    gt::tab_footnote(
+      footnote = glue::glue("n = {lableaders}"),
+      locations = cells_column_labels(
+        columns = c(2)
+      )
+    ) %>%
+    TeachingLab::gt_theme_tl()
+} #else {
+  # ggplot2::ggplot() +
+  #   ggplot2::geom_text(data = tibble(label = "There was no Lab Leader\ndata from this site.", x = 0, y = 0), aes(label = label, x = x, y = y), size = 14, family = "Calibri") + 
+  #   ggplot2::theme_void()
+# }
+```
+
+
+The graph below illustrates the Lab Leaders participation in different activities.
+
+
+```{r}
+library(scales)
+if (lableaders > 0) {
+  lableader_df %>%
+    select(Percent = `n()/lableaders`, question = post_ll4a) %>%
+    mutate(Percent = round(100*Percent)) %>%
+    mutate(TL = "Yep") %>%
+    mutate(question = str_replace_all(str_wrap(question, 35), "\n", "<br>")) %>%
+    ggplot() +
+    geom_col(aes(y = Percent, x = question, fill = question), position = "dodge") +
+    geom_text(aes(y = Percent, x = question, color = question, label = paste0(Percent, "%")), 
+              position = position_dodge(width = 1), hjust = -0.5) +
+    labs(title = "<span style = 'color:#00acf0;'>Lab Leaders Engagement</span>") +
+    scale_y_continuous(labels = percent_format(scale = 1), expand = c(0.03, 0), limits = c(0, 100)) +
+    scale_x_discrete(expand = c(-0.9, 0)) +
+    scale_fill_manual(values = tl_palette(color = "blue", n = length(unique(lableader_df$post_ll4a)), theme = "dark")) +
+    scale_color_manual(values = tl_palette(color = "blue", n = length(unique(lableader_df$post_ll4a)), theme = "dark")) +
+    coord_flip() +
+    theme_tl() +
+    theme(axis.text.y = element_markdown(lineheight = 1.1, size = 10),
+          axis.title.x = element_blank(),
+          axis.title.y = element_blank(),
+          plot.title = element_markdown(),
+          legend.position = "none")
+} else {
+  ggplot() +
+    geom_text(data = tibble(label = "There was no Lab Leader\ndata from this site.", x = 0, y = 0), aes(label = label, x = x, y = y), size = 14, family = "Calibri") + 
+    theme_void()
+}
+```
+
+
+### Section 6: Student Work
+
+`r if_else(params$partner %!in% c("All Partners", "Pointe Coupee Parish, LA", "Lafayette Parish, LA", "Mississippi Department of Education, MS", "NYC District 11 - PS 89, NY"), glue::glue("No student work was analyzed at this location."), glue::glue("Student work has been analyzed to see if there was a difference in outcomes following the implementation of professional learning. The following figures illustrate that difference."))`
+
+```{r, results = "asis"}
+if (params$partner %in% c("All Partners", "Pointe Coupee Parish, LA", "Lafayette Parish, LA", "Mississippi Department of Education, MS", "NYC District 11 - PS 89, NY")) {
+  files <- list.files(here::here("Images/2020-2021/ImpactReport"), full.names = T)[c(16:18)]
+  knitr::include_graphics(files)
+  }
+```
+
+
+
+### Section 7: Participant Feedback
+
+Looking at participant feedback from `r params$partner` we see good scores across the board:
+
+```{r}
+partner_replace <- c("Louisiana State Content Leader Training" = "Louisiana State Content Leader Training, LA",
+                     "Lafayette Parish" = "Lafayette Parish, LA",
+                     "East Baton Rouge Parish" = "East Baton Rouge Parish, LA",
+                     "Freire Charter Schools" = "Freire Charter Schools, PA/DE",
+                     "Pt. Coupee Parish" = "Pointe Coupee Parish, LA",
+                     "Building 21 - Philadelphia, PA" = "Building 21",
+                     "Building 21 - Allentown, PA" = "Building 21")
+
+if (params$partner != "All Partners") {
+  dashboard_data <- read_rds(here::here("Data-Clean/Data-move/Dashboard Data/dashboard_data.rds")) %>%
+    dplyr::filter(str_detect(`District, Parish, Or Network`, "District 11")) %>%
+    dplyr::filter(`Date for the session` > as.Date("2020-06-30"))
+} else if (params$partner == "All Partners") {
+  dashboard_data <- read_rds(here::here("Data-Clean/Data-move/Dashboard Data/dashboard_data.rds")) %>%
+    dplyr::filter(`Date for the session` > as.Date("2020-06-30"))
+}
+
+
+dashboard_gt <- dashboard_data %>%
+  mutate(across(where(is.character), ~ na_if(., "No Response"))) %>%
+  summarise(across(c("How Likely Are You To Apply This Learning To Your Practice In The Next 4-6 Weeks?",
+                     "I felt a sense of community with the other participants in this course even though we were meeting virtually.", 
+                     "This course helped me navigate remote and/or hybrid learning during COVID-19.",
+                     "% Who Say Activities Of Today's Session Were Well-Designed To Help Me Learn",
+                     "S/He Effectively Built A Community Of Learners"), 
+                   ~ 100* (sum(.x %in% c("Agree", "Strongly agree"), na.rm = T))/length(which(!is.na(.x))))) %>%
+    mutate(across(everything(), ~ replace_na(.x, NA)))
+
+dashboard_gt %>%
+  gt() %>%
+  tab_header(
+    gt::html(glue::glue("<strong>Teaching Lab Performance on Participant Feedback Questions for {params$partner}"))
+  ) %>%
+  cols_label(
+  `How Likely Are You To Apply This Learning To Your Practice In The Next 4-6 Weeks?` = 
+    md("**How Likely Are You To Apply This Learning To Your Practice In The Next 4-6 Weeks?**"), 
+  `I felt a sense of community with the other participants in this course even though we were meeting virtually.` = 
+    md("**I felt a sense of community with the other participants in this course even though we were meeting virtually.**"), 
+  `This course helped me navigate remote and/or hybrid learning during COVID-19.` = 
+    md("**This course helped me navigate remote and/or hybrid learning during COVID-19.**"), 
+  `% Who Say Activities Of Today's Session Were Well-Designed To Help Me Learn` =
+    md("**% Who Say Activities Of Today's Session Were Well-Designed To Help Me Learn**"), 
+  `S/He Effectively Built A Community Of Learners` = 
+    md("**S/He Effectively Built A Community Of Learners**")
+  ) %>%
+  data_color(
+    columns = everything(),
+    colors = scales::col_numeric(
+      palette = paletteer::paletteer_d(
+        palette = "ggsci::blue_material"
+        ) %>% as.character(),
+      domain = NULL
+      )
+  ) %>%
+  fmt_percent(
+    columns = everything(),
+    scale_values = F,
+    decimals = 0
+  ) %>%
+  gt_theme_tl()
+```
+
+#### Participant Feedback from Legacy Early College
+
+```{r}
+dashboard_gt <- dashboard_data %>%
+  filter(`District, Parish, Or Network` == "Legacy Early College, SC") %>%
+  mutate(across(where(is.character), ~ na_if(., "No Response"))) %>%
+  summarise(across(c("How Likely Are You To Apply This Learning To Your Practice In The Next 4-6 Weeks?",
+                     "I felt a sense of community with the other participants in this course even though we were meeting virtually.", 
+                     "This course helped me navigate remote and/or hybrid learning during COVID-19.",
+                     "% Who Say Activities Of Today's Session Were Well-Designed To Help Me Learn",
+                     "S/He Effectively Built A Community Of Learners"), 
+                   ~ 100* (sum(.x %in% c("Agree", "Strongly agree"), na.rm = T))/length(which(!is.na(.x))))) %>%
+    mutate(across(everything(), ~ replace_na(.x, NA)))
+
+dashboard_gt %>%
+  gt() %>%
+  tab_header(
+    gt::html(glue::glue("<strong>Teaching Lab Performance on Participant Feedback Questions for Legacy Early College"))
+  ) %>%
+  cols_label(
+  `How Likely Are You To Apply This Learning To Your Practice In The Next 4-6 Weeks?` = 
+    md("**How Likely Are You To Apply This Learning To Your Practice In The Next 4-6 Weeks?**"), 
+  `I felt a sense of community with the other participants in this course even though we were meeting virtually.` = 
+    md("**I felt a sense of community with the other participants in this course even though we were meeting virtually.**"), 
+  `This course helped me navigate remote and/or hybrid learning during COVID-19.` = 
+    md("**This course helped me navigate remote and/or hybrid learning during COVID-19.**"), 
+  `% Who Say Activities Of Today's Session Were Well-Designed To Help Me Learn` =
+    md("**% Who Say Activities Of Today's Session Were Well-Designed To Help Me Learn**"), 
+  `S/He Effectively Built A Community Of Learners` = 
+    md("**S/He Effectively Built A Community Of Learners**")
+  ) %>%
+  data_color(
+    columns = everything(),
+    colors = scales::col_numeric(
+      palette = paletteer::paletteer_d(
+        palette = "ggsci::blue_material"
+        ) %>% as.character(),
+      domain = NULL
+      )
+  ) %>%
+  fmt_percent(
+    columns = everything(),
+    scale_values = F,
+    decimals = 0
+  ) %>%
+  gt_theme_tl()
+```
+
+
+#### Participant Feedback from Evangeline Parish, LA
+
+```{r}
+dashboard_gt <- dashboard_data %>%
+  filter(`District, Parish, Or Network` == "Evangeline Parish, LA") %>%
+  mutate(across(where(is.character), ~ na_if(., "No Response"))) %>%
+  summarise(across(c("How Likely Are You To Apply This Learning To Your Practice In The Next 4-6 Weeks?",
+                     "I felt a sense of community with the other participants in this course even though we were meeting virtually.", 
+                     "This course helped me navigate remote and/or hybrid learning during COVID-19.",
+                     "% Who Say Activities Of Today's Session Were Well-Designed To Help Me Learn",
+                     "S/He Effectively Built A Community Of Learners"), 
+                   ~ 100* (sum(.x %in% c("Agree", "Strongly agree"), na.rm = T))/length(which(!is.na(.x))))) %>%
+    mutate(across(everything(), ~ replace_na(.x, NA)))
+
+dashboard_gt %>%
+  gt() %>%
+  tab_header(
+    gt::html(glue::glue("<strong>Teaching Lab Performance on Participant Feedback Questions for {params$partner}"))
+  ) %>%
+  cols_label(
+  `How Likely Are You To Apply This Learning To Your Practice In The Next 4-6 Weeks?` = 
+    md("**How Likely Are You To Apply This Learning To Your Practice In The Next 4-6 Weeks?**"), 
+  `I felt a sense of community with the other participants in this course even though we were meeting virtually.` = 
+    md("**I felt a sense of community with the other participants in this course even though we were meeting virtually.**"), 
+  `This course helped me navigate remote and/or hybrid learning during COVID-19.` = 
+    md("**This course helped me navigate remote and/or hybrid learning during COVID-19.**"), 
+  `% Who Say Activities Of Today's Session Were Well-Designed To Help Me Learn` =
+    md("**% Who Say Activities Of Today's Session Were Well-Designed To Help Me Learn**"), 
+  `S/He Effectively Built A Community Of Learners` = 
+    md("**S/He Effectively Built A Community Of Learners**")
+  ) %>%
+  data_color(
+    columns = everything(),
+    colors = scales::col_numeric(
+      palette = paletteer::paletteer_d(
+        palette = "ggsci::blue_material"
+        ) %>% as.character(),
+      domain = NULL
+      )
+  ) %>%
+  fmt_percent(
+    columns = everything(),
+    scale_values = F,
+    decimals = 0
+  ) %>%
+  gt_theme_tl()
+```
+
+
+Finally, looking at the textual feedback from participants we also see a lot of positive feedback, even when people are giving tips for improvement
+
+
+```{r}
+gained <- dashboard_data %>%
+  filter(`How Likely Are You To Recommend This Professional Learning To A Colleague Or Friend?` == 9 |
+           `How Likely Are You To Recommend This Professional Learning To A Colleague Or Friend?` == 10) %>%
+  select(`Overall, what went well in this professional learning?`) %>%
+  filter(!is.na(`Overall, what went well in this professional learning?`) & 
+           `Overall, what went well in this professional learning?` != "No Response" &
+           str_length(`Overall, what went well in this professional learning?`) > 50) %>%
+  slice_sample(n = 10) %>%
+  distinct()
+
+improved_experience <- dashboard_data %>%
+  filter(`How Likely Are You To Recommend This Professional Learning To A Colleague Or Friend?` == 9 |
+           `How Likely Are You To Recommend This Professional Learning To A Colleague Or Friend?` == 10) %>%
+  select(`What could have improved your experience?`) %>%
+  filter(!is.na(`What could have improved your experience?`) & 
+           `What could have improved your experience?` != "No Response" &
+           str_length(`What could have improved your experience?`) > 50) %>%
+  slice_sample(n = 10) %>%
+  distinct()
+
+add_comments <- dashboard_data %>%
+  filter(`How Likely Are You To Recommend This Professional Learning To A Colleague Or Friend?` == 9 |
+           `How Likely Are You To Recommend This Professional Learning To A Colleague Or Friend?` == 10) %>%
+  select(`Do you have additional comments?`) %>%
+  filter(!is.na(`Do you have additional comments?`) & 
+           `Do you have additional comments?` != "No Response" &
+           str_length(`Do you have additional comments?`) > 50) %>%
+  slice_sample(n = 10) %>%
+  distinct()
+```
+
+##### Comments on what Went Well
+
+```{r}
+if (nrow(gained) > 0) {
+TeachingLab::quote_viz(gained, `Overall, what went well in this professional learning?`, "gt",
+                       title = "Quotes from \"Overall, what went well in this professional learning?\"")
+} else {
+  ggplot() +
+    geom_text(data = tibble(label = str_wrap(glue::glue("There were no comments for \"{colnames(gained)}\" from this site."), 20), x = 0, y = 0), aes(label = label, x = x, y = y), size = 12, family = "Calibri") + 
+    theme_void()
+}
+```
+
+
+##### Comments on Improving Experience
+
+```{r}
+if (nrow(improved_experience) > 0) {
+TeachingLab::quote_viz(improved_experience, `What could have improved your experience?`, "gt",
+                       title = "Quotes from \"What could have improved your experience?\"")
+} else {
+  ggplot() +
+    geom_text(data = tibble(label = str_wrap(glue::glue("There were no comments for \"{colnames(improved_experience)}\" from this site."), 20), x = 0, y = 0), aes(label = label, x = x, y = y), size = 12, family = "Calibri") + 
+    theme_void()
+}
+```
+
+##### Additional Comments
+
+```{r} 
+if (nrow(add_comments) > 0) {
+TeachingLab::quote_viz(data = add_comments, text_col = `Do you have additional comments?`, viz_type = "gt",
+                       title = "Quotes from \"Do you have additional comments?\"")
+} else {
+  ggplot() +
+    geom_text(data = tibble(label = str_wrap(glue::glue("There were no comments for \"{colnames(add_comments)}\" from this site."), 20), x = 0, y = 0), aes(label = label, x = x, y = y), size = 12, family = "Calibri") + 
+    theme_void()
+}
+```
+
+
+
+##### NPS
+
+```{r echo = F}
+overall <- dashboard_data %>%
+  filter(Portfolio == "EL") %>%
+  select(`How Likely Are You To Recommend This Professional Learning To A Colleague Or Friend?`) %>%
+  as_vector() %>%
+  as.numeric() %>%
+  calc_nps()
+```
+
+
+The overall nps for ELA (K-2) content in 2020-2021 was 45.62.

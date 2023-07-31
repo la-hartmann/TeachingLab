@@ -1,0 +1,123 @@
+---
+title: "Teaching Lab Report"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  TeachingLab::TLDefault:
+    highlight: kate
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+devtools::load_all()
+library(TeachingLab)
+## Global options
+options(max.print="75")
+opts_chunk$set(echo=FALSE,
+	             cache=TRUE,
+               prompt=FALSE,
+               tidy=TRUE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE)
+opts_knit$set(width=75)
+library(tidyverse)
+```
+
+Sarah's Data from SurveyMonkey
+
+
+```{r}
+graph_data <- read_csv("~/Downloads/CSV 4/SY21-22 End-of-Course Participant Feedback Survey.csv", skip = 1) %>%
+  select(c(34:42))
+
+graph_data2 <- read_csv("~/Downloads/CSV 4/SY21-22 End-of-Course Participant Feedback Survey.csv") %>%
+  slice(-1) %>%
+  select(`On a scale of 0-10, how likely are you to recommend this course to a colleague or friend?`) %>%
+  mutate(`On a scale of 0-10, how likely are you to recommend this course to a colleague or friend?` = as.numeric(str_remove_all(`On a scale of 0-10, how likely are you to recommend this course to a colleague or friend?`, " - Extremely likely| - Neither likely nor unlikely| - Not likely at all")))
+
+quote_data <- read_csv("~/Downloads/CSV 4/SY21-22 End-of-Course Participant Feedback Survey.csv")
+```
+
+
+Clean data
+
+```{r}
+data_plot <- data %>% 
+  pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+  drop_na() %>%
+  group_by(Question, Response) %>%
+  count() %>%
+  ungroup() %>%
+  group_by(Question) %>%
+  mutate(Question = html_wrap(Question, interval = 30)) %>%
+  summarise(n = n,
+            Response = Response,
+            Percent = round(n/sum(n)*100))
+```
+
+First plot likeliness
+
+```{r}
+ggplot(data = data_plot, aes(x = Question, y = Percent, fill = factor(Response))) +
+  geom_col() +
+  geom_text(aes(label = if_else(Percent != 4, paste0(Percent, "%"), "")), position = position_stack(vjust = 0.5)) +
+  scale_fill_manual(values = tl_palette(color = "blue", theme = "dark", n = length(unique(data_plot$Response)))) +
+  labs(fill = "", title = "Percent that Agree/Strongly Agree with<br>Each of the Following Statements",
+       x = "", y = "") +
+  coord_flip() +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  theme_tl(legend = T) +
+  theme(axis.text.y = element_markdown(lineheight = 1.1, size = 12),
+        axis.text.x = element_text(size = 11),
+        legend.position = "bottom",
+        plot.title = element_markdown(lineheight = 1.1))
+
+ggsave(here::here("Images/2020-2021/CourseSummaryLafayette.png"), width = 16, height = 10)
+```
+
+Second plot recommend to colleague or friend
+
+```{r}
+data_plot2 <- graph_data2 %>% 
+  drop_na() %>%
+  group_by(`On a scale of 0-10, how likely are you to recommend this course to a colleague or friend?`) %>%
+  count(sort = T) %>%
+  ungroup() %>%
+  mutate(Percent = round(100*n/sum(n)))
+
+ggplot(data = data_plot2, aes(x = `On a scale of 0-10, how likely are you to recommend this course to a colleague or friend?`, y = Percent, fill = factor(`On a scale of 0-10, how likely are you to recommend this course to a colleague or friend?`))) +
+  geom_text(aes(label = if_else(Percent != 4, paste0(Percent, "%"), "")), position = position_stack(vjust = 0.5)) +
+  geom_col() +
+  scale_fill_manual(values = tl_palette(color = "blue", theme = "dark", n = length(unique(graph_data2$`On a scale of 0-10, how likely are you to recommend this course to a colleague or friend?`)))) +
+  labs(fill = "", title = "Likeliness to Recommend to a Friend or Colleague",
+       x = "", y = "") +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  theme_tl(legend = T) +
+  theme(axis.text.y = element_markdown(lineheight = 1.1, size = 12),
+        axis.text.x = element_text(size = 11),
+        legend.position = "bottom",
+        plot.title = element_markdown(lineheight = 1.1))
+ggsave(here::here("Images/2020-2021/RecommendLikelinessLafayette.png"), width = 8, height = 8)
+```
+
+Quote data
+
+```{r}
+quote_table <- quote_data %>%
+  slice(-1) %>%
+  select(`Overall, what went well in this course?`, 48) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+  filter(str_length(Response) > 30) %>%
+  drop_na() %>%
+  select(Response)
+
+quote_table %>%
+  quote_viz(text_col = "Response", viz_type = "gt", title = "Quotes from Lafayette Parish") %>%
+  gtsave(here::here("Images/2020-2021/QuotesLafayette.png"))
+```
+
+
+
+

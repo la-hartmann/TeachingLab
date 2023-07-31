@@ -1,0 +1,1244 @@
+---
+params:
+  teacher: "All"
+title: "Mississippi Department of Education\nMathematics Instructional Coaching Services"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  pdf_document:
+    latex_engine: xelatex
+    toc: true
+    number_sections: true
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+\fontspec{Calibri}
+\fontspec{Calibri Bold}
+
+```{r setup, include=FALSE}
+library(ggtext)
+library(glue)
+library(gt)
+library(here)
+library(knitr)
+library(lubridate)
+library(rmdformats)
+library(scales)
+devtools::load_all()
+library(TeachingLab)
+library(tidyverse)
+
+### Coaching Participant Feedback ###
+coaching_participant_feedback <- get_coaching_feedback(update = FALSE) |>
+  filter(str_detect(Site, ", MS"))
+
+### Lesson Analysis Data ###
+lesson_analysis <- get_lesson_analysis(update = FALSE) |>
+  janitor::remove_empty("cols")
+
+### IPG Forms Data ###
+ipg_forms <- readr::read_rds(here::here("data/ipg_forms.rds")) |>
+  dplyr::filter(str_detect(`Name of Site (Parish, District, Network)`, ", MS")) |>
+  group_by(`Name of teacher observed (for Mississippi Coaching Project - alphabetized by first name)`) |>
+  arrange(Timestamp) |>
+  mutate(`Timeline of Obs` = paste0("Observation ", 1:n())) |>
+  ungroup()
+
+### Major Question Groupings for IPG ###
+ca1 <- read_rds(here::here("Analysis/2021-2022/Mississippi/data/ca1.rds"))
+ca2 <- read_rds(here::here("Analysis/2021-2022/Mississippi/data/ca2.rds"))
+ca3 <- read_rds(here::here("Analysis/2021-2022/Mississippi/data/ca3.rds"))
+
+### Filter for individual teachers if not "All" ###
+if (params$teacher != "All") {
+  ipg_forms <- ipg_forms |>
+    dplyr::filter(`Name of teacher observed (for Mississippi Coaching Project - alphabetized by first name)` == params$teacher)
+
+  lesson_analysis <- lesson_analysis |>
+    dplyr::filter(`Name of teacher for Mississippi Coaching Project - alphabetized by first name` == params$teacher)
+
+  mississippi_participants <- readr::read_rds(here::here("data/misssissippi_participants.rds"))
+
+  mississippi_teacher <- mississippi_participants |>
+    dplyr::filter(Name == params$teacher)
+  teacher_school <- mississippi_teacher |>
+    pull(School)
+  teacher_district <- mississippi_teacher |>
+    pull(District)
+  teacher_code <- mississippi_teacher |>
+    pull(`Teacher code`)
+}
+
+### Plot for if there is no data ###
+no_data_plot <- ggplot(tibble(text = "There was no data\nfor this teacher here.", x = 0, y = 0)) +
+  geom_text(aes(label = text, x, y), fontface = "bold", family = "Calibri Bold", size = 10) +
+  theme_void()
+
+## Global options
+options(max.print = "75", width = 1000)
+knitr::opts_chunk$set(
+  echo = FALSE,
+  cache = F,
+  prompt = FALSE,
+  tidy = TRUE,
+  comment = NA,
+  message = FALSE,
+  warning = FALSE,
+  dev = "cairo_pdf"
+)
+```
+
+Assets & Needs Assessment
+
+April 2022
+
+
+As part of the second Assets & Needs Assessment, Teaching Lab conducted
+a variety of data collection activities, including an Ongoing Coaching
+Feedback Survey, Lesson Plan Analysis, and Classroom Observations.
+
+
+Summary of Results
+
+-   **Participating teachers have given positive feedback** so far for
+    their coaches, especially regarding coaches' preparation, clarity,
+    knowledge, and adjustments based on their needs.
+
+-   Approximately half of teachers have been observed twice using the
+    IPG rubric, although a few have had three or more observations. We
+    see **similar percentages of overall positive ratings on the IPG
+    rubric for the first and second round of observations and marked
+    increases for the few teachers who have been observed four or five
+    times.**
+
+-   The results of the lesson plans analyses indicate that **the
+    majority of lesson plans are aligned with Core Action 1** of the IPG
+    rubric, but **do not explicitly include opportunities related to
+    Core Actions 2 and 3.**
+
+# Section 1: Participant Feedback
+
+## Quantitative Ongoing Coaching Feedback
+
+```{r participant-feedback, fig.height = 10, fig.width = 13}
+if (params$teacher == "All") {
+  plot_agree <- coaching_participant_feedback |>
+    select(
+      `They demonstrated deep knowledge of the content they coach.`,
+      `Their coaching is clear.`,
+      `They seem fully prepared for the coaching sessions.`,
+      `They effectively build a safe learning environment.`,
+      `They make necessary adjustments based on my needs.`
+    ) |>
+    filter(if_any(everything(), ~ !is.na(.x))) |>
+    pivot_longer(everything(), names_to = "Question", values_to = "Response") |>
+    group_by(Question, Response) |>
+    count(sort = T) |>
+    ungroup() |>
+    group_by(Question) |>
+    mutate(
+      Percent = round(100 * n / sum(n), 2),
+      Response = factor(Response, levels = c(
+        "(1) Strongly disagree",
+        "(2) Disagree",
+        "(3) Neither agree nor disagree",
+        "(4) Agree",
+        "(5) Strongly agree"
+      )),
+      Question = tlShiny::html_wrap(Question, n = 30)
+    ) |>
+    ungroup()
+
+  deep_knowledge_agree <- plot_agree |>
+    TeachingLab::agree_strongly_agree("They demonstrated deep<br>knowledge of the content they<br>coach.")
+  effectively_agree <- plot_agree |>
+    TeachingLab::agree_strongly_agree("They effectively build a safe<br>learning environment.")
+  necessary_agree <- plot_agree |>
+    TeachingLab::agree_strongly_agree("They make necessary<br>adjustments based on my needs.")
+  prepared_agree <- plot_agree |>
+    TeachingLab::agree_strongly_agree("They seem fully prepared for<br>the coaching sessions.")
+  clear_coaching_agree <- plot_agree |>
+    TeachingLab::agree_strongly_agree("Their coaching is clear.")
+
+  #### REMINDER TO CHANGE TO AGGREGATE OVERALL BY DEFAULT ####
+  ggplot(data = plot_agree, aes(
+    x = fct_reorder(Question, Percent, .desc = T),
+    y = Percent,
+    color = Response,
+    fill = Response
+  )) +
+    geom_col(color = NA) +
+    geom_text(aes(label = ifelse(Percent >= 5,
+      paste0(round(Percent), "%\n(n = ", n, ")"),
+      ""
+    )),
+    position = position_stack(vjust = 0.5),
+    family = "Calibri Bold",
+    fontface = "bold",
+    size = 4.25
+    ) +
+    labs(
+      x = "", y = "",
+      title = "% Answering Each Item in Coaching Participant Feedback",
+      fill = ""
+    ) +
+    scale_fill_manual(values = c(
+      "(1) Strongly disagree" = "#040404",
+      "(2) Disagree" = "#032E3F",
+      "(3) Neither agree nor disagree" = "#02587A",
+      "(4) Agree" = "#0182B4",
+      "(5) Strongly agree" = "#00ACF0"
+    )) +
+    scale_color_manual(values = c(
+      "(1) Strongly disagree" = "white",
+      "(2) Disagree" = "white",
+      "(3) Neither agree nor disagree" = "black",
+      "(4) Agree" = "black",
+      "(5) Strongly agree" = "black"
+    )) +
+    guides(
+      fill = guide_legend(
+        label.position = "bottom",
+        reverse = T
+      ),
+      color = "none"
+    ) +
+    scale_y_continuous(
+      labels = scales::label_percent(scale = 1),
+      expand = c(0.14, 0),
+      limits = c(0, 100.01),
+      breaks = scales::pretty_breaks(n = 5)
+    ) +
+    scale_x_discrete(expand = c(-0.5, 0)) +
+    coord_flip() +
+    theme_tl(markdown = T) +
+    theme(
+      strip.text.x = element_markdown(size = 20),
+      axis.text.y = element_markdown(size = 14),
+      axis.text.x = element_markdown(size = 14),
+      strip.text = element_markdown(hjust = 0.5, family = "Calibri Bold"),
+      plot.title = element_markdown(family = "Calibri Bold", size = 20),
+      legend.position = "bottom",
+      legend.direction = "horizontal",
+      legend.key.size = unit(1, "cm"),
+      legend.text = element_text(size = 10, family = "Calibri"),
+      legend.key.width = unit(2, "cm")
+    )
+} else {
+  deep_knowledge_agree <- 0
+  effectively_agree <- 0
+  necessary_agree <- 0
+  prepared_agree <- 0
+  clear_coaching_agree <- 0
+}
+```
+
+-   `r deep_knowledge_agree` strongly agree or agree that the coach
+    demonstrated a deep knowledge of the content they coach.
+-   `r effectively_agree` strongly agree or agree that coach effectively
+    build a safe learning environment.
+-   `r necessary_agree` strongly agree or agree that the coach made
+    necessary adjustments based on needs.
+-   `r prepared_agree` strongly agree or agree that the coach seemed
+    fully prepared for the coaching sessions.
+-   `r clear_coaching_agree` strongly agree or agree that the coaching
+    is clear.
+
+## Qualitative Ongoing Coaching Feedback
+
+### What went well?
+
+```{r coaching-feedback-qual-went-well}
+if (params$teacher == "All") {
+  additional_feedback_gt <- coaching_participant_feedback |>
+    select(Additional_feedback) |>
+    drop_na() |>
+    filter(Additional_feedback %!in% TeachingLab::na_df) |>
+    rename(
+      `What additional feedback do you have about their coaching skills, if any?` =
+        `Additional_feedback`
+    ) |>
+    TeachingLab::quote_viz(
+      text_col = c(
+        "What additional feedback do you have about their coaching skills, if any?"
+      ),
+      print = F,
+      align = "left"
+    )
+  
+  additional_feedback_img <- gt::gtsave(
+    data = additional_feedback_gt,
+    path = here::here("images/report_images"),
+    filename = tempfile(fileext = ".png")
+  )
+  
+  gone_well_gt <- coaching_participant_feedback |>
+    select(Gone_well) |>
+    drop_na() |>
+    filter(Gone_well %!in% TeachingLab::na_df) |>
+    rename(
+      `What has gone well in your coaching sessions?` = Gone_well
+    ) |>
+    TeachingLab::quote_viz(
+      text_col = c(
+        "What has gone well in your coaching sessions?"
+      ),
+      print = F,
+      align = "left"
+    )
+  
+  gone_well_img <- gt::gtsave(
+    data = gone_well_gt,
+    path = here::here("images/report_images"),
+    filename = tempfile(fileext = ".png")
+  )
+  
+  could_better_gt <- coaching_participant_feedback |>
+    select(Could_be_better) |>
+    drop_na() |>
+    filter(Could_be_better %!in% TeachingLab::na_df) |>
+    rename(
+      `What could be better about your coaching sessions?` = Could_be_better
+    ) |>
+    TeachingLab::quote_viz(
+      text_col = c(
+        "What could be better about your coaching sessions?"
+      ),
+      print = F,
+      align = "left"
+    )
+
+  could_better_img <- gt::gtsave(
+    data = could_better_gt,
+    path = here::here("images/report_images"),
+    filename = tempfile(fileext = ".png")
+  )
+
+  knitr::include_graphics(c(gone_well_img))
+}
+```
+
+### What could have been better?
+
+```{r been-better}
+if (params$teacher == "All") {
+  knitr::include_graphics(c(could_better_img))
+}
+```
+
+### Additional Feedback
+
+```{r additional-feedback}
+if (params$teacher == "All") {
+  knitr::include_graphics(c(additional_feedback_img))
+}
+```
+
+# Section `r ifelse(params$teacher == "All", "2", "1")`: Teacher Practices
+
+## Classroom Walkthroughs
+
+Teaching Lab identified core actions 2c, 3b, 3c, and 3d as the highest
+leverage areas for coaching after reviewing ANA 1 results and receiving
+coach feedback. Therefore, coaches supported teachers in developing and
+implementing instructional strategies that allowed for deliberate checks
+for understanding and mathematical discourse.
+
+Teaching Lab staff observed teachers using the IPG rubric. Ratings of 3
+and 4 on 4-point Likert scales and Yes on a Yes/No items were considered
+positive.
+
+### Overall
+
+```{r classroom-walthrough-overall}
+check_exist_ca1_grades <- ipg_forms |>
+    select(all_of(ca1)) |>
+    summarise(across(everything(), ~ grade_ipg(.x))) |>
+    janitor::remove_empty("cols") |>
+    length()
+
+check_exist_ca2_grades <- ipg_forms |>
+  select(all_of(ca2)) |>
+  summarise(across(everything(), ~ grade_ipg(.x, type = "numeric"))) |>
+  janitor::remove_empty("cols") |>
+  length()
+
+check_exist_ca3_grades <- ipg_forms |>
+  select(all_of(ca3)) |>
+  summarise(across(everything(), ~ grade_ipg(.x, type = "numeric"))) |>
+  janitor::remove_empty("cols") |>
+  length()
+
+if (nrow(ipg_forms) >= 1) {
+  ca1_percent <- ipg_forms |>
+    select(all_of(ca1), `Timeline of Obs`) |>
+    group_by(`Timeline of Obs`) |>
+    summarise(across(everything(), ~ grade_ipg(.x))) |>
+    pivot_longer(!`Timeline of Obs`, names_to = "name", values_to = "value") |>
+    group_by(`Timeline of Obs`) |>
+    summarise(percent = mean(value, na.rm = T)) |>
+    mutate(percent = round(percent, 2))
+
+  ca2_percent <- ipg_forms |>
+    select(all_of(ca2), `Timeline of Obs`) |>
+    group_by(`Timeline of Obs`) |>
+    summarise(across(everything(), ~ grade_ipg(.x, type = "numeric"))) |>
+    pivot_longer(!`Timeline of Obs`, names_to = "name", values_to = "value") |>
+    group_by(`Timeline of Obs`) |>
+    summarise(percent = mean(value, na.rm = T)) |>
+    mutate(percent = round(percent, 2))
+
+  ca3_percent <- ipg_forms |>
+    select(all_of(ca3), `Timeline of Obs`) |>
+    group_by(`Timeline of Obs`) |>
+    summarise(across(everything(), ~ grade_ipg(.x, type = "numeric"))) |>
+    pivot_longer(!`Timeline of Obs`, names_to = "name", values_to = "value") |>
+    group_by(`Timeline of Obs`) |>
+    summarise(percent = mean(value, na.rm = T)) |>
+    mutate(percent = round(percent, 2))
+
+  if (check_exist_ca1_grades > 0) {
+    ca1_grades <- ipg_forms |>
+      select(all_of(ca1), `Timeline of Obs`) |>
+      group_by(`Timeline of Obs`) |>
+      summarise(across(everything(), ~ grade_ipg(.x))) |>
+      janitor::remove_empty("cols") |>
+      pivot_longer(!`Timeline of Obs`, names_to = "name", values_to = "value") |>
+      mutate(name = str_remove_all(name, "\\.\\.\\.")) |>
+      mutate(name = str_remove_all(name, "\\d+$")) |>
+      group_by(name, `Timeline of Obs`) |>
+      summarise(value = round(mean(value, na.rm = T), 2))
+  }
+
+  if (check_exist_ca2_grades > 0) {
+    ca2_grades <- ipg_forms |>
+      select(all_of(ca2), `Timeline of Obs`) |>
+      group_by(`Timeline of Obs`) |>
+      summarise(across(everything(), ~ grade_ipg(.x, type = "numeric"))) |>
+      janitor::remove_empty("cols") |>
+      pivot_longer(!`Timeline of Obs`, names_to = "name", values_to = "value") |>
+      mutate(name = str_remove_all(name, "\\.\\.\\.")) |>
+      mutate(name = str_remove_all(name, "\\d+$")) |>
+      group_by(name, `Timeline of Obs`) |>
+      summarise(value = round(mean(value, na.rm = T), 2))
+  }
+
+  if (check_exist_ca3_grades > 0) {
+    ca3_grades <- ipg_forms |>
+      select(all_of(ca3), `Timeline of Obs`) |>
+      group_by(`Timeline of Obs`) |>
+      summarise(across(everything(), ~ grade_ipg(.x, type = "numeric"))) |>
+      janitor::remove_empty("cols") |>
+      pivot_longer(!`Timeline of Obs`, names_to = "name", values_to = "value") |>
+      mutate(name = str_remove_all(name, "\\.\\.\\.")) |>
+      mutate(name = str_remove_all(name, "\\d+$")) |>
+      group_by(name, `Timeline of Obs`) |>
+      summarise(value = round(mean(value, na.rm = T), 2))
+  }
+
+  if (params$teacher == "All") {
+    practices_count <- ipg_forms |>
+      select(`Timeline of Obs`, all_of(c(ca1, ca2, ca3))) |>
+      group_by(`Timeline of Obs`) |>
+      summarise(across(everything(), ~ sum(!is.na(.x)))) |>
+      pivot_longer(!`Timeline of Obs`) |>
+      filter(value != 0) |>
+      mutate(name = str_remove_all(name, "\\.\\.\\.\\.[:digit:][:digit:][:digit:]")) |>
+      group_by(name, `Timeline of Obs`) |>
+      summarise(value = sum(value))
+
+    timeline_count <- practices_count |>
+      group_by(`Timeline of Obs`) |>
+      summarise(n = round(mean(value))) |>
+      ungroup()
+
+    ca_timeline_count <- practices_count |>
+      mutate(name = case_when(
+        str_detect(name, "CA1") ~ "CA1",
+        str_detect(name, "CA2") ~ "CA2",
+        str_detect(name, "CA3") ~ "CA3"
+      )) |>
+      group_by(`Timeline of Obs`, name) |>
+      summarise(n = round(mean(value))) |>
+      ungroup() |>
+      rename(`Core Action` = name)
+  }
+
+  practices_data <-
+    ca1_percent |>
+    mutate(`Core Action` = "CA1") |>
+    bind_rows(
+      ca2_percent |>
+        mutate(`Core Action` = "CA2"),
+      ca3_percent |>
+        mutate(`Core Action` = "CA3")
+    )
+
+  # if (params$teacher == "All") {
+  #   practices_data <- practices_data |>
+  #     left_join(timeline_count, by = c("Timeline of Obs")) |>
+  #     mutate(`Timeline of Obs` = paste0(`Timeline of Obs`, "\n(n = ", n, ")"))
+  # }
+
+  practices_data |>
+    group_by(`Timeline of Obs`) |>
+    summarise(percent = mean(percent, na.rm = T)) %>%
+    {
+      if (params$teacher == "All") left_join(., timeline_count, by = "Timeline of Obs") else .
+    } %>%
+    {
+      if (params$teacher == "All") mutate(., `Timeline of Obs` = paste0(`Timeline of Obs`, "\n(n = ", n, ")")) else .
+    } %>%
+    ggplot2::ggplot(ggplot2::aes(x = `Timeline of Obs`, y = percent)) +
+    ggplot2::geom_path(
+      color = "#04abeb", group = 1,
+      size = 1.5,
+      alpha = 0.9,
+      arrow = arrow(
+        length = unit(0.175, "inches"),
+        type = "closed"
+      ),
+      linetype = "dashed"
+    ) +
+    ggplot2::geom_point(color = "#04abeb", alpha = 0.9, size = 1.5) +
+    geom_text(aes(label = paste0(round(percent, 2), "%")),
+      fontface = "bold",
+      family = "Calibri",
+      vjust = -1
+    ) +
+    ggplot2::labs(
+      x = "", y = "% Positive Indicators",
+      title = "IPG scores over time",
+      caption = ifelse(params$teacher == "All",
+                       "Note: n sizes are average of the n sizes for Core Action 1, 2, 3, which can vary slightly.",
+                       "")
+    ) +
+    ggplot2::scale_y_continuous(
+      labels = scales::percent_format(scale = 1), expand = c(0.1, 0),
+      limits = c(0, 100)
+    ) +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(
+      plot.title = ggtext::element_markdown(
+        lineheight = 1.1, hjust = 0.5,
+        family = "Calibri Bold",
+        face = "bold",
+        size = 15
+      ),
+      legend.position = "none",
+      plot.caption = element_text(family = "Calibri"),
+      axis.text.x = ggplot2::element_text(face = "bold"),
+      axis.text.y.left = ggplot2::element_text(face = "bold"),
+      axis.title = element_text(face = "bold")
+    )
+} else {
+  no_data_plot
+}
+```
+
+```{r table-summary-overall, eval = F}
+if (exists("practices_data")) {
+
+  ### Overall Averages by Observation ###
+  overall_practices_gt <- practices_data |>
+    group_by(`Timeline of Obs`) |>
+    summarise(` ` = round(mean(percent, na.rm = T), 2)) |>
+    pivot_wider(names_from = "Timeline of Obs", values_from = " ") |>
+    mutate(` ` = "<b>Overall % Positive Ratings</b>", .before = 1)
+
+  ### By Core Action and by Observation ###
+  practices_gt <- practices_data |>
+    pivot_wider(names_from = `Timeline of Obs`, values_from = `percent`) |>
+    mutate(
+      ` ` = str_replace_all(`Core Action`, c(
+        "CA1" = "% Positive Ratings Core Action 1",
+        "CA2" = "% Positive Ratings Core Action 2",
+        "CA3" = "% Positive Ratings Core Action 3"
+      )),
+      .before = 1
+    ) |>
+    select(-`Core Action`) %>%
+    bind_rows(overall_practices_gt, .) %>%
+    gt::gt() |>
+    fmt_percent(
+      columns = contains("Observation"),
+      scale_values = F,
+      decimals = 2
+    ) |>
+    fmt_markdown(columns = ` `) |>
+    data_color(
+      columns = contains("Observation"),
+      colors = scales::col_numeric(
+        palette = tl_palette(color = "blue", n = 6),
+        domain = 0:100
+      )
+    ) |>
+    fmt_missing(
+      columns = everything(),
+      missing_text = " "
+    ) |>
+    TeachingLab::gt_theme_tl()
+
+  practices_img <- gt::gtsave(
+    data = practices_gt,
+    path = here::here("images/report_images"),
+    filename = tempfile(fileext = ".png")
+  )
+
+  knitr::include_graphics(practices_img)
+} else {
+  no_data_plot
+}
+```
+
+### Core Action 1
+
+```{r observation1}
+if (check_exist_ca1_grades > 0) {
+  practices_data |>
+    filter(`Core Action` == "CA1") %>%
+    {
+      if (params$teacher == "All") left_join(., ca_timeline_count, by = c("Timeline of Obs", "Core Action")) else .
+    } %>%
+    {
+      if (params$teacher == "All") mutate(., `Timeline of Obs` = paste0(`Timeline of Obs`, "\n(n = ", n, ")")) else .
+    } %>%
+    ggplot2::ggplot(ggplot2::aes(x = `Timeline of Obs`, y = percent)) +
+    ggplot2::geom_path(
+      color = "#D17DF7", group = 1,
+      size = 2,
+      alpha = 0.8,
+      arrow = arrow(
+        length = unit(0.1, "inches"),
+        type = "closed"
+      ),
+      linetype = "dashed"
+    ) +
+    ggplot2::geom_text(aes(label = paste0(percent, "%")),
+      vjust = -1,
+      family = "Calibri Bold",
+      fontface = "bold"
+    ) +
+    ggplot2::geom_point(color = "#D17DF7", alpha = 0.9, size = 2) +
+    ggplot2::labs(
+      x = "", y = "% Positive Indicators",
+      title = "IPG scores over time Core Action 1",
+    ) +
+    ggplot2::scale_y_continuous(
+      labels = scales::percent_format(scale = 1), expand = c(0.1, 0),
+      limits = c(0, 100)
+    ) +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(
+      plot.title = ggtext::element_markdown(
+        lineheight = 1.1, hjust = 0.5,
+        family = "Calibri Bold",
+        face = "bold",
+        size = 15
+      ),
+      legend.position = "none",
+      axis.text.x = ggplot2::element_text(face = "bold"),
+      axis.text.y.left = ggplot2::element_text(face = "bold"),
+      axis.title = element_text(face = "bold")
+    )
+} else {
+  no_data_plot
+}
+```
+
+```{r ca1-responses, fig.dim = c(5, 7)}
+
+### FOR AGGREGATE ADD PERCENTAGES OF ABOVE TABLE HERE ###
+ca1_responses_gt <- ipg_forms |>
+  # filter(!str_detect(`IPG Rubric`, "Short")) |>
+  select(all_of(ca1), `Timeline of Obs`) |>
+  janitor::remove_empty("cols") |>
+  pivot_longer(!`Timeline of Obs`, names_to = "Core Action", values_to = "Rating") |>
+  drop_na(Rating) |>
+  mutate(`Core Action` = str_remove_all(`Core Action`, "\\.\\.\\.\\.[^.]*$")) |>
+  group_by(`Core Action`, `Timeline of Obs`) |>
+  summarise(Rating = grade_ipg(Rating)) |>
+  pivot_wider(names_from = `Timeline of Obs`, values_from = Rating) |>
+  ungroup() |>
+  gt::gt(rowname_col = "Core Action") |>
+  fmt_percent(
+    columns = contains("Observation"),
+    scale_values = F,
+    decimals = 2
+  ) |>
+  data_color(
+    columns = contains("Observation"),
+    colors = scales::col_numeric(
+      palette = tl_palette(color = "blue", n = 6),
+      domain = 0:100
+    )
+  ) |>
+  fmt_missing(
+    columns = everything(),
+    missing_text = " "
+  ) |>
+  TeachingLab::gt_theme_tl()
+
+ca1_responses_img <- gt::gtsave(
+  data = ca1_responses_gt,
+  path = here::here("images/report_images"),
+  filename = tempfile(fileext = ".png"),
+  vwidth = 550,
+  vheight = 800
+)
+
+knitr::include_graphics(ca1_responses_img)
+```
+
+### Core Action 2
+
+```{r observation2}
+if (check_exist_ca2_grades > 0) {
+  practices_data |>
+    filter(`Core Action` == "CA2") %>%
+    {
+      if (params$teacher == "All") left_join(., ca_timeline_count, by = c("Timeline of Obs", "Core Action")) else .
+    } %>%
+    {
+      if (params$teacher == "All") mutate(., `Timeline of Obs` = paste0(`Timeline of Obs`, "\n(n = ", n, ")")) else .
+    } %>%
+    ggplot2::ggplot(ggplot2::aes(x = `Timeline of Obs`, y = percent)) +
+    ggplot2::geom_path(
+      color = "#D17DF7", group = 1,
+      size = 2,
+      alpha = 0.8,
+      arrow = arrow(
+        length = unit(0.1, "inches"),
+        type = "closed"
+      ),
+      linetype = "dashed"
+    ) +
+    ggplot2::geom_text(aes(label = paste0(percent, "%")),
+      vjust = -1,
+      family = "Calibri Bold",
+      fontface = "bold"
+    ) +
+    ggplot2::geom_point(color = "#D17DF7", alpha = 0.9, size = 1.1) +
+    ggplot2::labs(
+      x = "", y = "% Positive Indicators Core Action 2",
+      title = "IPG Scores Over Time Core Action 2",
+    ) +
+    ggplot2::scale_y_continuous(
+      labels = scales::percent_format(scale = 1), expand = c(0.1, 0),
+      limits = c(0, 100)
+    ) +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(
+      plot.title = ggtext::element_markdown(
+        lineheight = 1.1, hjust = 0.5,
+        family = "Calibri Bold",
+        face = "bold",
+        size = 15
+      ),
+      legend.position = "none",
+      axis.text.x = ggplot2::element_text(face = "bold"),
+      axis.text.y.left = ggplot2::element_text(face = "bold"),
+      axis.title = element_text(face = "bold")
+    )
+} else {
+  no_data_plot
+}
+```
+
+```{r ca2-responses}
+ca2_responses_gt <- ipg_forms |>
+  # filter(!str_detect(`IPG Rubric`, "Short")) |>
+  select(all_of(ca2), `Timeline of Obs`) |>
+  janitor::remove_empty("cols") |>
+  pivot_longer(!`Timeline of Obs`, names_to = "Core Action", values_to = "Rating") |>
+  drop_na(Rating) |>
+  mutate(`Core Action` = str_remove_all(`Core Action`, "\\.\\.\\.\\.[^.]*$")) |>
+  group_by(`Core Action`, `Timeline of Obs`) |>
+  summarise(Rating = grade_ipg(Rating, type = "numeric")) |>
+  pivot_wider(names_from = `Timeline of Obs`, values_from = Rating) |>
+  ungroup() |>
+  gt::gt(rowname_col = "Core Action") |>
+  fmt_percent(
+    columns = contains("Observation"),
+    scale_values = F,
+    decimals = 2
+  ) |>
+  data_color(
+    columns = contains("Observation"),
+    colors = scales::col_numeric(
+      palette = tl_palette(color = "blue", n = 6),
+      domain = 0:100
+    )
+  ) |>
+  fmt_missing(
+    columns = everything(),
+    missing_text = " "
+  ) |>
+  TeachingLab::gt_theme_tl()
+
+ca2_responses_img <- gt::gtsave(
+  data = ca2_responses_gt,
+  path = here::here("images/report_images"),
+  filename = tempfile(fileext = ".png"),
+  vwidth = 725,
+  vheight = 800
+)
+
+knitr::include_graphics(ca2_responses_img)
+```
+
+### Core Action 3
+
+```{r observation3}
+if (check_exist_ca3_grades > 0) {
+  practices_data |>
+    filter(`Core Action` == "CA3") %>%
+    {
+      if (params$teacher == "All") left_join(., ca_timeline_count, by = c("Timeline of Obs", "Core Action")) else .
+    } %>%
+    {
+      if (params$teacher == "All") mutate(., `Timeline of Obs` = paste0(`Timeline of Obs`, "\n(n = ", n, ")")) else .
+    } %>%
+    ggplot2::ggplot(ggplot2::aes(x = `Timeline of Obs`, y = percent)) +
+    ggplot2::geom_path(
+      color = "#D17DF7", group = 1,
+      size = 2,
+      alpha = 0.8,
+      arrow = arrow(
+        length = unit(0.1, "inches"),
+        type = "closed"
+      ),
+      linetype = "dashed"
+    ) +
+    ggplot2::geom_text(aes(label = paste0(percent, "%")),
+      vjust = -1,
+      family = "Calibri Bold",
+      fontface = "bold"
+    ) +
+    ggplot2::geom_point(color = "#D17DF7", alpha = 0.9, size = 1.1) +
+    ggplot2::labs(
+      x = "", y = "% Positive Indicators Core Action 3",
+      title = "IPG Scores Over Time Core Action 3",
+    ) +
+    ggplot2::scale_y_continuous(
+      labels = scales::percent_format(scale = 1), expand = c(0.1, 0),
+      limits = c(0, 100)
+    ) +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(
+      plot.title = ggtext::element_markdown(
+        lineheight = 1.1, hjust = 0.5,
+        family = "Calibri Bold",
+        face = "bold",
+        size = 15
+      ),
+      legend.position = "none",
+      axis.text.x = ggplot2::element_text(face = "bold"),
+      axis.text.y.left = ggplot2::element_text(face = "bold"),
+      axis.title = element_text(face = "bold")
+    )
+} else {
+  no_data_plot
+}
+```
+
+```{r ca3-responses}
+ca3_responses_gt <- ipg_forms |>
+    # filter(!str_detect(`IPG Rubric`, "Short")) |>
+    select(all_of(ca3), `Timeline of Obs`) |>
+    janitor::remove_empty("cols") |>
+    pivot_longer(!`Timeline of Obs`, names_to = "Core Action", values_to = "Rating") |>
+    drop_na(Rating) |>
+    mutate(`Core Action` = str_remove_all(`Core Action`, "\\.\\.\\.\\.[^.]*$")) |>
+    group_by(`Core Action`, `Timeline of Obs`) |>
+    summarise(Rating = grade_ipg(Rating, type = "numeric")) |>
+    pivot_wider(names_from = `Timeline of Obs`, values_from = Rating) |>
+    ungroup() |>
+    gt::gt(rowname_col = "Core Action") |>
+    fmt_percent(
+      columns = contains("Observation"),
+      scale_values = F,
+      decimals = 2
+    ) |>
+    data_color(
+      columns = contains("Observation"),
+      colors = scales::col_numeric(
+        palette = tl_palette(color = "blue", n = 6),
+        domain = 0:100
+      )
+    ) |>
+    fmt_missing(
+      columns = everything(),
+      missing_text = " "
+    ) |>
+    TeachingLab::gt_theme_tl()
+
+ca3_responses_img <- gt::gtsave(
+  data = ca3_responses_gt,
+  path = here::here("images/report_images"),
+  filename = tempfile(fileext = ".png"),
+  vwidth = 775,
+  vheight = 800
+)
+
+knitr::include_graphics(ca3_responses_img)
+```
+
+## Lesson Plan Analysis
+
+Teaching Lab adapted the IPG rubric to create a similar tool for
+analyzing teacher lesson plans. Ratings of 3 and 4 on 4-point Likert
+scales and Yes on a Yes/No items were considered positive
+
+```{r lesson-plan-analysis}
+if (nrow(lesson_analysis) >= 1) {
+  ca1_percent_la <- lesson_analysis |>
+    select(contains("CA1")) |>
+    janitor::remove_empty("rows") |>
+    summarise(across(everything(), ~ grade_ipg(.x))) |>
+    pivot_longer(everything(), names_to = "name", values_to = "value") |>
+    summarise(percent = mean(value, na.rm = T)) |>
+    mutate(percent = round(percent, 2))
+
+  ca2_percent_la <- lesson_analysis |>
+    select(contains("CA2")) |>
+    janitor::remove_empty("rows") |>
+    summarise(across(everything(), ~ grade_ipg(.x, type = "numeric"))) |>
+    pivot_longer(everything(), names_to = "name", values_to = "value") |>
+    summarise(percent = mean(value, na.rm = T)) |>
+    mutate(percent = round(percent, 2))
+
+  ca3_percent_la <- lesson_analysis |>
+    select(contains("CA3")) |>
+    summarise(across(everything(), ~ grade_ipg(.x, type = "numeric"))) |>
+    pivot_longer(everything(), names_to = "name", values_to = "value") |>
+    summarise(percent = mean(value, na.rm = T)) |>
+    mutate(percent = round(percent, 2))
+
+  check_exist_ca1_grades_la <- lesson_analysis |>
+    select(contains("CA1")) |>
+    summarise(across(everything(), ~ grade_ipg(.x))) |>
+    janitor::remove_empty("cols") |>
+    length()
+
+  check_exist_ca2_grades_la <- lesson_analysis |>
+    select(contains("CA2")) |>
+    summarise(across(everything(), ~ grade_ipg(.x, type = "numeric"))) |>
+    janitor::remove_empty("cols") |>
+    length()
+
+  check_exist_ca3_grades_la <- lesson_analysis |>
+    select(contains("CA3")) |>
+    summarise(across(everything(), ~ grade_ipg(.x, type = "numeric"))) |>
+    janitor::remove_empty("cols") |>
+    length()
+
+  if (check_exist_ca1_grades_la > 0) {
+    ca1_grades_la <- lesson_analysis |>
+      select(contains("CA1")) |>
+      summarise(across(everything(), ~ grade_ipg(.x))) |>
+      janitor::remove_empty("cols") |>
+      pivot_longer(everything(), names_to = "name", values_to = "value") |>
+      mutate(name = str_remove_all(name, "\\.\\.\\.")) |>
+      mutate(name = str_remove_all(name, "\\d+$")) |>
+      group_by(name) |>
+      summarise(value = round(mean(value, na.rm = T), 2))
+  }
+
+  if (check_exist_ca2_grades_la > 0) {
+    ca2_grades_la <- lesson_analysis |>
+      select(contains("CA2")) |>
+      summarise(across(everything(), ~ grade_ipg(.x, type = "numeric"))) |>
+      janitor::remove_empty("cols") |>
+      pivot_longer(everything(), names_to = "name", values_to = "value") |>
+      mutate(name = str_remove_all(name, "\\.\\.\\.")) |>
+      mutate(name = str_remove_all(name, "\\d+$")) |>
+      group_by(name) |>
+      summarise(value = round(mean(value, na.rm = T), 2))
+  }
+
+  if (check_exist_ca3_grades_la > 0) {
+    ca3_grades_la <- lesson_analysis |>
+      select(contains("CA3")) |>
+      summarise(across(everything(), ~ grade_ipg(.x, type = "numeric"))) |>
+      janitor::remove_empty("cols") |>
+      pivot_longer(everything(), names_to = "name", values_to = "value") |>
+      mutate(name = str_remove_all(name, "\\.\\.\\.")) |>
+      mutate(name = str_remove_all(name, "\\d+$")) |>
+      group_by(name) |>
+      summarise(value = round(mean(value, na.rm = T), 2))
+  }
+
+  lesson_plan_gt <- tibble::tibble(
+    ` ` = c(
+      "<b>Overall % positive Lesson Plan ratings</b>",
+      "% positive ratings Core Action 1",
+      "% positive ratings Core Action 2",
+      "% positive ratings Core Action 3"
+    ),
+    Percent = c(
+      mean(c(ca1_percent_la[[1]], ca2_percent_la[[1]], ca3_percent_la[[1]]), na.rm = T),
+      ca1_percent_la[[1]],
+      ca2_percent_la[[1]],
+      ca3_percent_la[[1]]
+    )
+  ) |>
+    gt::gt(rowname_col = "name") |>
+    gt::fmt_markdown(columns = ` `) |>
+    gt::fmt_percent("Percent",
+      scale_values = F,
+      decimals = 0
+    ) |>
+    gt::data_color(
+      columns = "Percent",
+      colors = scales::col_bin(
+        palette = paletteer::paletteer_d(
+          palette = "ggsci::blue_material"
+        ) |> as.character(),
+        domain = NULL
+      )
+    ) |>
+    TeachingLab::gt_theme_tl()
+  
+  lesson_plan_gt
+
+  # lesson_plan_img <- gt::gtsave(
+  #   data = lesson_plan_gt,
+  #   path = here::here("images/report_images"),
+  #   filename = tempfile(fileext = ".png")
+  # )
+
+  # knitr::include_graphics(lesson_plan_img)
+} else {
+  no_data_plot
+}
+```
+
+### Core Action 1
+
+```{r lesson-plan-analysis-core-action-1}
+if (exists("ca1_grades_la")) {
+  overall_ca1_la <- round(mean(ca1_grades_la$value), 2)
+
+  if (params$teacher == "All") {
+    ca1_count_la <- lesson_analysis |>
+      select(contains("CA1")) |>
+      summarise(across(everything(), ~ sum(!is.na(.x)))) |>
+      pivot_longer(everything())
+    ca1_n1_la <- min(ca1_count_la$value[ca1_count_la$value > 10])
+    ca1_n2_la <- max(ca1_count_la$value)
+    ca1_n_la <- c(ca1_n1_la, ca1_n2_la)
+  } else {
+    ca1_n_la <- NULL
+  }
+
+  core_action_1_gt_la <- tibble::tibble(
+    ` ` = c(
+      "<b>Overall % positive IPG ratings</b>",
+      ca1_grades_la$name
+    ),
+    `Percent Positive` = c(
+      overall_ca1_la,
+      ca1_grades_la$value
+    )
+  ) |>
+    gt::gt() |>
+    gt::fmt_markdown(columns = ` `) |>
+    gt::fmt_percent("Percent Positive",
+      scale_values = F,
+      decimals = 0
+    ) |>
+    gt::data_color(
+      columns = "Percent Positive",
+      colors = scales::col_bin(
+        palette = paletteer::paletteer_d(
+          palette = "ggsci::blue_material"
+        ) |> as.character(),
+        domain = NULL
+      )
+    ) %>%
+    {
+      if (!is.null(ca1_n_la)) {
+        gt::tab_source_note(
+          data = .,
+          source_note = paste0(
+            "n ranges from ",
+            ca1_n_la[1],
+            " to ",
+            ca1_n_la[2]
+          )
+        )
+      } else {
+        .
+      }
+    } %>%
+    TeachingLab::gt_theme_tl()
+  
+  # core_action_1_gt_la
+
+  core_action_1_img_la <- gt::gtsave(
+    data = core_action_1_gt_la,
+    path = here::here("images/report_images"),
+    filename = tempfile(fileext = ".png"),
+    vwidth = 300,
+    vheight = 800
+  )
+  
+  knitr::include_graphics(core_action_1_img_la)
+} else {
+  no_data_plot
+}
+```
+
+### Core Action 2
+
+```{r lesson-plan-analysis-core-action-2}
+if (exists("ca2_grades_la")) {
+  overall_ca2_la <- round(mean(ca2_grades_la$value), 2)
+
+  if (params$teacher == "All") {
+    ca2_count_la <- lesson_analysis |>
+      select(contains("CA2")) |>
+      summarise(across(everything(), ~ sum(!is.na(.x)))) |>
+      pivot_longer(everything())
+    ca2_n1_la <- min(ca2_count_la$value[ca2_count_la$value > 10])
+    ca2_n2_la <- max(ca2_count_la$value)
+    ca2_n_la <- c(ca2_n1_la, ca2_n2_la)
+  } else {
+    ca2_n_la <- NULL
+  }
+
+  core_action_2_gt_la <- tibble::tibble(
+    ` ` = c(
+      "<b>Overall % positive IPG ratings</b>",
+      ca2_grades_la$name
+    ),
+    `Percent Positive` = c(
+      overall_ca2_la,
+      ca2_grades_la$value
+    )
+  ) |>
+    gt::gt() |>
+    gt::fmt_percent("Percent Positive",
+      scale_values = F,
+      decimals = 0
+    ) |>
+    gt::fmt_markdown(columns = ` `) |>
+    gt::data_color(
+      columns = "Percent Positive",
+      colors = scales::col_bin(
+        palette = paletteer::paletteer_d(
+          palette = "ggsci::blue_material"
+        ) %>% as.character(),
+        domain = NULL
+      )
+    ) %>%
+    {
+      if (!is.null(ca2_n_la)) {
+        gt::tab_source_note(
+          data = .,
+          source_note = paste0(
+            "n ranges from ",
+            ca2_n_la[1],
+            " to ",
+            ca2_n_la[2]
+          )
+        )
+      } else {
+        .
+      }
+    } %>%
+    TeachingLab::gt_theme_tl()
+  
+  core_action_2_gt_la
+
+  core_action_2_img_la <- gt::gtsave(
+    data = core_action_2_gt_la,
+    path = here::here("images/report_images"),
+    filename = tempfile(fileext = ".png"),
+    vwidth = 350,
+    vheight = 800
+  )
+  
+  knitr::include_graphics(core_action_2_img_la)
+} else {
+  no_data_plot
+}
+```
+
+### Core Action 3
+
+```{r lesson-plan-analysis-core-action-3}
+if (exists("ca3_grades_la")) {
+  overall_ca3_la <- round(mean(ca3_grades_la$value), 2)
+
+  if (params$teacher == "All") {
+    ca3_count_la <- lesson_analysis |>
+      select(contains("CA3")) |>
+      summarise(across(everything(), ~ sum(!is.na(.x)))) |>
+      pivot_longer(everything())
+    ca3_n1_la <- min(ca3_count_la$value[ca3_count_la$value > 10])
+    ca3_n2_la <- max(ca3_count_la$value)
+    ca3_n_la <- c(ca3_n1_la, ca3_n2_la)
+  } else {
+    ca3_n_la <- NULL
+  }
+
+  core_action_3_gt_la <- tibble::tibble(
+    ` ` = c(
+      "<b>Overall % positive IPG ratings</b>",
+      ca3_grades_la$name
+    ),
+    `Percent Positive` = c(
+      overall_ca3_la,
+      ca3_grades_la$value
+    )
+  ) |>
+    gt::gt() |>
+    gt::fmt_markdown(columns = ` `) |>
+    gt::fmt_percent("Percent Positive",
+      scale_values = F,
+      decimals = 0
+    ) |>
+    gt::data_color(
+      columns = "Percent Positive",
+      colors = scales::col_bin(
+        palette = paletteer::paletteer_d(
+          palette = "ggsci::blue_material"
+        ) |> as.character(),
+        domain = NULL
+      )
+    ) %>%
+    {
+      if (!is.null(ca3_n_la)) {
+        gt::tab_source_note(
+          data = .,
+          source_note = paste0(
+            "n ranges from ",
+            ca3_n_la[1],
+            " to ",
+            ca3_n_la[2]
+          )
+        )
+      } else {
+        .
+      }
+    } %>%
+    TeachingLab::gt_theme_tl()
+  
+  # core_action_3_gt_la
+
+  core_action_3_img_la <- gt::gtsave(
+    data = core_action_3_gt_la,
+    path = here::here("images/report_images"),
+    filename = tempfile(fileext = ".png"),
+    vwidth = 350,
+    vheight = 800
+  )
+  
+  knitr::include_graphics(core_action_3_img_la)
+} else {
+  no_data_plot
+}
+```

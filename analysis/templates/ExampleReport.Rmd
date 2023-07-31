@@ -1,0 +1,683 @@
+---
+title: "Example Report Comparing All Facilitators"
+author: "Teaching Lab Monthly Facilitator Review"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  rmdformats::readthedown:
+    css: styles.css
+    self_contained: true # Other options are downcute, material, readthedown, html_clean, html_docco, lockdown, https://github.com/juba/rmdformats
+    thumbnails: false
+    lightbox: true
+    gallery: false
+    highlight: kate # Also can do tango
+    number_sections: false
+    includes:
+      after_body: footer.html
+---
+
+```{r setup, echo = F, cache = F, include = F}
+knitr::opts_chunk$set(echo = F, message = F, warning = F)
+library(tidyverse)
+library(lubridate)
+library(ggiraph)
+library(gt)
+library(reactable)
+library(reactablefmtr)
+library(scales)
+library(htmltools)
+library(htmlwidgets)
+library(glue)
+library(here)
+sheets_data <- read_rds(here("Data/google_sheets_data.rds"))
+
+col <- colorRampPalette(c("#040404", "#04ABEB"))
+
+options(width = 2000) # Adjust the width 
+```
+
+```{r echo = F}
+htmltools::tagList(rmarkdown::html_dependency_font_awesome()) # Needed so fa's in footer will show
+```
+
+# Example of a Plot
+
+The chart below plots the mean score for "How likely are you to recommend this professional learning to a colleague or friend?" as a dotted line, and then compares that dotted line to the mean score for each facilitator, while simultaneously trying to demonstrate the entirety of the variance of the data by showing every point of data that exists. There is a transparency applied to the points, meaning that when they cluster together they start to gain color, indicating large groupings in one area of the data.
+
+```{r echo = F}
+# All time plot
+facilitator_compare <- sheets_data %>%
+  drop_na(`Select the name of your first facilitator.`) %>%
+  mutate(`Select the name of your first facilitator.` = str_replace(`Select the name of your first facilitator.`,
+                                                                    "Ryan Mateo Sharnbroich",
+                                                                    "Ryan Sharnbroich"),
+         mean_score = mean(`How likely are you to recommend this professional learning to a colleague or friend?`)) %>%
+  group_by(`Select the name of your first facilitator.`) %>%
+  mutate(facilitator_means = mean(`How likely are you to recommend this professional learning to a colleague or friend?`),
+         n = n()) %>%
+  ungroup()
+```
+
+```{r}
+facilitator_compare %>%
+  ggplot(aes(x = `Select the name of your first facilitator.`, 
+                               y = `How likely are you to recommend this professional learning to a colleague or friend?`)) +
+  stat_summary(fun = mean, geom = "point", size = 3) +
+  geom_segment(aes(x = `Select the name of your first facilitator.`, xend = `Select the name of your first facilitator.`,
+               y = mean_score, yend = facilitator_means)) +
+  geom_hline(aes(yintercept = mean(`How likely are you to recommend this professional learning to a colleague or friend?`)),
+             linetype = 3) +
+  geom_jitter(alpha = 0.3, width = 0.15, aes(color = `Select the name of your first facilitator.`)) +
+  geom_text(aes(label = paste("n =", n), y = 10), family = "Open Sans", size = 3, hjust = -0.45) +
+  coord_flip(clip = "off") +
+  scale_y_continuous(breaks = scales::pretty_breaks(n = 10), limits = c(0, 10)) +
+  scale_color_manual(values = col(length(unique(sheets_data$`Select the name of your first facilitator.`)))) +
+  labs(x = "", title = "Each Facilitator's Scores All Time") +
+  theme_minimal() + 
+  theme(legend.position = "none",
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        text = element_text(family = "Open Sans"),
+        plot.title = element_text(hjust = 0.5))
+```
+
+# A plot of the most recent month
+
+Here I replicate the above plot for just the most recent month.
+
+```{r}
+sheets_data %>%
+  drop_na(`Select the name of your first facilitator.`) %>%
+  mutate(Month = lubridate::month(Date, label = T)) %>%
+  filter(Month == "Feb") %>% # Filter for current month
+  mutate(`Select the name of your first facilitator.` = str_replace(`Select the name of your first facilitator.`,
+                                                                    "Ryan Mateo Sharnbroich",
+                                                                    "Ryan Sharnbroich"),
+         mean_score = mean(`How likely are you to recommend this professional learning to a colleague or friend?`)) %>%
+  group_by(`Select the name of your first facilitator.`) %>%
+  mutate(facilitator_means = mean(`How likely are you to recommend this professional learning to a colleague or friend?`),
+         n = n()) %>%
+  ungroup() %>%
+  ggplot(aes(x = `Select the name of your first facilitator.`, 
+                               y = `How likely are you to recommend this professional learning to a colleague or friend?`)) +
+  stat_summary(fun = mean, geom = "point", size = 3) +
+  geom_segment(aes(x = `Select the name of your first facilitator.`, xend = `Select the name of your first facilitator.`,
+               y = mean_score, yend = facilitator_means)) +
+  geom_hline(aes(yintercept = mean(`How likely are you to recommend this professional learning to a colleague or friend?`)),
+             linetype = 3) +
+  geom_jitter(alpha = 0.7, width = 0.15, aes(color = `Select the name of your first facilitator.`)) +
+  geom_text(aes(label = paste("n =", n), y = 10), family = "Open Sans", size = 3, hjust = -0.7) +
+  coord_flip(clip = "off") +
+  scale_y_continuous(breaks = scales::pretty_breaks(n = 10)) +
+  scale_color_manual(values = col(length(unique(sheets_data$`Select the name of your first facilitator.`)))) +
+  labs(x = "", title = glue::glue("Each Facilitator's Scores in the Month of February")) +
+  theme_minimal() + 
+  theme(legend.position = "none",
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        text = element_text(family = "Open Sans", color = "black"),
+        axis.text = element_text(color = "black"),
+        plot.title = element_text(hjust = 0.5))
+
+# Just this month plot
+# sheets_data %>%
+#   drop_na(`Select the name of your first facilitator.`) %>%
+#   mutate(`Select the name of your first facilitator.` = str_replace(`Select the name of your first facilitator.`,
+#                                                                     "Ryan Mateo Sharnbroich",
+#                                                                     "Ryan Sharnbroich"),
+#          Month = lubridate::month(Date, label = T),
+#          Month2 = lubridate::month(Date)) %>%
+#   filter(Month2 == month(Sys.Date())) %>% # Filter for current month
+#   ggplot(aes(x = `Select the name of your first facilitator.`, 
+#                                y = `How likely are you to recommend this professional learning to a colleague or friend?`)) +
+#   geom_boxplot(alpha = 0) +
+#   geom_jitter(alpha = 0.7, width = 0.15, aes(color = `Select the name of your first facilitator.`)) +
+#   coord_flip() +
+#   scale_y_continuous(breaks = scales::pretty_breaks(n = 10)) +
+#   scale_color_manual(values = col(length(unique(sheets_data$`Select the name of your first facilitator.`)))) +
+#   labs(x = "", title = glue::glue("Each Facilitator's Scores in the Month of {month(Sys.Date(), label = T, abbr = F)}")) +
+#   theme_minimal() + 
+#   theme(legend.position = "none",
+#         panel.grid.major.x = element_blank(),
+#         panel.grid.minor.x = element_blank(),
+#         text = element_text(family = "Open Sans", color = "black"),
+#         axis.text = element_text(color = "black"),
+#         plot.title = element_text(hjust = 0.5))
+# ggsave(here(paste0("Images/", "facilitator_", month(Sys.Date(), abbr = F, label = T), "_plot.png")), width = 16, height = 9)
+```
+
+The March scores will load in this place once it hits April 1 - I could change this to just work based on a satisfactory n as well.
+
+# Comparing Facilitators by Likert Ratings
+
+The same plot can be replicated for different questions, keep in mind here that the x axis is technically a discrete scale - and people's responses in terms of strongly disagree to strongly agree have been converted to a numeric 1-5 and then taken as a mean.
+
+```{r}
+# facilitator_compare %>% select_if(is.numeric) %>% colnames()
+facilitator_compare %>%
+  mutate(mean_score = mean(`I am satisfied with the overall quality of this course.`, na.rm = T)) %>%
+  group_by(`Select the name of your first facilitator.`) %>%
+  mutate(facilitator_means = mean(`I am satisfied with the overall quality of this course.`, na.rm = T)) %>%
+  ungroup() %>%
+  ggplot(aes(x = `Select the name of your first facilitator.`, y = `I am satisfied with the overall quality of this course.`)) +
+  stat_summary(fun = mean, geom = "point", size = 3) +
+  geom_segment(aes(x = `Select the name of your first facilitator.`, xend = `Select the name of your first facilitator.`,
+               y = mean_score, yend = facilitator_means)) +
+  geom_hline(aes(yintercept = mean(`I am satisfied with the overall quality of this course.`, na.rm = T)),
+             linetype = 3) +
+  geom_jitter(alpha = 0.7, height = 0.2, width = 0.15, aes(color = `Select the name of your first facilitator.`)) +
+  geom_text(aes(label = paste("n =", n), y = 5), family = "Open Sans", size = 3, hjust = -2) +
+  coord_flip(clip = "off") +
+  scale_y_continuous(breaks = scales::pretty_breaks(n = 5)) +
+  scale_color_manual(values = col(length(unique(facilitator_compare$`Select the name of your first facilitator.`)))) +
+  labs(x = "", title = glue::glue("Each Facilitator's Scores")) +
+  theme_minimal() + 
+  theme(legend.position = "none",
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        text = element_text(family = "Open Sans", color = "black"),
+        axis.text = element_text(color = "black"),
+        plot.title = element_text(hjust = 0.5))
+```
+
+
+# Table Example
+
+```{r}
+plot_bars <- function(data) {
+  ggplot(data, aes(x = 0, fill = factor(`S/he facilitated the content clearly #1`))) +
+    geom_bar() +
+    geom_text(color = "transparent", aes(x = -1.3, label = "asdfs", y = 1)) +
+    geom_text(color = "transparent", aes(x = 1.3, label = "asdfs", y = 1)) +
+    coord_flip() +
+    scale_fill_manual(values = col(5)) +
+    labs(x = "", y = "") +
+    theme_void() +
+    theme(legend.position = "none")
+}
+fmt_ggplot <- fmt_gg <- function(
+  data,
+  columns,
+  rows = NULL,
+  height = 100,
+  aspect_ratio = 1.0
+) {
+  rows <- rlang::enquo(rows)
+  
+  fmt(
+    data = data,
+    columns = columns,
+    rows = !!rows,
+    fns = list(
+      html = function(x) {
+        map(
+          x,
+          ggplot_image,
+          height = height,
+          aspect_ratio = aspect_ratio
+        )
+      }
+    )
+  )
+}
+```
+
+```{r}
+# Survey response filter for relevent columns
+survey_responses <- sheets_data %>%
+  select(`How likely are you to recommend this professional learning to a colleague or friend?`, 
+         `I am satisfied with the overall quality of this course.`, 
+         `I felt a sense of community with the other participants in this course even though we were virtual.`,
+         `Select your course.`,
+         `Date`,
+         `Select the name of your first facilitator.`,
+         `S/he facilitated the content clearly #1`,
+         `S/he effectively built a community of learners #1`) %>%
+  drop_na(`How likely are you to recommend this professional learning to a colleague or friend?`, `Select the name of your first facilitator.`) %>%
+  mutate(Date = format(`Date`, '%b, %d %Y')) %>%
+  dplyr::arrange(desc(`How likely are you to recommend this professional learning to a colleague or friend?`))#%>%
+  # nest(bars = c(!`Select the name of your first facilitator.`)) %>%
+  # mutate(plot = map(bars, plot_bars))
+  
+# Separating plot for rebind later  
+# plot <- tibble(plot = survey_responses$plot)
+# survey_responses <- survey_responses %>% 
+#   select(-plot) %>%
+#   unnest(bars)
+  
+# test <- survey_responses
+# Calculate percent agree/strongly agree
+survey_percents <- survey_responses %>%
+  select(-`How likely are you to recommend this professional learning to a colleague or friend?`,
+         -`I felt a sense of community with the other participants in this course even though we were virtual.`) %>%
+  group_by(`Select the name of your first facilitator.`) %>%
+  summarise(across(where(is.numeric), ~ round(length(which(.x %in% c(4, 5)))/length(.x), 4)),
+            `Number of Reviews` = n())
+# NPS calculations
+survey_nps <- survey_responses %>%
+  select(`How likely are you to recommend this professional learning to a colleague or friend?`,
+         `Select the name of your first facilitator.`) %>%
+  group_by(`Select the name of your first facilitator.`) %>%
+  summarise(NPS = round(((length(which(`How likely are you to recommend this professional learning to a colleague or friend?` %in% c(9, 10)))/
+                           length(`How likely are you to recommend this professional learning to a colleague or friend?`)) -
+                          (length(which(`How likely are you to recommend this professional learning to a colleague or friend?` %in% c(0:6)))/
+                           length(`How likely are you to recommend this professional learning to a colleague or friend?`)))*100, 2))
+# Join nps and percent agree/strongly agree
+survey_facilitators_final <- left_join(survey_percents, survey_nps, by = "Select the name of your first facilitator.") %>%
+  # bind_cols(plot) %>%
+  relocate(NPS, .after = `Select the name of your first facilitator.`) %>%
+  relocate(`I am satisfied with the overall quality of this course.`, .before = last_col())
+```
+
+
+<div style = "width:180%; height:auto; margin: auto;">
+```{r gt-table-1}
+survey_facilitators_final %>%
+  # rename(`Likert Ratings` = plot) %>%
+  arrange(desc(NPS)) %>%
+  gt() %>%
+  # fmt_ggplot(columns = vars(`Likert Ratings`), height = px(400), aspect_ratio = 1) %>%
+  tab_header(
+    title = md("&#128200; **Facilitator Scoring** &#128201;"),
+    subtitle = md("Sorted *Best-Worst NPS*, **%'s Represent Proportion that Strongly Agree/Agree**")
+  ) %>%
+  fmt_percent(
+    columns = vars(`I am satisfied with the overall quality of this course.`,
+                   `S/he facilitated the content clearly #1`,
+                   `S/he effectively built a community of learners #1`),
+    decimals = 1
+  ) %>%
+  cols_label(
+    `Select the name of your first facilitator.` = md("**Facilitator**"),
+    `I am satisfied with the overall quality of this course.` = md("**I am satisfied with the overall quality of this course**"),
+    `S/he facilitated the content clearly #1` = md("**S/he facilitated the content clearly**"),
+    `S/he effectively built a community of learners #1` = md("**S/he effectively built a community of learners #1**"),
+    NPS = md("**NPS**"),
+    # `Likert Ratings` = md("**Likert Ratings**"),
+    `Number of Reviews` = md("**Number of Reviews**")
+  ) %>%
+  cols_width(
+    vars(NPS) ~ px(110),
+         everything() ~ px(250)
+  ) %>%
+  cols_align(
+    align = "center"
+  ) %>%
+  data_color(columns = vars(NPS),
+             colors = scales::col_numeric(
+               palette = col(nrow(survey_responses))
+               %>% as.character(),
+             domain = NULL)
+  ) %>%
+  tab_style(
+    style = list(
+      cell_borders(
+        sides = "right",
+        color = "black",
+        weight = px(3)
+      )
+    ),
+    locations = list(
+      cells_body(
+        columns = vars(NPS,
+                       `Select the name of your first facilitator.`)
+      )
+    )
+  ) %>%
+  tab_style(
+    style = list(
+      cell_borders(
+        sides = "left",
+        color = "black",
+        weight = px(3)
+      )
+    ),
+    locations = list(
+      cells_body(
+        columns = vars(NPS,
+                       `Select the name of your first facilitator.`)
+      )
+    )
+  ) %>%
+  tab_style(
+    style = list(
+      cell_borders(
+        sides = "bottom",
+        color = "black",
+        weight = px(3)
+      )
+    ),
+    locations = list(
+      cells_column_labels(
+        columns = gt::everything()
+      )
+    )
+  ) %>%
+  tab_style(
+    style = list(
+      cell_borders(
+        sides = "right",
+        color = "gray50",
+        weight = px(1.5)
+      )
+    ),
+    locations = list(
+      cells_body(
+        columns = vars(`I am satisfied with the overall quality of this course.`, 
+                       `S/he facilitated the content clearly #1`,
+                       # `Likert Ratings`,
+                       `Select the name of your first facilitator.`,
+                       `Number of Reviews`)
+      )
+    )
+  ) %>%
+  tab_options(
+    summary_row.background.color = "#ACEACE80",
+    grand_summary_row.background.color = "#990000",
+    row_group.background.color = "#FFEFDB80",
+    heading.background.color = "#04ABEB", # Main Heading Background
+    column_labels.background.color = "#EFFBFC",
+    stub.background.color = "#EFFBFC",
+    table.font.color = "#323232",
+    table.font.names = "Open Sans",
+    table_body.hlines.color = "#989898",
+    table_body.border.top.color = "#989898",
+    heading.border.bottom.color = "#989898",
+    row_group.border.top.color = "#989898",
+    row_group.border.bottom.style = "none",
+    stub.border.style = "dashed",
+    stub.border.color = "#989898",
+    stub.border.width = "1px",
+    summary_row.border.color = "#989898")
+```
+</div>
+# A Monthly Filtered Table
+
+```{r gt-table-data-2}
+# Survey response filter for relevent columns
+survey_responses_february <- sheets_data %>%
+  select(`How likely are you to recommend this professional learning to a colleague or friend?`, 
+         `I am satisfied with the overall quality of this course.`, 
+         `I felt a sense of community with the other participants in this course even though we were virtual.`,
+         `Select your course.`,
+         `Date`,
+         `Select the name of your first facilitator.`,
+         `S/he facilitated the content clearly #1`,
+         `S/he effectively built a community of learners #1`) %>%
+  drop_na(`How likely are you to recommend this professional learning to a colleague or friend?`, `Select the name of your first facilitator.`) %>%
+  mutate(Date = month(Date, label = T, abbr = F)) %>%
+  filter(Date == "February") %>%
+  dplyr::arrange(desc(`How likely are you to recommend this professional learning to a colleague or friend?`))
+# Calculate percent agree/strongly agree
+survey_percents_february <- survey_responses_february %>%
+  select(-`How likely are you to recommend this professional learning to a colleague or friend?`) %>%
+  group_by(`Select the name of your first facilitator.`) %>%
+  summarise(across(where(is.numeric), ~ round(length(which(.x %in% c(4, 5)))/length(.x), 4)))
+# NPS calculations
+survey_nps_february <- survey_responses_february %>%
+  select(`How likely are you to recommend this professional learning to a colleague or friend?`,
+         `Select the name of your first facilitator.`) %>%
+  group_by(`Select the name of your first facilitator.`) %>%
+  summarise(NPS = round(((length(which(`How likely are you to recommend this professional learning to a colleague or friend?` %in% c(9, 10)))/
+                           length(`How likely are you to recommend this professional learning to a colleague or friend?`)) -
+                          (length(which(`How likely are you to recommend this professional learning to a colleague or friend?` %in% c(0:6)))/
+                           length(`How likely are you to recommend this professional learning to a colleague or friend?`)))*100, 2))
+# Join nps and percent agree/strongly agree
+survey_facilitators_february <- left_join(survey_percents_february, survey_nps_february, by = "Select the name of your first facilitator.")
+```
+
+<div style = "width:180%; height:auto; margin: auto;">
+```{r}
+survey_facilitators_february %>%
+  arrange(desc(NPS)) %>%
+  gt() %>%
+  tab_header(
+    title = md("&#128200; **Facilitator Scoring in February** &#128201;"),
+    subtitle = md("Sorted *Best-Worst NPS*, **%'s Represent Proportion that Strongly Agree/Agree**")
+  ) %>%
+  fmt_percent(
+    columns = vars(`I am satisfied with the overall quality of this course.`,
+                   `I felt a sense of community with the other participants in this course even though we were virtual.`,
+                   `S/he facilitated the content clearly #1`,
+                   `S/he effectively built a community of learners #1`),
+    decimals = 1
+  ) %>%
+  cols_label(
+    `Select the name of your first facilitator.` = md("**Facilitator**"),
+    `I am satisfied with the overall quality of this course.` = md("**I am satisfied with the overall quality of this course**"),
+    `I felt a sense of community with the other participants in this course even though we were virtual.` = md("**I felt a sense of community with the other participants in this course even though we were virtual**"),
+    `S/he facilitated the content clearly #1` = md("**S/he facilitated the content clearly**"),
+    `S/he effectively built a community of learners #1` = md("**S/he effectively built a community of learners #1**"),
+    NPS = md("**NPS**")
+  ) %>%
+  cols_width(
+    vars(NPS) ~ px(110),
+         everything() ~ px(250)
+  ) %>%
+  cols_align(
+    align = "center"
+  ) %>%
+  data_color(columns = vars(NPS),
+             colors = scales::col_numeric(
+               palette = col(nrow(survey_responses))
+               %>% as.character(),
+             domain = NULL)
+  ) %>%
+  tab_style(
+    style = list(
+      cell_borders(
+        sides = "right",
+        color = "black",
+        weight = px(3)
+      )
+    ),
+    locations = list(
+      cells_body(
+        columns = vars(NPS,
+                       `Select the name of your first facilitator.`)
+      )
+    )
+  ) %>%
+  tab_style(
+    style = list(
+      cell_borders(
+        sides = "left",
+        color = "black",
+        weight = px(3)
+      )
+    ),
+    locations = list(
+      cells_body(
+        columns = vars(NPS,
+                       `Select the name of your first facilitator.`)
+      )
+    )
+  ) %>%
+  tab_style(
+    style = list(
+      cell_borders(
+        sides = "bottom",
+        color = "black",
+        weight = px(3)
+      )
+    ),
+    locations = list(
+      cells_column_labels(
+        columns = gt::everything()
+      )
+    )
+  ) %>%
+  tab_style(
+    style = list(
+      cell_borders(
+        sides = "right",
+        color = "gray50",
+        weight = px(1.5)
+      )
+    ),
+    locations = list(
+      cells_body(
+        columns = vars(`I am satisfied with the overall quality of this course.`, 
+                       `I felt a sense of community with the other participants in this course even though we were virtual.`,
+                       `S/he facilitated the content clearly #1`,
+                       `Select the name of your first facilitator.`)
+      )
+    )
+  ) %>%
+  tab_options(
+    summary_row.background.color = "#ACEACE80",
+    grand_summary_row.background.color = "#990000",
+    row_group.background.color = "#FFEFDB80",
+    heading.background.color = "#04ABEB", # Main Heading Background
+    column_labels.background.color = "#EFFBFC",
+    stub.background.color = "#EFFBFC",
+    table.font.color = "#323232",
+    table.font.names = "Open Sans",
+    table_body.hlines.color = "#989898",
+    table_body.border.top.color = "#989898",
+    heading.border.bottom.color = "#989898",
+    row_group.border.top.color = "#989898",
+    row_group.border.bottom.style = "none",
+    stub.border.style = "dashed",
+    stub.border.color = "#989898",
+    stub.border.width = "1px",
+    summary_row.border.color = "#989898")
+```
+</div>
+
+# Example with Summary Statistics
+
+<div style = "width:180%; height:auto; margin: auto;">
+```{r}
+numeric_averages <- sheets_data %>%
+  mutate(Month = lubridate::month(Date, label = T, abbr = F)) %>%
+  group_by(Month) %>%
+  select(-`How likely are you to recommend this professional learning to a colleague or friend?`) %>%
+  summarise(across(where(is.numeric), ~ round(length(which(.x %in% c(4, 5)))/length(.x), 4))) %>%
+  select(-`S/he effectively built a community of learners #3`, -`S/he facilitated the content clearly #3`) %>%
+  arrange(Month) %>%
+  mutate(`S/he facilitated the content clearly` = round((`S/he facilitated the content clearly #1` + `S/he facilitated the content clearly #2`)/2, 2),
+         `S/he effectively built a community of learners` = round((`S/he effectively built a community of learners #1` + `S/he effectively built a community of learners #2`)/2, 2)) %>%
+  select(-`S/he effectively built a community of learners #1`, -`S/he effectively built a community of learners #2`,
+         -`S/he facilitated the content clearly #1`, -`S/he facilitated the content clearly #2`)
+
+nps_average <- sheets_data %>%
+  mutate(Month = lubridate::month(Date, label = T, abbr = F)) %>%
+  select(Month, `How likely are you to recommend this professional learning to a colleague or friend?`) %>%
+  group_by(Month) %>%
+  summarise(NPS = round(((length(which(`How likely are you to recommend this professional learning to a colleague or friend?` %in% c(9, 10)))/
+                           length(`How likely are you to recommend this professional learning to a colleague or friend?`)) -
+                          (length(which(`How likely are you to recommend this professional learning to a colleague or friend?` %in% c(0:6)))/
+                           length(`How likely are you to recommend this professional learning to a colleague or friend?`)))*100, 2))
+
+month_replace <- c("July" = "01 July", "August" = "02 August", "September" = "03 September", "October" = "04 October", 
+                   "November" = "05 November", "December" = "06 December", "January" = "07 January", "February" = "08 February", 
+                   "March" = "09 March", "April" = "10 April", "May" = "11 May", "June" = "12 June")
+
+numeric_averages <- left_join(numeric_averages, nps_average, by = c("Month")) %>%
+  mutate(Month = str_replace_all(Month, month_replace),
+         Month = factor(Month, levels = c("01 July", "02 August", "03 September", "04 October", "05 November", "06 December", "07 January", "08 February", "09 March", "10 April", "11 May", "12 June"))) %>%
+  arrange(Month)
+```
+
+```{css, echo = FALSE}
+.border-left {
+  border-left: 2px solid #555;
+}
+
+.border-right {
+  border-right: 2px solid #555;
+}
+
+.monthly-tbl {
+  font-family: "Open Sans";
+}
+
+.example-title {
+  margin-top: 3px;
+  padding: -10px;
+  font-size: 20px;
+}
+```
+
+```{r reactable}
+numeric_reactable <- reactable::reactable(numeric_averages,
+                                          # Add theme for the top border
+                                          theme = reactableTheme(
+                                            # style = list(fontFamily = "Open Sans Light Italic"),
+                                            headerStyle = list(
+                                              "&:hover[aria-sort]" = list(background = "hsl(0, 0%, 96%)"),
+                                              "&[aria-sort='ascending'], &[aria-sort='descending']" = list(background = "hsl(0, 0%, 96%)"),
+                                              borderColor = "#555"
+                                            ),
+                                            footerStyle = list(
+                                              "&:hover[aria-sort]" = list(background = "hsl(0, 0%, 96%)"),
+                                              "&[aria-sort='ascending'], &[aria-sort='descending']" = list(background = "hsl(0, 0%, 96%)"),
+                                              borderColor = "#555"
+                                            )
+                                          ),
+                                          columns = list(
+                                            Month = colDef(footer = "Average",
+                                                           # Add border to right of column
+                                                           class = "border-right",
+                                                           width = 100,
+                                                           style = list(fontWeight = "bold")),
+                                            `I am satisfied with the overall quality of this course.` = 
+                                              colDef(footer = paste0(round(mean(numeric_averages$`I am satisfied with the overall quality of this course.`)*100, 2), "%")),
+                                            `The topics for this course were relevant for my role.` = 
+                                              colDef(footer = paste0(round(mean(numeric_averages$`The topics for this course were relevant for my role.`)*100, 2), "%")),
+                                            `The independent online work activities were well-designed to help me meet the learning targets.` = 
+                                              colDef(footer = paste0(round(mean(numeric_averages$`The independent online work activities were well-designed to help me meet the learning targets.`)*100, 2), "%")),
+                                            `The Zoom course activities were well-designed to help me meet the learning targets.` = 
+                                              colDef(footer = paste0(round(mean(numeric_averages$`The Zoom course activities were well-designed to help me meet the learning targets.`)*100, 2), "%")),
+                                            `I felt a sense of community with the other participants in this course even though we were virtual.` = 
+                                              colDef(footer = paste0(round(mean(numeric_averages$`I felt a sense of community with the other participants in this course even though we were virtual.`)*100, 2), "%")),
+                                            `This course helped me navigate remote and/or hybrid learning during COVID-19.` = 
+                                              colDef(footer = paste0(round(mean(numeric_averages$`This course helped me navigate remote and/or hybrid learning during COVID-19.`)*100, 2), "%")),
+                                            `How likely are you to apply this learning to your practice in the next 4-6 weeks?` = 
+                                              colDef(footer = paste0(round(mean(numeric_averages$`How likely are you to apply this learning to your practice in the next 4-6 weeks?`)*100, 2), "%")),
+                                            `How likely are you to recommend this professional learning to a colleague or friend?` = 
+                                              colDef(footer = paste0(round(mean(numeric_averages$`How likely are you to recommend this professional learning to a colleague or friend?`)*100, 2), "%")),
+                                            `S/he facilitated the content clearly` = 
+                                              colDef(footer = paste0(round(mean(numeric_averages$`S/he facilitated the content clearly`)*100, 2), "%")),
+                                            `S/he effectively built a community of learners` = 
+                                              colDef(footer = paste0(round(mean(numeric_averages$`S/he effectively built a community of learners`)*100, 2), "%")),
+                                            NPS =
+                                              colDef(cell = data_bars_gradient(numeric_averages, 
+                                                                               colors = rev(col(10))),
+                                                     footer = round(mean(numeric_averages$NPS), 2),
+                                                     style = list(backgroundColor = "white",
+                                                                  fontWeight = "bold"),
+                                                     width = 120,
+                                                     class = "border-left")
+                                          ),
+  defaultColDef = colDef(cell = color_tiles(data = numeric_averages, colors = col(5)[3:5], number_fmt = scales::percent),
+                         format = colFormat(percent = T, digits = 2),
+                         footerStyle = list(fontWeight = "bold"),
+                         headerClass = "average-score-header", align = "center"),
+  highlight = T,
+  compact = T,
+  borderless = F,
+  class = "monthly-tbl"
+)
+
+div(class = "example",
+  div(class = "example-header",
+      div(class = "example-title", HTML("<center><h1 style='color:#045777;background-color: hsl(205, 100%, 36%);color: hsl(0, 0%, 20%);font-family: 'Josef Xuereb's Friends';padding-top:0px;margin: 0px;'>Percent that Agree/Strongly Agree w/ Statements Per Month</h1></center>")),
+      numeric_reactable
+  )
+)
+```
+</div>
+```{r eval = F}
+saveWidget(widget = numeric_reactable, file = here("HTML/monthly_table.html"), selfcontained = T)
+save_html(html = numeric_reactable, file = here("HTML/monthly_table.html"))
+webshot2::webshot(url = here("HTML/monthly_table.html"),
+                  file = here("Images/monthly_table.png"), vwidth = 900, vheight = 1200, delay = 3)
+```
+
+
+
+
+
+
+

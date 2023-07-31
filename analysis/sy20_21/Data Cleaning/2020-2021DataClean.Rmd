@@ -1,0 +1,257 @@
+---
+title: "2020-2021"
+author: "Duncan Gates"
+date: "5/13/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, message = F, warning = F)
+
+devtools::load_all()
+library(TeachingLab)
+library(tidyverse)
+library(here)
+library(gt)
+library(googlesheets4)
+```
+
+# Read in Data
+
+Note that I read in all data as characters.
+
+```{r}
+# Read in sheets, and slice out second row, get rid of timestamp
+fall <- read_sheet("https://docs.google.com/spreadsheets/d/1DhVmQWqOzXab1EARPuleWSdZirNNuAcENhG2Wn2IVwU/edit#gid=87988906",
+                   sheet = "Form Responses 1",
+                   skip = 1,
+                   col_types = "c"
+) %>%
+  slice(-1) %>%
+  select(-1) %>%
+  mutate(col_count = rowSums(!is.na(.))) %>%
+  arrange(id, col_count) %>%
+  distinct(id, .keep_all = T) %>%
+  select(-col_count)
+
+spring <- read_sheet("https://docs.google.com/spreadsheets/d/1e3IvUw36O9jjYqZOU6alOClBsGmA6Sy6Wzr4Bz7fNG4/edit#gid=118561712",
+  col_types = "c"
+) %>%
+  slice(-1) %>%
+  select(-1) %>%
+  mutate(col_count = rowSums(!is.na(.))) %>%
+  arrange(id, col_count) %>%
+  distinct(id, .keep_all = T) %>%
+  select(-col_count)
+```
+# Cleaning Data
+
+```{r}
+# ID Fixing Vector
+id_replace <- c("brandibecker@freirecharterschool.org" = "Brandi.becker@freirecharterschool.org",
+                "casey.mullins@clevelandmetroschools.org" = "casey.mullins@clevelandmetroschools.lorg",
+                "ian.fox@freirecharterschool.org" = "ian.fox@gmail.com",
+                "jpellerito@schools.nyc.gov" = "jpellerito@ps89x.com",
+                "kathrynshockro@irsd.k12.de.us" = "Kathryn.shockro@irsd.k12.de.us",
+                "lariss.smith@pcpsb.net" = "larissa.smith@pcpsb.netp",
+                "luke.mottola@freirewilmington.org" = "luke.mattola@freirewilmington.org",
+                "sfialkowski@schools.nyc.gov" = "sfialkowski@ps89x.com",
+                "victoria.cross@pcpsb.net" = "victoriacross14@gmail.com")
+
+# Fix id, remove empty columns, relocate some variables
+fall_df <- fall %>%
+  mutate(id = str_replace_all(id, id_replace)) %>%
+  mutate(id = str_to_lower(str_trim(id))) %>%
+  rename_with(~ str_replace_all(.x, "ela", "preela")) %>%
+  janitor::remove_empty(which = "cols") %>%
+  relocate(pre_role, .after = last_col()) %>%
+  relocate(any_of(c("pre_subject", "pre_preelalevel")), .before = last_col())
+# Same as above
+spring_df <- spring %>%
+  mutate(id = str_replace_all(id, id_replace)) %>%
+  mutate(id = str_to_lower(str_trim(id))) %>%
+  rename_with(~ str_replace_all(.x, "ela", "postela")) %>%
+  janitor::remove_empty(which = "cols") %>%
+  relocate(post_role, .after = last_col()) %>%
+  relocate(any_of(c("postschool1", "postschool2", "postschool3", "postschool4")), .after = matheff3) %>%
+  relocate(any_of(c(
+    "postobs1", "postobs2", "postobs3", "postadmin1", "postadmin2",
+    "postadmin3", "postadmin4", "postadmin5", "postadmin6", "post_subject",
+    "post_postelalevel"
+  )), .after = postschool4)
+# Coalesce admin responses to mindsets
+coalescing_list <- list(
+  prerace1 = c(4, 83), prerace2 = c(5, 84), prehigh2 = c(6, 85), prehigh3 = c(7, 86),
+  prehigh4 = c(8, 87), prehigh1 = c(9, 88), pregrowth1 = c(10, 89),
+  pregrowth2 = c(11, 90), preacc1 = c(12, 91), preacc2 = c(13, 92),
+  preacc3 = c(14, 93)
+)
+
+fall_df[4:14] <- imap_dfc(coalescing_list, ~ fall_df[, .x] %>%
+  transmute(!!.y := coalesce(!!!syms(names(fall_df)[.x]))))
+fall_df <- fall_df %>%
+  select(-c(83:93))
+
+coalescing_list_spring <- list(
+  postrace1 = c(4, 16), postrace2 = c(5, 17), posthigh2 = c(6, 18), posthigh3 = c(7, 19),
+  posthigh4 = c(8, 20), posthigh1 = c(9, 21), postgrowth1 = c(10, 22),
+  postgrowth2 = c(11, 23), postacc1 = c(12, 24), postacc2 = c(13, 25),
+  postacc3 = c(14, 26)
+)
+
+spring_df[4:14] <- imap_dfc(coalescing_list_spring, ~ spring_df[, .x] %>%
+  transmute(!!.y := coalesce(!!!syms(names(spring_df)[.x]))))
+
+spring_df <- spring_df %>%
+  select(-c(16:26))
+```
+
+# Vectors for Checking Answers
+
+```{r}
+positive_vector <- c("4", "5")
+negative_vector <- c("1", "2")
+```
+
+# Checking for incorrect variables in answers
+
+```{r}
+fall_vars <- purrr::map_df(fall_df, ~ tibble::tibble(
+  class = class(.x),
+  value = toString(unique(.x))
+))
+fall_cols <- purrr::map(fall_df, colnames) %>%
+  enframe() %>%
+  select(name)
+
+spring_vars <- purrr::map_df(spring_df, ~ tibble::tibble(
+  class = class(.x),
+  value = toString(unique(.x))
+))
+spring_cols <- purrr::map(spring_df, colnames) %>%
+  enframe() %>%
+  select(name)
+
+spring_df_compare <- bind_cols(spring_vars, spring_cols) %>%
+  relocate(name, .before = 1) %>%
+  rename(spring_name = name)
+
+fall_df_compare <- bind_cols(fall_vars, fall_cols) %>%
+  relocate(name, .before = 1) %>%
+  rename(fall_name = name) %>%
+  bind_rows(tibble(
+    class = rep(NA, nrow(spring_vars) - nrow(fall_vars)),
+    value = rep(NA, nrow(spring_vars) - nrow(fall_vars)),
+    name = rep(NA, nrow(spring_vars) - nrow(fall_vars))
+  )) %>%
+  select(-name)
+
+fall_spring_compare <- bind_cols(fall_df_compare, spring_df_compare) %>%
+  select(-2, -5)
+# EXTRAS ARE: post_lableader, post_gain_squal, post_improvequal, post_perm, post_raffle
+
+write_rds(fall_spring_compare, here("Analysis/2020-2021/Data/df_compare.rds"))
+write_csv(fall_spring_compare, here("Analysis/2020-2021/Data/df_compare.csv"))
+```
+
+# Dataframe Making/Saving
+
+```{r}
+# Merge Some of the Locations
+loc_rename <- c("Building 21 - Philadelphia, PA" = "Building 21",
+                "Building 21 - Allentown, PA" = "Building 21")
+
+# Make Unmatched Dataframe
+full_2021 <- full_join(fall_df, spring_df, by = "id") %>%
+  mutate(pre_site = str_replace_all(pre_site, loc_rename)) %>%
+  mutate(post_site = str_replace_all(post_site, loc_rename)) %>%
+  mutate(pre = if_else(!is.na(prerace1), T, F)) %>%
+  mutate(post = if_else(!is.na(postrace1), T, F)) %>%
+  mutate(pre_site = coalesce(pre_site, post_site)) %>%
+  mutate(post_site = coalesce(post_site, pre_site)) %>%
+  mutate(pre_site = if_else(post_site != pre_site, post_site, pre_site)) %>%
+  mutate(prepost = if_else(pre == T & post == T,
+                           T,
+                           F))
+
+write_rds(full_2021, here("Analysis/2020-2021/Data/full_2021.rds"))
+write_rds(full_2021, here("Data/SY20-21/full_2021.rds"))
+write_rds(full_2021, here("Data/SY19-20/full_2021.rds"))
+
+matched_filter <- fall_df$id[fall_df$id %in% spring_df$id]
+
+fall_one <- fall_df %>%
+  filter(id %in% matched_filter) %>%
+  distinct(id, .keep_all = T)
+spring_one <- spring_df %>%
+  filter(str_detect(id, paste(matched_filter, collapse = "|"))) %>%
+  distinct(id, .keep_all = T)
+
+rename_vector <- c("mathgen1a...47" = "mathgen1a.x",
+                   "mathgen1b...48" = "mathgen1b.x",
+                   "mathgen1c...49" ="mathgen1c.x",
+                   "mathgen1d...50" ="mathgen1d.x", 
+                   "mathgen2...51" ="mathgen2.x", 
+                   "mathgen3a...52" ="mathgen3a.x", 
+                   "mathgen3b...53" ="mathgen3b.x",
+                   "mathgen3c...54" ="mathgen3c.x", 
+                   "mathgen3d...55" ="mathgen3d.x", 
+                   "matheq1...56" ="matheq1.x", 
+                   "matheq2a...57" ="matheq2a.x", 
+                   "matheq2b...58" ="matheq2b.x", 
+                   "matheq2c...59" ="matheq2c.x", 
+                   "matheq2d...60" ="matheq2d.x", 
+                   "mathsupp1...61" ="mathsupp1.x", 
+                   "mathsupp2a...62" ="mathsupp2a.x", 
+                   "mathsupp2b...63" ="mathsupp2b.x", 
+                   "mathsupp2c...64" ="mathsupp2c.x", 
+                   "mathsupp2d...65" ="mathsupp2d.x", 
+                   "matheff1a...66" ="matheff1a.x", 
+                   "matheff1b...67" ="matheff1b.x", 
+                   "matheff1c...68" ="matheff1c.x", 
+                   "matheff1d...69" ="matheff1d.x",
+                   "matheff2...70"= "matheff2.x",
+                   "matheq3...71"= "matheq3.x",
+                   "matheff3...72"= "matheff3.x",
+                   "mathgen1a...131" ="mathgen1a.y",
+                   "mathgen1b...132" ="mathgen1b.y", 
+                   "mathgen1c...133" ="mathgen1c.y", 
+                   "mathgen1d...134" ="mathgen1d.y", 
+                   "mathgen2...135" ="mathgen2.y", 
+                   "mathgen3a...136" ="mathgen3a.y", 
+                   "mathgen3b...137" ="mathgen3b.y",
+                   "mathgen3c...138" ="mathgen3c.y", 
+                   "mathgen3d...139" ="mathgen3d.y", 
+                   "matheq1...140" ="matheq1.y", 
+                   "matheq2a...141" ="matheq2a.y",
+                   "matheq2b...142" ="matheq2b.y", 
+                   "matheq2c...143" ="matheq2c.y", 
+                   "matheq2d...144" ="matheq2d.y",
+                   "mathsupp1...145" ="mathsupp1.y", 
+                   "mathsupp2a...146" ="mathsupp2a.y",
+                   "mathsupp2b...147" ="mathsupp2b.y", 
+                   "mathsupp2c...148" ="mathsupp2c.y", 
+                   "mathsupp2d...149" ="mathsupp2d.y", 
+                   "matheff1a...150" ="matheff1a.y", 
+                   "matheff1b...151" ="matheff1b.y", 
+                   "matheff1c...152" ="matheff1c.y", 
+                   "matheff1d...153" ="matheff1d.y", 
+                   "matheff2...154" ="matheff2.y", 
+                   "matheq3...155" ="matheq3.y", 
+                   "matheff3...156" ="matheff3.y")
+
+matched_2021 <- bind_cols(fall_one %>% arrange(id), spring_one %>% arrange(id) %>% select(-id)) %>%
+  rename_with( ~ str_replace_all(., rename_vector)) %>%
+  mutate(pre_site = str_replace_all(pre_site, loc_rename)) %>%
+  mutate(post_site = str_replace_all(post_site, loc_rename)) %>%
+  mutate(pre = if_else(!is.na(prerace1), T, F)) %>%
+  mutate(post = if_else(!is.na(postrace1), T, F)) %>%
+  mutate(pre_site = coalesce(pre_site, post_site)) %>%
+  mutate(post_site = coalesce(post_site, pre_site)) %>%
+  mutate(pre_site = if_else(post_site != pre_site, post_site, pre_site)) %>%
+  # Always true since its matched
+  mutate(prepost = T)
+
+write_rds(matched_2021, here("Data/SY19-20/matched_2021.rds"))
+write_rds(matched_2021, here("Data/SY20-21/matched_2021.rds"))
+```

@@ -1,0 +1,429 @@
+---
+title: "TL_Schusterman Data"
+author: "Duncan Gates"
+date: "9/21/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(TeachingLab)
+library(googlesheets4)
+# source(here::here("Analysis/2021-2022/SurveyMonkey/course_survey_readin.R"))
+# write_rds(course_survey, here::here("Analysis/2021-2022/Schusterman/Data/course_survey.rds"))
+course_survey <- read_rds(here::here("Analysis/2021-2022/Schusterman/Data/course_survey.rds"))
+dashboard_data <- read_rds(here::here("Data-Clean/Data-move/dashboard_data.rds"))
+```
+
+## State-Level NPS
+
+```{r}
+states_list <- c("Delaware Department of Education, DE",
+                 "Wisconsin Department of Education, WI",
+                 "New Mexico Public Education Department, NM",
+                 "Mississippi Department of Education, MS",
+                 "Nebraska Department of Education, NE",
+                 "Massachusetts DESE",
+                 "Nebraska Innovation Network Fellowship",
+                 # "Nebraska Virtual Zearn PLC, NE",
+                 "Louisiana State Content Leader Training",
+                 "Delaware Professional Learning")
+
+(fy21_state_nps <- course_survey %>%
+  dplyr::filter(date_created < as.Date("2021-06-30") & date_created > as.Date("2020-06-30")) %>%
+  dplyr::filter(`Select your site (district, parish, network, or school).` %in% states_list) %>%
+  mutate(
+    `On a scale of 0-10, how likely are you to recommend this course to a colleague or friend? - ` =
+      str_remove_all(`On a scale of 0-10, how likely are you to recommend this course to a colleague or friend? - `, " - Not likely at all| - Neither likely nor unlikely| - Extremely likely")) %>%
+        summarise(nps = round(calc_nps(as.numeric(`On a scale of 0-10, how likely are you to recommend this course to a colleague or friend? - `)))))
+
+dashboard_data %>%
+  dplyr::filter(`Date for the session` < as.Date("2020-06-30") & `Date for the session` > as.Date("2019-06-30")) %>%
+  dplyr::filter(`District, Parish, Or Network` %in% states_list) %>%
+  mutate(`How Likely Are You To Recommend This Professional Learning To A Colleague Or Friend?` = na_if(`How Likely Are You To Recommend This Professional Learning To A Colleague Or Friend?`, "No Response")) %>%
+  summarise(nps = calc_nps(`How Likely Are You To Recommend This Professional Learning To A Colleague Or Friend?`),
+            mean = mean(as.numeric(`How Likely Are You To Recommend This Professional Learning To A Colleague Or Friend?`), na.rm = T))
+```
+
+## District-Level NPS
+
+```{r}
+(fy21_district_nps <- course_survey %>%
+  dplyr::filter(date_created < as.Date("2021-06-30") & date_created > as.Date("2020-06-30")) %>%
+  dplyr::filter(`Select your site (district, parish, network, or school).` %!in% states_list) %>%
+  mutate(
+    `On a scale of 0-10, how likely are you to recommend this course to a colleague or friend? - ` =
+      str_remove_all(`On a scale of 0-10, how likely are you to recommend this course to a colleague or friend? - `, " - Not likely at all| - Neither likely nor unlikely| - Extremely likely")) %>%
+   mutate(`On a scale of 0-10, how likely are you to recommend this course to a colleague or friend? - ` = na_if(`On a scale of 0-10, how likely are you to recommend this course to a colleague or friend? - `, "No Response")) %>%
+        summarise(nps = round(calc_nps(suppressWarnings(as.numeric(`On a scale of 0-10, how likely are you to recommend this course to a colleague or friend? - `)))),
+                  mean = mean(as.numeric(`On a scale of 0-10, how likely are you to recommend this course to a colleague or friend? - `), na.rm = T)))
+```
+
+## Lab Leaders
+
+### Part 4ai.
+
+```{r}
+full_2021 <- read_rds(here::here("Data-clean/Data-move/SY20-21/full_2021.rds"))
+
+(lableaders <- full_2021 %>%
+  filter(post_lableader == "Yes") %>%
+  group_by(post_ll4a) %>%
+  summarise(n = n()) %>%
+  mutate(percent = 100*n/sum(n)))
+
+lableaders %>%
+  mutate(lead = str_detect(post_ll4a, "Lead")) %>%
+  filter(lead == T) %>%
+  summarise(sum(percent))
+```
+
+### Part 4aii.
+
+```{r}
+full_2021 %>%
+  filter(post_lableader == "Yes") %>%
+  group_by(pre_site) %>%
+  count(sort = T)
+```
+
+#### Freire
+
+```{r}
+full_2021 %>%
+  filter(post_lableader == "Yes") %>%
+  filter(pre_site == "Freire Charter Schools, PA/DE") %>%
+  group_by(post_ll4a) %>%
+  summarise(n = n()) %>%
+  gt() %>%
+  gt_theme_tl()
+  
+### What do we want here?
+  
+```
+
+## IPG Data
+
+```{r}
+library(lubridate)
+init_data <- read_sheet("https://docs.google.com/spreadsheets/d/1L33wVpPERyUQdG8WO3sZiyjnHzPvDL91O4yVUQTN14A/edit#gid=1455024681") %>%
+  janitor::remove_empty(which = "cols") %>%
+  rename(
+    `Learning Goal #1` = `Learning Goal...30`,
+    `Learning Goal #2` = `Learning Goal...51`,
+    `Learning Goal #3` = `Learning Goal...76`,
+    `Standard(s) Addressed in this Lesson #1` = `Standard(s) Addressed in this Lesson...31`,
+    `Standard(s) Addressed in this Lesson #2` = `Standard(s) Addressed in this Lesson...52`,
+    `Standard(s) Addressed in this Lesson #3` = `Standard(s) addressed in this lesson...77`,
+    `Name of text #1` = `Name of text...32`,
+    `Name of text #2` = `Name of text...53`,
+    `Type of text(s) #1` = `Type of text(s). Circle all that apply:...33`,
+    `Type of text(s) #2` = `Type of text(s). Circle all that apply:...54`,
+    `Core Action 1 Notes #1` = `Core Action 1 Notes...37`,
+    `Core Action 1 Notes #2` = `Core Action 1 Notes...60`,
+    `Core Action 1 Notes #3` = `Core Action 1 Notes...83`,
+    `Core Action 2 Notes #1` = `Core Action 2 Notes...42`,
+    `Core Action 2 Notes #2` = `Core Action 2 Notes...65`,
+    `Core Action 2 Notes #3` = `Core Action 2 Notes...88`,
+    `Core Action 3 Notes #1` = `Core Action 3 Notes...49`,
+    `Core Action 3 Notes #2` = `Core Action 3 Notes...74`,
+    `Core Action 3 Notes #3` = `Core Action 3 Notes...94`,
+    `Topic/Lesson/Unit #1` = `Topic/Lesson/Unit...50`,
+    `Topic/Lesson/Unit #2` = `Topic/Lesson/Unit...75`
+  )
+
+data <- init_data %>%
+  mutate(`Name of Site (Parish, District, Network)` = str_replace_all(`Name of Site (Parish, District, Network)`,
+                                                                      c("Legacy Early College" = "Legacy",
+                                                                        "District 11, NY" = "District 11"))) %>%
+  filter(`Name of Site (Parish, District, Network)` != "TEST") %>%
+  mutate(`Timeline of Obs` = if_else(is.na(`Timeline of Obs`), 
+                                     paste(get_season(Timestamp), year(Timestamp)),
+                                     `Timeline of Obs`)) %>%
+  mutate(`Timeline of Obs` = factor(`Timeline of Obs`, levels = c("Summer 2019", "Fall 2019", "Winter 2020", "Spring 2020", "Winter 2021", "Spring 2021")))
+
+positive_ca2b <- c("4- Most questions and tasks require students to cite evidence from the text.",
+                   "3- Many questions and tasks require students to cite evidence from the text.")
+
+positive_detect <- function(data) {
+  t_or_f <- case_when(str_detect(data, "3|4"))
+  t_or_f
+}
+
+data %>%
+  mutate(year = if_else(Timestamp > as.Date("2020-06-30"), "2020-2021", "2019-2020")) %>%
+  mutate(year = if_else(`Timeline of Obs` == "Winter 2021" & is.na(year), "2020-2021", year)) %>%
+  mutate(ca2b_score = case_when(str_detect(`CA2b. Questions and tasks require students to use evidence from the text to demonstrate understanding and to support their ideas about the text....39`, "3|4") ~ T,
+                 is.na(`CA2b. Questions and tasks require students to use evidence from the text to demonstrate understanding and to support their ideas about the text....39`) ~ NA,
+                 str_detect(`CA2b. Questions and tasks require students to use evidence from the text to demonstrate understanding and to support their ideas about the text....39`, "2|1|Not") ~ F)) %>%
+  group_by(`Timeline of Obs`) %>%
+  summarise(percent = 100*sum(ca2b_score, na.rm = T)/sum(!is.na(ca2b_score)), n = n())
+
+library(gt)
+
+(all_percents <- data %>%
+  mutate_all( ~ as.character(.x)) %>%
+  mutate(year = if_else(Timestamp > as.Date("2020-06-30"), "2020-2021", "2019-2020")) %>%
+  mutate(year = if_else(`Timeline of Obs` == "Winter 2021" & is.na(year), "2020-2021", year)) %>%
+  select(-c(1, 3:14)) %>%
+  filter(`Timeline of Obs` != "Winter 2021") %>%
+  group_by(`Timeline of Obs`) %>%
+  summarise(across(everything(), ~ 100*sum(str_detect(.x, "3|4"), na.rm = T)/sum(!str_detect(.x, "3|4"), na.rm = T) + sum(str_detect(.x, "3|4"), na.rm = T))) %>%
+  arrange(`Timeline of Obs`) %>%
+  gt::gt() %>%
+    fmt_percent(
+      columns = !c("Timeline of Obs"),
+      scale_values = F
+    ) %>%
+  gt_theme_tl())
+```
+
+## Ongoing filter
+
+```{r}
+data %>%
+  filter(`IPG Rubric` == "K-12: Mathematics") %>% 
+  select(`Timeline of Obs`, c(15:17, 19:22, 24:29, 38:40, 42:45, 48, 50:54, 59:61, 65:68, 70:74)) %>%
+  mutate_all( ~ unlist(as.character(.x))) %>%
+  filter(if_all(!c(`Timeline of Obs`), ~ !is.null(.x))) %>%
+  view()
+  # summarise(across(!c(`Timeline of Obs`), ~ sum(!is.na(.x))))
+```
+
+
+## Math
+
+```{r}
+data %>%
+  filter(`IPG Rubric` == "K-12: Mathematics") %>%
+  select(`Timeline of Obs`, 59:61, 65:74) %>%
+  # filter(`Timeline of Obs` != "Winter 2021") %>%
+  mutate_all( ~ as.character(unlist(.x))) %>%
+  mutate_all( ~ na_if(.x, "Not observed")) %>%
+  mutate_all( ~ na_if(.x, "NULL")) %>%
+  mutate_all( ~ na_if(.x, "N/A- There is no text present in the lesson.")) %>%
+  mutate(`Timeline of Obs` = str_replace_all(`Timeline of Obs`, "Spring 2021", "Winter 2021")) %>%
+  group_by(`Timeline of Obs`) %>%
+  summarise(across(everything(), ~ 100*sum(str_detect(.x, "Yes|yes|3|4"), na.rm = T)/sum(!is.na(.x)))) %>%
+  pivot_longer(!c(`Timeline of Obs`)) %>%
+  arrange(desc(value)) %>%
+  filter(`Timeline of Obs` == "Winter 2021") %>%
+  gt()
+  group_by(`Timeline of Obs`) %>%
+  summarise(average = mean(value, na.rm = T))
+
+data %>%
+  filter(`IPG Rubric` == "K-12: Mathematics") %>%
+  select(`Timeline of Obs`, 65:74) %>%
+  # filter(`Timeline of Obs` != "Winter 2021") %>%
+  mutate_all( ~ as.character(unlist(.x))) %>%
+  mutate_all( ~ na_if(.x, "Not observed")) %>%
+  mutate_all( ~ na_if(.x, "NULL")) %>%
+  mutate_all( ~ na_if(.x, "N/A- There is no text present in the lesson.")) %>%
+  group_by(`Timeline of Obs`) %>%
+  summarise(across(everything(), ~ 100*sum(str_detect(.x, "3|4"), na.rm = T)/sum(!is.na(.x)))) %>%
+  pivot_longer(!c(`Timeline of Obs`)) %>%
+  bind_rows(math1) %>%
+  mutate(value = as.character(value)) %>%
+  mutate(value = na_if(value, "0")) %>%
+  mutate(value = as.numeric(value)) %>%
+  group_by(`Timeline of Obs`) %>%
+  summarise(average = mean(value, na.rm = T))
+  gt() %>%
+  gtsave("~Downloads/example_scores.png")
+```
+
+## ELA
+
+```{r}
+data %>%
+  filter(str_detect(`IPG Rubric`, "ELA")) %>% 
+  # filter(str_detect(`Name of School`, "PS")) %>%
+  select(`Timeline of Obs`, c(19:22, 24:29, 42:45, 48, 50:54, 15:17, 38:40)) %>%
+  mutate_all( ~ na_if(.x, "Not observed")) %>%
+  mutate_all( ~ na_if(.x, "NULL")) %>%
+  mutate_all( ~ na_if(.x, "N/A- There is no text present in the lesson.")) %>%
+  mutate(`Timeline of Obs` = str_replace_all(`Timeline of Obs`, "Spring 2021", "Winter 2021")) %>%
+  group_by(`Timeline of Obs`) %>%
+  summarise(across(everything(), ~ 100*sum(str_detect(.x, "Yes|yes|3|4"), na.rm = T)/sum(!is.na(.x)))) %>%
+  pivot_longer(!c(`Timeline of Obs`)) %>%
+  arrange(desc(value)) %>%
+  filter(`Timeline of Obs` == "Winter 2021") %>%
+  gt()
+  group_by(`Timeline of Obs`) %>%
+  summarise(average = mean(value, na.rm = T))
+
+data %>%
+  filter(str_detect(`IPG Rubric`, "ELA")) %>% 
+  select(`Timeline of Obs`, c(19:22, 24:29, 42:45, 48, 50:54)) %>%
+  mutate_all( ~ na_if(.x, "Not observed")) %>%
+  mutate_all( ~ na_if(.x, "NULL")) %>%
+  mutate_all( ~ na_if(.x, "N/A- There is no text present in the lesson.")) %>%
+  # filter(`Timeline of Obs` %!in% c("Winter 2021", "Spring 2021")) %>%
+  group_by(`Timeline of Obs`) %>%
+  summarise(across(everything(), ~ 100*(sum(str_detect(.x, "3|4"), na.rm = T)/sum(!is.na(.x))))) %>%
+  # filter(`Timeline of Obs` %in% c("Winter 2020", "Spring 2020", "Fall 2019", "Summer 2019")) %>%
+  pivot_longer(!c(`Timeline of Obs`)) %>%
+  bind_rows(ela1) %>%
+  group_by(`Timeline of Obs`) %>%
+  summarise(average = mean(value, na.rm = T))
+  # gt()
+  # map(., ~ unique(.x)) %>%
+  # enframe() %>%
+  # view()
+  
+
+```
+
+
+```{r}
+data %>%
+  filter(str_detect(`Name of School`, "PS")) %>%
+  mutate_all( ~ as.character(.x)) %>%
+  mutate(year = if_else(Timestamp > as.Date("2020-06-30"), "2020-2021", "2019-2020")) %>%
+  mutate(year = if_else(`Timeline of Obs` == "Winter 2021" & is.na(year), "2020-2021", year)) %>%
+  group_by(`Timeline of Obs`) %>%
+  summarise(across(c(`CA1a. A majority of the lesson is spent listening to, reading, writing, or speaking about text(s)....34`,	
+                     `CA1b. The anchor text(s) are at or above the complexity level expected for the grade and time in the school year....35`,	
+                     `CA1c. The text(s) exhibit exceptional craft and thought and/or provide meaningful information in the service of building knowledge....36`), ~ 100* sum(str_detect(.x, "Yes|yes"), na.rm = T)/(sum(!str_detect(.x, "Yes|yes"), na.rm = T) + sum(str_detect(.x, "Yes|yes"), na.rm = T)))) %>%
+  gt()
+```
+
+
+## More
+
+```{r}
+data %>%
+  filter(str_detect(`Name of School`, "PS") & str_detect(`IPG Rubric`, "Math")) %>%
+  mutate_all( ~ as.character(.x)) %>%
+  mutate(year = if_else(Timestamp > as.Date("2020-06-30"), "2020-2021", "2019-2020")) %>%
+  mutate(year = if_else(`Timeline of Obs` == "Winter 2021" & is.na(year), "2020-2021", year)) %>%
+  group_by(`Timeline of Obs`) %>%
+  summarise(across(c(`CA1a. A majority of the lesson is spent listening to, reading, writing, or speaking about text(s)....34`,	
+                     `CA1b. The anchor text(s) are at or above the complexity level expected for the grade and time in the school year....35`,	
+                     `CA1c. The text(s) exhibit exceptional craft and thought and/or provide meaningful information in the service of building knowledge....36`), ~ 100* sum(str_detect(.x, "Yes|yes"), na.rm = T)/(sum(!str_detect(.x, "Yes|yes"), na.rm = T) + sum(str_detect(.x, "Yes|yes"), na.rm = T)))) %>%
+  gt()
+```
+
+## Math
+
+```{r}
+data %>%
+    filter(str_detect(`IPG Rubric`, "Math|math")) %>%
+    mutate_all( ~ as.character(.x)) %>%
+    summarise(across(everything(), ~ sum(!is.na(.x)))) %>%
+    colnames() -> math_cols
+
+math_cols <- c("CA1a. The enacted lesson focuses on the grade-level cluster(s), grade-level content standard(s), or part(s) thereof....78",
+               "CA1b. The enacted lesson appropriately relates new content to math content within or across grades....79",
+               "CA1c. The enacted lesson intentionally targets the aspect(s) of Rigor (conceptual understanding, procedural skill and fluency, application) called for by the standard(s) being addressed....80",
+               "CA2a. The teacher makes the mathematics of the lesson explicit through the use of explanations, representations, tasks, and/or examples....84", 
+               "CA2b. The teacher strengthens all students’ understanding of the content by strategically sharing students’ representations and/or solution methods....85", 
+               "CA2c. The teacher deliberately checks for understanding throughout the lesson to surface misconceptions and opportunities for growth, and adapts the lesson according to student understanding....86", 
+"CA2d. The teacher facilitates the summary of the mathematics with references to student work and discussion in order to reinforce the purpose of the lesson....87", 
+"CA3a. The teacher provides opportunities for all students to work with and practice grade-level (or course-level) problems and exercises; Students work with and practice grade-level (or course-level) problems and exercises....89", 
+"CA3b. The teacher cultivates reasoning and problem solving by allowing students to productively struggle; Students persevere in solving problems in the face of difficulty....90", 
+"CA3c. The teacher poses questions and problems that prompt students to explain their thinking about the content of the lesson; Students share their thinking about the content of the lesson beyond just stating answers....91", 
+"CA3d. The teacher creates the conditions for student conversations where students are encouraged to talk about each other’s thinking; Students talk and ask questions about each other’s thinking, in order to clarify or improve their own mathematical understanding....92", 
+"CA3e. The teacher connects and develops students’ informal language and mathematical ideas to precise mathematical language and ideas; Students use increasingly precise mathematical language and ideas....93")
+
+data %>%
+  filter(str_detect(`IPG Rubric`, "Math|math")) %>%
+  select(math_cols, `Timeline of Obs`) %>%
+  # mutate_all( ~ as.character(.x)) %>%
+  group_by(`Timeline of Obs`) %>%
+  summarise(across(everything(), ~ 100* sum(str_detect(.x, "3|4"), na.rm = T)/(sum(!str_detect(.x, "3|4"), na.rm = T) + sum(str_detect(.x, "3|4"), na.rm = T)))) %>%
+  gt() %>%
+  gt::data_color(
+    columns = !c(`Timeline of Obs`),
+    colors = scales::col_numeric(
+      palette = paletteer::paletteer_d(
+        palette = "ggsci::blue_material"
+        ) %>% as.character(),
+      domain = NULL
+      )
+  ) %>%
+  gt_theme_tl()
+```
+
+## Just Freire
+
+```{r}
+freire_cols <- c("CA1a. The enacted lesson focuses on the grade-level cluster(s), grade-level content standard(s), or part(s) thereof....78", 
+"CA1b. The enacted lesson appropriately relates new content to math content within or across grades....79", 
+"CA1c. The enacted lesson intentionally targets the aspect(s) of Rigor (conceptual understanding, procedural skill and fluency, application) called for by the standard(s) being addressed....80", 
+"CA2a. Questions and tasks address the text by attending to its particular qualitative features: its meaning/purpose and/or language, structure(s), or knowledge demands....38", 
+"CA2a. The teacher makes the mathematics of the lesson explicit through the use of explanations, representations, tasks, and/or examples....84", 
+"CA2b. Questions and tasks require students to use evidence from the text to demonstrate understanding and to support their ideas about the text....39", 
+"CA2b. The teacher strengthens all students’ understanding of the content by strategically sharing students’ representations and/or solution methods....85", 
+"CA2c. Questions and tasks attend to the words (academic vocabulary), phrases, and sentences within the text....40", 
+"CA2c. The teacher deliberately checks for understanding throughout the lesson to surface misconceptions and opportunities for growth, and adapts the lesson according to student understanding....86", 
+"CA2d. Questions and tasks are sequenced to build knowledge by guiding students to delve deeper into the text and graphics....41", 
+"CA2d. The teacher facilitates the summary of the mathematics with references to student work and discussion in order to reinforce the purpose of the lesson....87", 
+"CA3a. The teacher poses questions and tasks for students to do the majority of the work: speaking/listening, reading, and/or writing; Students do the majority of the work of the lesson...43", 
+"CA3a. The teacher provides opportunities for all students to work with and practice grade-level (or course-level) problems and exercises; Students work with and practice grade-level (or course-level) problems and exercises....89", 
+"CA3b. The teacher cultivates reasoning and meaning making by allowing students to productively struggle; Students persevere through difficulty....44", 
+"CA3b. The teacher cultivates reasoning and problem solving by allowing students to productively struggle; Students persevere in solving problems in the face of difficulty....90", 
+"CA3c. The teacher expects evidence and precision from students and probes students’ answers accordingly; Students provide text evidence to support their ideas and display precision in their oral and/or written responses....45", 
+"CA3c. The teacher poses questions and problems that prompt students to explain their thinking about the content of the lesson; Students share their thinking about the content of the lesson beyond just stating answers....91", 
+"CA3d. The teacher creates the conditions for student conversations where students are encouraged to talk about each other’s thinking; Students talk and ask questions about each other’s thinking, in order to clarify or improve their own mathematical understanding....92", 
+"CA3d. The teacher creates the conditions for student conversations where students are encouraged to talk about each other’s thinking; Students talk and ask questions about each other’s thinking, in order to clarify or improve their understanding....46", 
+"CA3e. The teacher connects and develops students’ informal language and mathematical ideas to precise mathematical language and ideas; Students use increasingly precise mathematical language and ideas....93", 
+"CA3e. The teacher deliberately checks for understanding throughout the lesson and adapts the lesson according to student understanding; When appropriate, students refine written and/or oral responses....47"
+)
+
+data %>%
+  filter(`Name of Site (Parish, District, Network)` == "Freire Charter Schools") %>%
+  select(freire_cols, `Timeline of Obs`) %>%
+  # mutate_all( ~ as.character(.x)) %>%
+  group_by(`Timeline of Obs`) %>%
+  summarise(across(everything(), ~ 100* sum(str_detect(.x, "3|4"), na.rm = T)/(sum(!str_detect(.x, "3|4"), na.rm = T) + sum(str_detect(.x, "3|4"), na.rm = T)))) %>%
+  gt() %>%
+  gt::data_color(
+    columns = !c(`Timeline of Obs`),
+    colors = scales::col_numeric(
+      palette = paletteer::paletteer_d(
+        palette = "ggsci::blue_material"
+        ) %>% as.character(),
+      domain = NULL
+      )
+  ) %>%
+  gt_theme_tl()
+```
+
+
+#### Student Section
+
+```{r}
+data <- read_sheet("https://docs.google.com/spreadsheets/d/1ZZnizhPVjL8BBenwAeSKcTU1GYKpZYdEUe_-95V5Ej0/edit#gid=239657167",
+                   sheet = "Scoring2",
+                   col_names = c("Link", "ID", "Score", "Name", "Prepost", "Grade", "Curriculum"))
+
+data_clean <- data %>% 
+  filter(!str_detect(Score, "No")) %>%
+  # mutate(Score = as.numeric(as.character(Score))) %>%
+  # drop_na(Score) %>%
+  select(-1) %>%
+  mutate(Name = unlist(Name))
+
+# Lafayette LA
+data %>% 
+  filter(!str_detect(Score, "No Response|Below|Not")) %>%
+  filter(ID < 85) %>%
+  mutate(Score = as.numeric(as.character(Score))) %>%
+  drop_na(Score) %>%
+  group_by(Prepost, Curriculum) %>%
+  summarise(Score = sum(Score)/length(Score),
+            n = n())
+
+# NYC Robinhood
+data %>% 
+  filter(!str_detect(Score, "No Response|Below|Not")) %>%
+  filter(ID >= 162) %>%
+  mutate(Score = as.numeric(as.character(Score))) %>%
+  drop_na(Score) %>%
+  group_by(Prepost, Curriculum) %>%
+  summarise(Score = sum(Score)/length(Score),
+            n = n())
+```

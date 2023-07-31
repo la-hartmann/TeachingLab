@@ -1,0 +1,2717 @@
+---
+params:
+  matched: "unmatched"
+  partner: "McNairy County, TN"
+title: "`r ifelse(params$matched == 'matched', paste0('Teaching Lab ', params$partner, ' Report: Matched'), paste0('Teaching Lab ', params$partner, ' Report'))`"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  TeachingLab::TLDefault:
+    css: styles.css
+    self_contained: true # Other options are downcute, material, readthedown, html_clean, html_docco, lockdown, https://github.com/juba/rmdformats
+    thumbnails: false
+    lightbox: true
+    gallery: false
+    highlight: kate # Also can do tango
+    number_sections: false
+    includes:
+      in_header: header.html
+      after_body: footer.html
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+library(rmdformats)
+library(glue)
+devtools::load_all()
+library(TeachingLab)
+library(tidyverse)
+library(ggtext)
+library(here)
+library(scales)
+library(lubridate)
+library(gt)
+library(glue)
+
+# do.call(file.remove, list(list.files(here::here("images/report_images"), full.names = TRUE)))
+
+special_reports <- c(
+  "All Partners",
+  "NYC District 12 - EMST-IS 190, N", "NYC District 12 - MS 286, NY",
+  "District 11", "District 11 Math", "District 11 ELA",
+  "District 9", "District 9 Math", "District 9 ELA",
+  "San Diego K-5", "San Diego 6-8"
+)
+
+no_diagnostic_know <- c(
+  "NYC District 12 - EMST-IS 190, N", "NYC District 12 - MS 286, NY",
+  "NYC District 6 - MS311, NY", "San Diego 6-8"
+)
+
+session_survey <- readr::read_rds(here::here("data/session_survey_21_22data.rds")) %>%
+  filter(Date >= as.Date("2021-07-01")) %>% # ISSUE
+  filter(if (params$partner %!in% special_reports) {
+    `Select your site (district, parish, network, or school).` == params$partner
+  } else if (params$partner == "District 11") {
+    str_detect(`Select your site (district, parish, network, or school).`, "D11|District 11")
+  } else if (params$partner == "District 11 Math") {
+    `Select the content area for today’s professional learning session.` == "Math" & str_detect(`Select your site (district, parish, network, or school).`, "D11|District 11")
+  } else if (params$partner == "District 11 ELA") {
+    `Select the content area for today’s professional learning session.` == "ELA" & str_detect(`Select your site (district, parish, network, or school).`, "D11|District 11")
+  } else if (params$partner == "District 9") {
+    str_detect(`Select your site (district, parish, network, or school).`, "D9|District 9")
+  } else if (params$partner == "District 9 Math") {
+    `Select the content area for today’s professional learning session.` == "Math" & str_detect(`Select your site (district, parish, network, or school).`, "D9|District 9")
+  } else if (params$partner == "District 9 ELA") {
+    `Select the content area for today’s professional learning session.` == "ELA" & str_detect(`Select your site (district, parish, network, or school).`, "D9|District 9")
+  } else if (params$partner == "San Diego K-5") {
+    (`What grade(s) do you teach, support, and/or lead? You can select more than one. - K` == "K" |
+      `What grade(s) do you teach, support, and/or lead? You can select more than one. - 1` == "1" |
+      `What grade(s) do you teach, support, and/or lead? You can select more than one. - 2` == "2" |
+      `What grade(s) do you teach, support, and/or lead? You can select more than one. - 3` == "3" |
+      `What grade(s) do you teach, support, and/or lead? You can select more than one. - 4` == "4" |
+      `What grade(s) do you teach, support, and/or lead? You can select more than one. - 5` == "5") &
+      str_detect(`Select your site (district, parish, network, or school).`, "San Diego")
+  } else if (params$partner == "San Diego 6-8") {
+    (`What grade(s) do you teach, support, and/or lead? You can select more than one. - 7` == "6" |
+      `What grade(s) do you teach, support, and/or lead? You can select more than one. - 7` == "7" |
+      `What grade(s) do you teach, support, and/or lead? You can select more than one. - 8` == "8") &
+      str_detect(`Select your site (district, parish, network, or school).`, "San Diego")
+  } else {
+    Date >= as.Date("2021-07-01")
+  })
+
+course_survey <- readr::read_rds(here::here("data/course_survey_21_22.rds")) %>%
+  filter(if (params$partner %!in% special_reports) {
+    `Select your site (district, parish, network, or school).` == params$partner
+  } else if (params$partner == "District 11") {
+    str_detect(`Select your site (district, parish, network, or school).`, "D11|District 11")
+  } else if (params$partner == "District 11 Math") {
+    `Select the content area for today's professional learning session.` == "Math" &
+      str_detect(`Select your site (district, parish, network, or school).`, "D11|District 11")
+  } else if (params$partner == "District 11 ELA") {
+    `Select the content area for today's professional learning session.` == "ELA" &
+      str_detect(`Select your site (district, parish, network, or school).`, "D11|District 11")
+  } else if (params$partner == "District 9") {
+    str_detect(`Select your site (district, parish, network, or school).`, "D9|District 9")
+  } else if (params$partner == "District 9 Math") {
+    `Select the content area for today's professional learning session.` == "Math" &
+      str_detect(`Select your site (district, parish, network, or school).`, "D9|District 9")
+  } else if (params$partner == "District 9 ELA") {
+    `Select the content area for today's professional learning session.` == "ELA" &
+      str_detect(`Select your site (district, parish, network, or school).`, "D9|District 9")
+  } else if (params$partner == "San Diego K-5") {
+    (`What grade(s) do you teach, support, and/or lead? You can select more than one. - K` == "K" |
+      `What grade(s) do you teach, support, and/or lead? You can select more than one. - 1` == "1" |
+      `What grade(s) do you teach, support, and/or lead? You can select more than one. - 2` == "2" | `What grade(s) do you teach, support, and/or lead? You can select more than one. - 3` == "3" |
+      `What grade(s) do you teach, support, and/or lead? You can select more than one. - 4` == "4" | `What grade(s) do you teach, support, and/or lead? You can select more than one. - 5` == "5") & str_detect(`Select your site (district, parish, network, or school).`, "San Diego")
+  } else if (params$partner == "San Diego 6-8") {
+    (`What grade(s) do you teach, support, and/or lead? You can select more than one. - 6` == "6" |
+      `What grade(s) do you teach, support, and/or lead? You can select more than one. - 7` == "7" |
+      `What grade(s) do you teach, support, and/or lead? You can select more than one. - 8` == "8") & str_detect(`Select your site (district, parish, network, or school).`, "San Diego")
+  } else if (params$partner == "All Partners") {
+    date_created >= as.Date("2021-07-01")
+  } else {
+    date_created >= as.Date("2021-07-01")
+  })
+
+diagnostic <- readr::read_rds(here::here("data/diagnostic.rds")) %>%
+  filter(if (params$partner %!in% special_reports) {
+    your_site_district_parish_network_or_school_br_br == params$partner
+  } else if (params$partner == "District 11") {
+    str_detect(your_site_district_parish_network_or_school_br_br, "D11|District 11")
+  } else if (params$partner == "District 11 Math") {
+    which_subject_area_do_you_teach_lead_if_you_teach_support_both_please_select_the_one_where_you_expect_to_work_with_teaching_lab_this_year_br_br == "Mathematics" &
+      str_detect(your_site_district_parish_network_or_school_br_br, "D11|District 11")
+  } else if (params$partner == "District 11 ELA") {
+    which_subject_area_do_you_teach_lead_if_you_teach_support_both_please_select_the_one_where_you_expect_to_work_with_teaching_lab_this_year_br_br == "ELA/Literacy" &
+      str_detect(your_site_district_parish_network_or_school_br_br, "D11|District 11")
+  } else if (params$partner == "District 9") {
+    str_detect(your_site_district_parish_network_or_school_br_br, "D9|District 9")
+  } else if (params$partner == "District 9 Math") {
+    which_subject_area_do_you_teach_lead_if_you_teach_support_both_please_select_the_one_where_you_expect_to_work_with_teaching_lab_this_year_br_br == "Mathematics" &
+      str_detect(your_site_district_parish_network_or_school_br_br, "D9|District 9")
+  } else if (params$partner == "District 9 ELA") {
+    which_subject_area_do_you_teach_lead_if_you_teach_support_both_please_select_the_one_where_you_expect_to_work_with_teaching_lab_this_year_br_br == "ELA/Literacy" &
+      str_detect(your_site_district_parish_network_or_school_br_br, "D9|District 9")
+  } else if (params$partner == "San Diego K-5") {
+    (what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_k == "K" |
+      what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_1 == "1" |
+      what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_2 == "2" | what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_3 == "3" |
+      what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_4 == "4" | what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_5 == "5") & str_detect(your_site_district_parish_network_or_school_br_br, "San Diego")
+  } else if (params$partner == "San Diego 6-8") {
+    (what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_6 == "6" |
+      what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_7 == "7" |
+      what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_8 == "8") & str_detect(your_site_district_parish_network_or_school_br_br, "San Diego")
+  } else if (params$partner == "All Partners") {
+    date_created >= as.Date("2021-07-01")
+  } else {
+    date_created >= as.Date("2021-07-01")
+  })
+
+if (params$partner == "Wisconsin Department of Public Instruction") {
+  diagnostic_id <- diagnostic %>%
+    mutate(id = id_maker(
+      initials = please_write_in_your_3_initials_if_you_do_not_have_a_middle_initial_please_write_x_br_this_is_used_to_link_the_diagnostic_and_follow_up_surveys_but_is_kept_confidential_br_br,
+      please_write_in_your_four_digit_birthday_mmdd_br_this_is_used_to_link_the_diagnostic_and_follow_up_surveys_but_is_kept_confidential
+    )) %>%
+    pull(id)
+
+  diagnostic_id <- diagnostic_id[which(duplicated(diagnostic_id))]
+
+  diagnostic <- diagnostic %>%
+    mutate(id = id_maker(
+      initials = please_write_in_your_3_initials_if_you_do_not_have_a_middle_initial_please_write_x_br_this_is_used_to_link_the_diagnostic_and_follow_up_surveys_but_is_kept_confidential_br_br,
+      please_write_in_your_four_digit_birthday_mmdd_br_this_is_used_to_link_the_diagnostic_and_follow_up_surveys_but_is_kept_confidential
+    )) %>%
+    filter(id %in% diagnostic_id)
+}
+
+###### REWRITE THIS TO WORK BASED ON UNPROCESSED DATA, SIMILAR FORMAT #######
+
+knowledge_assessments <- read_rds(here::here("data/knowledge_assessments.rds")) %>%
+  mutate(site = ifelse(know_assess == "math_bootcamp",
+    replace_na(site, "San Diego Unified School District, CA"),
+    site
+  )) %>%
+  filter(if (params$partner %!in% special_reports) {
+    site == params$partner
+  } else if (params$partner == "District 11") {
+    str_detect(site, "D11|District 11")
+  } else if (params$partner == "District 11 Math") {
+    str_detect(site, "D11|District 11") & know_assess == "math_bootcamp_eic"
+  } else if (params$partner == "District 11 ELA") {
+    str_detect(site, "D11|District 11") & know_assess %in% c("ela_general_bootcamp", "ela_school_leaders")
+  } else if (params$partner == "District 9") {
+    str_detect(site, "D9|District 9")
+  } else if (params$partner == "District 9 Math") {
+    str_detect(site, "D9|District 9") & know_assess == "math_bootcamp_eic"
+  } else if (params$partner == "District 9 ELA") {
+    str_detect(site, "D9|District 9") & know_assess %in% c("ela_general_bootcamp", "ela_school_leaders")
+  } else if (params$partner == "San Diego K-5") {
+    str_detect(site, "San Diego") & know_assess %!in% c("math_cycle_inquiry_iv")
+  } else if (params$partner == "All Partners") {
+    percent >= 0
+  } else {
+    percent >= 0
+  })
+
+if (params$partner == "San Diego K-5") {
+  knowledge_assessments <- knowledge_assessments %>%
+    mutate(prepost = ifelse(know_assess = "math_cycle_of_inquiry_i",
+      "post",
+      prepost
+    ))
+}
+
+if (params$partner %in% no_diagnostic_know) {
+  diagnostic <- F
+  knowledge_assessments <- F
+  diagnostic_eval <- F
+  knowledge_eval <- F
+  know_count <- 1
+  diagnostic_count <- 1
+  pre_know <- 0
+  post_know <- 0
+} else {
+  diagnostic_eval <- T
+  knowledge_eval <- T
+  if (params$partner != "All Partners") {
+    pre_know <- knowledge_assessments %>%
+      dplyr::filter(prepost == "pre") %>%
+      dplyr::pull(id) %>%
+      unique() %>%
+      length()
+
+    post_know <- knowledge_assessments %>%
+      dplyr::filter(prepost == "post") %>%
+      dplyr::pull(id) %>%
+      unique() %>%
+      length()
+    if (length(pre_know) == 0) {
+      pre_know <- 0
+    }
+
+    if (length(post_know) == 0) {
+      post_know <- 0
+    }
+  } else {
+    pre_know <- knowledge_assessments %>%
+      dplyr::filter(prepost == "pre") %>%
+      dplyr::group_by(id, know_assess) %>%
+      dplyr::count() %>%
+      dplyr::ungroup() %>%
+      dplyr::count()
+
+    post_know <- knowledge_assessments %>%
+      dplyr::filter(prepost == "post") %>%
+      dplyr::group_by(id, know_assess) %>%
+      dplyr::count() %>%
+      dplyr::ungroup() %>%
+      dplyr::count()
+
+    if (is.na(pre_know)) {
+      pre_know <- 0
+    }
+
+    if (is.na(post_know)) {
+      post_know <- 0
+    }
+  }
+
+
+
+
+  diagnostic %>% nrow() -> diagnostic_count
+}
+
+## Global options
+options(max.print = "75", width = 1000)
+opts_chunk$set(
+  echo = FALSE,
+  cache = F,
+  prompt = FALSE,
+  tidy = TRUE,
+  comment = NA,
+  message = FALSE,
+  warning = FALSE
+)
+opts_knit$set(width = 75)
+
+na_df <- TeachingLab::na_df
+```
+
+```{r footer-dependency}
+htmltools::tagList(rmarkdown::html_dependency_font_awesome()) # Needed so fa's in footer will show
+```
+<script src="js/hideOutput.js"></script>
+```{html}
+
+```
+
+#### 2021-2022 Mid-Year Report
+
+### Background
+
+To date (`r Sys.Date() %>% format("%b %d, %Y")`), Teaching Lab has administered the following to participants from your school or district during SY21-22:
+
+-   `r session_survey %>% nrow()` complete responses to the End of Session Surveys that gather participant feedback on facilitation from session to session;
+
+-   `r course_survey %>% nrow()` complete responses to the End of Course Surveys that gather participant feedback on each PL course;
+
+`r if(diagnostic_eval == F) {"<!--"}` - `r pre_know` complete responses to the first Knowledge or Self-Reported Practices Assessments and `r post_know` to the second Knowledge or Self-Reported Practices Assessments;
+
+-   `r diagnostic_count` complete responses to the Baseline Diagnostic Educator Survey that collects information on teachers' use of curricula, mindsets, self-reported practices, and school environment. The follow-up will be administered in the spring after a year of PL engagement. `r if(diagnostic_eval == F) {"-->"}`
+
+Below are the results presented in various sections: `r ifelse(diagnostic_eval == T, paste0("Background and Demographics, Participant Feedback, Participant Knowledge, and Diagnostic Educator Survey for teachers and administrators."), paste0("Participant Feedback and Participant Knowledge."))`
+
+`r if(diagnostic_eval == F) {"<!--"}` 
+# Section 1: Participant Background and Demographics Summary
+
+Teaching Lab collects information on participants' gender and racial identity, years of experience, content area and grades taught, summarized below.
+
+## Gender and Racial Identity
+
+::: {.fold .o}
+<center>
+
+```{r gender-identity, fig.dim = c(6.5, 4.5), eval = diagnostic_eval}
+if (sum(!is.na(diagnostic$gender_how_do_you_identify)) >= 1) {
+  gt_percent_n(
+    df = diagnostic,
+    column = "gender_how_do_you_identify",
+    custom_column_name = "Gender Identity", viz_type = sample(c("waffle", "pie", "treemap"),
+      size = 1
+    )
+  )
+} else {
+  ggplot(tibble(text = "There was no data for this site here.", x = 0, y = 0)) +
+    geom_text(aes(label = text, x, y)) +
+    theme_void()
+}
+```
+
+</center>
+:::
+
+::: {.fold .o}
+<center>
+
+```{r racial-identity, fig.dim = c(6.5, 4.5), eval = diagnostic_eval}
+if (diagnostic %>%
+  select(
+    "how_do_you_describe_your_race_you_may_check_more_than_one_box_black_or_african_american",
+    "how_do_you_describe_your_race_you_may_check_more_than_one_box_native_american_indian_or_alaska_native",
+    "how_do_you_describe_your_race_you_may_check_more_than_one_box_native_hawaiian_or_other_pacific_islander",
+    "how_do_you_describe_your_race_you_may_check_more_than_one_box_white",
+    "how_do_you_describe_your_race_you_may_check_more_than_one_box_i_prefer_not_to_say",
+    "how_do_you_describe_your_race_you_may_check_more_than_one_box_i_prefer_to_self_describe"
+  ) %>%
+  pivot_longer(everything()) %>% drop_na() %>% count() >= 1) {
+  diagnostic %>%
+    select(
+      "how_do_you_describe_your_race_you_may_check_more_than_one_box_black_or_african_american",
+      "how_do_you_describe_your_race_you_may_check_more_than_one_box_native_american_indian_or_alaska_native",
+      "how_do_you_describe_your_race_you_may_check_more_than_one_box_native_hawaiian_or_other_pacific_islander",
+      "how_do_you_describe_your_race_you_may_check_more_than_one_box_white",
+      "how_do_you_describe_your_race_you_may_check_more_than_one_box_i_prefer_not_to_say",
+      "how_do_you_describe_your_race_you_may_check_more_than_one_box_i_prefer_to_self_describe"
+    ) %>%
+    pivot_longer(everything()) %>%
+    mutate(value = fct_lump(factor(value), 3)) %>%
+    rename(`Race Identity` = value) %>%
+    gt_percent_n(
+      column = "Race Identity",
+      custom_column_name = "Racial Identity",
+      viz_type = sample(c("pie", "waffle", "treemap"), size = 1)
+    )
+} else {
+  ggplot(tibble(text = "There was no data for this site here.", x = 0, y = 0)) +
+    geom_text(aes(label = text, x, y)) +
+    theme_void()
+}
+```
+
+</center>
+:::
+
+::: {.fold .o}
+<center>
+
+```{r racial-identity2, fig.dim = c(6.5, 4.5), eval = diagnostic_eval}
+if (sum(!is.na(diagnostic$how_do_you_describe_your_ethnicity)) >= 1) {
+  gt_percent_n(diagnostic,
+    column = "how_do_you_describe_your_ethnicity",
+    custom_column_name = "Ethnicity", viz_type = sample(c("waffle", "pie", "treemap"),
+      size = 1
+    )
+  )
+} else {
+  ggplot(tibble(text = "There was no data for this site here.", x = 0, y = 0)) +
+    geom_text(aes(label = text, x, y)) +
+    theme_void()
+}
+```
+
+</center>
+:::
+
+## Years of Teaching Experience
+
+::: {.fold .o}
+<center>
+
+```{r teach-experience, eval = diagnostic_eval}
+if (sum(!is.na(diagnostic$approximately_how_many_years_of_teaching_experience_do_you_have)) >= 1) {
+  n <- sum(!is.na(diagnostic$approximately_how_many_years_of_teaching_experience_do_you_have))
+
+  diagnostic %>%
+    mutate(approximately_how_many_years_of_teaching_experience_do_you_have = as.numeric(approximately_how_many_years_of_teaching_experience_do_you_have)) %>%
+    mutate(experience = approximately_how_many_years_of_teaching_experience_do_you_have -
+      (approximately_how_many_years_of_teaching_experience_do_you_have %% 10)) %>%
+    drop_na(experience) %>%
+    group_by(experience) %>%
+    count(sort = T) %>%
+    ungroup() %>%
+    mutate(
+      percent = round(100 * n / sum(n), 1),
+      experience = as.character(experience),
+      color = if_else(percent < 3, "black", "white"),
+      hjust = if_else(percent < 3, -0.5, 1.2)
+    ) %>%
+    ggplot(aes(fct_reorder(experience, percent), percent)) +
+    geom_col(aes(fill = percent)) +
+    geom_text(aes(
+      label = paste0(percent, "%"),
+      color = color, hjust = hjust
+    ),
+    fontface = "bold"
+    ) +
+    coord_flip() +
+    labs(title = glue::glue("Years of Teaching Experience (n = {n})", x = "", y = "")) +
+    scale_color_manual(values = c("white", "black")) +
+    scale_fill_continuous() +
+    scale_y_continuous(
+      labels = scales::percent_format(scale = 1),
+      breaks = scales::pretty_breaks(n = 6)
+    ) +
+    scale_x_discrete(labels = c("0-9", "10-19", "20-29", "30-39", "40-49", "50+")) +
+    ggplot2::theme(
+      axis.text = ggtext::element_markdown(size = 20),
+      axis.title = ggtext::element_markdown(size = 24)
+    ) +
+    TeachingLab::theme_tl() #+
+  # theme(axis.title = element_text(color = "white"))
+} else {
+  ggplot(tibble(text = "There was no data for this site here.", x = 0, y = 0)) +
+    geom_text(aes(label = text, x, y)) +
+    theme_void()
+}
+```
+
+</center>
+:::
+
+## Content Area
+
+::: {.fold .o}
+<center>
+
+```{r content-area, fig.dim = c(6.5, 4.5), eval = diagnostic_eval}
+if (sum(!is.na(diagnostic$which_subject_area_do_you_teach_lead_if_you_teach_support_both_please_select_the_one_where_you_expect_to_work_with_teaching_lab_this_year_br_br)) >= 1) {
+  diagnostic %>%
+    select(`Which Subject Area do you Teach or Support?` = which_subject_area_do_you_teach_lead_if_you_teach_support_both_please_select_the_one_where_you_expect_to_work_with_teaching_lab_this_year_br_br) %>%
+    drop_na() %>%
+    gt_percent_n(
+      column = "Which Subject Area do you Teach or Support?",
+      custom_column_name = "Content Area", viz_type = sample(c("waffle", "pie", "treemap"),
+        size = 1
+      )
+    )
+} else {
+  ggplot(tibble(text = "There was no data for this site here.", x = 0, y = 0)) +
+    geom_text(aes(label = text, x, y)) +
+    theme_void()
+}
+```
+
+</center>
+:::
+
+## Grades
+
+::: {.fold .o}
+<center>
+
+```{r grade, eval = diagnostic_eval}
+grades <- c(
+  "what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_k",
+  "what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_1",
+  "what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_2",
+  "what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_3",
+  "what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_4",
+  "what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_5",
+  "what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_6",
+  "what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_7",
+  "what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_8",
+  "what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_9",
+  "what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_10",
+  "what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_11",
+  "what_grade_s_do_you_teach_support_and_or_lead_you_can_select_more_than_one_12"
+)
+if (diagnostic %>% select(grades) %>% pivot_longer(everything()) %>% drop_na() %>% count() >= 1) {
+  n <- diagnostic %>%
+    select(grades) %>%
+    janitor::remove_empty("rows") %>%
+    nrow()
+
+  diagnostic %>%
+    select(grades) %>%
+    pivot_longer(everything()) %>%
+    tidyr::drop_na(value) %>%
+    group_by(name) %>%
+    count(sort = T) %>%
+    mutate(name = as.character(readr::parse_number(name))) %>%
+    suppressWarnings() %>%
+    mutate(name = replace_na(name, "K")) %>%
+    ungroup() %>%
+    mutate(
+      percent = round(100 * n / sum(n), 1),
+      name = factor(name, levels = c(
+        "K", "1", "2", "3", "4", "5",
+        "6", "7", "8", "9", "10", "11",
+        "12"
+      ))
+    ) %>%
+    ggplot(aes(name, percent)) +
+    geom_col(aes(fill = percent)) +
+    geom_text(aes(
+      label = paste0(percent, "%"),
+      color = ifelse(percent < 3, "black", "white"),
+      vjust = ifelse(percent < 3, -0.5, 1.3)
+    ),
+    fontface = "bold"
+    ) +
+    labs(
+      y = "", x = "Grade",
+      title = glue::glue("Grades Taught (n = {n})"),
+      subtitle = "<i>More than one could be selected.</i>"
+    ) +
+    scale_color_manual(values = c("black", "white")) +
+    scale_fill_continuous() +
+    scale_y_continuous(
+      labels = scales::percent_format(scale = 1),
+      breaks = scales::pretty_breaks(n = 6)
+    ) +
+    theme_tl() +
+    theme(
+      axis.text = element_markdown(size = 20),
+      axis.title = element_markdown(size = 24),
+      plot.subtitle = element_markdown()
+    )
+} else {
+  ggplot(tibble(text = "There was no data for this site here.", x = 0, y = 0)) +
+    geom_text(aes(label = text, x, y)) +
+    theme_void()
+}
+```
+
+</center>
+:::
+
+## Prior Experience with Teaching Lab Professional Learning
+
+::: {.fold .o}
+<center>
+
+```{r prior-experience, fig.dim = c(6.5, 4.5), eval = diagnostic_eval}
+if (sum(!is.na(diagnostic$have_you_participated_in_professional_learning_with_teaching_lab_before_br_br)) >= 1) {
+  gt_percent_n(diagnostic,
+    column = "have_you_participated_in_professional_learning_with_teaching_lab_before_br_br",
+    custom_column_name = "Previous Experience with Teaching Lab", viz_type = sample(c("waffle", "pie", "treemap"),
+      size = 1
+    )
+  )
+} else {
+  ggplot(tibble(text = "There was no data for this site here.", x = 0, y = 0)) +
+    geom_text(aes(label = text, x, y)) +
+    theme_void()
+}
+```
+
+</center>
+:::
+
+## Roles
+
+::: {.fold .o}
+<center>
+
+```{r roles, fig.dim = c(6.5, 4.5), eval = diagnostic_eval}
+if (sum(!is.na(diagnostic$which_of_the_following_best_describes_your_primary_role_br_br)) >= 1) {
+  gt_percent_n(
+    df = diagnostic,
+    column = "which_of_the_following_best_describes_your_primary_role_br_br",
+    custom_column_name = "Primary Role",
+    viz_type = sample(c("waffle", "pie", "treemap"),
+      size = 1
+    )
+  )
+} else {
+  ggplot(tibble(text = "There was no data for this site here.", x = 0, y = 0)) +
+    geom_text(aes(label = text, x, y)) +
+    theme_void()
+}
+```
+
+```{r roles2, fig.dim = c(6.5, 4.5), eval = diagnostic_eval}
+if (sum(!is.na(diagnostic$are_you_a_lab_leader)) >= 1) {
+  gt_percent_n(
+    df = diagnostic,
+    column = "are_you_a_lab_leader",
+    custom_column_name = "Lab Leader",
+    viz_type = sample(c("waffle", "pie", "treemap"),
+      size = 1
+    )
+  )
+} else {
+  ggplot(tibble(text = "There was no data for this site here.", x = 0, y = 0)) +
+    geom_text(aes(label = text, x, y)) +
+    theme_void()
+}
+```
+
+</center>
+:::
+
+`r if(diagnostic_eval == F) {"-->"}`
+
+# Section `r ifelse(diagnostic_eval == T, 2, 1)`: Participant Perceptions
+
+Teaching Lab collects participant feedback on facilitation from session to session and then on the entire course once it has concluded. Below are results for both.
+
+## Section `r ifelse(diagnostic_eval == T, 2, 1)`a: End of Session Summary
+
+Participants' aggregate feedback on each session is provided below.
+
+::: {.fold .o}
+<center>
+
+```{r session-plot-agree, fig.width = 10, fig.height = 12, eval = T}
+plot_agree <- session_survey %>%
+  select(c(
+    "How much do you agree with the following statements about this facilitator today? - They demonstrated  deep knowledge of the content they facilitated.",
+    "How much do you agree with the following statements about this facilitator today? - They facilitated the content clearly.",
+    "How much do you agree with the following statements about this facilitator today? - They effectively built a safe learning community.",
+    "How much do you agree with the following statements about this facilitator today? - They were fully prepared for the session.",
+    "How much do you agree with the following statements about this facilitator today? - They responded to the group’s needs."
+  )) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+  drop_na() %>%
+  dplyr::mutate(Question = str_remove_all(
+    Question,
+    "How much do you agree with the following statements about this facilitator today\\? - "
+  )) %>%
+  group_by(Question, Response) %>%
+  count() %>%
+  ungroup() %>%
+  group_by(Question) %>%
+  mutate(Question = str_wrap(Question, width = 30)) %>%
+  summarise(
+    n = n,
+    Response = Response,
+    Percent = n / sum(n) * 100
+  )
+
+n <- plot_agree %>%
+  filter(Question == "They were fully prepared for\nthe session.") %>%
+  summarise(n = sum(n)) %>%
+  pull(n)
+
+ggplot(data = plot_agree, aes(x = Question, y = Percent, fill = factor(Response))) +
+  geom_col() +
+  geom_text(aes(label = if_else(Percent >= 3, paste0(round(Percent), "%"), "")),
+    position = position_stack(vjust = 0.5),
+    fontface = "bold"
+  ) +
+  scale_fill_manual(values = c(
+    "(1) Strongly disagree" = "#040404", "(2) Disagree" = "#032E3F",
+    "(3) Neither agree nor disagree" = "#02587A", "(4) Agree" = "#0182B4", "(5) Strongly agree" = "#00ACF0"
+  )) +
+  labs(
+    fill = "", title = glue::glue("Participant Perceptions of Course Facilitation (n = {n})"),
+    x = "", y = ""
+  ) +
+  coord_flip() +
+  guides(fill = guide_legend(reverse = T)) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  theme_tl(legend = T) +
+  theme(
+    axis.text.x = element_blank(),
+    axis.text.y = element_text(lineheight = 1.1, size = 12),
+    legend.position = "bottom",
+    plot.title = element_text(lineheight = 1.1, size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 14, face = "bold"),
+    legend.key.size = unit(0.75, "cm"),
+    legend.text = element_text(size = 9)
+  )
+```
+
+</center>
+:::
+
+In summary, we see the following % agree or strongly agree with the above statements:
+
+-   `r ifelse(nrow(session_survey) >= 1, plot_agree %>% filter(Question == "They were fully prepared for\nthe session." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that they were fully prepared for the session.
+-   `r ifelse(nrow(session_survey) >= 1, plot_agree %>% filter(Question == "They responded to the group’s\nneeds." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that they responded to the group's needs.
+-   `r ifelse(nrow(session_survey) >= 1, plot_agree %>% filter(Question == "They facilitated the content\nclearly." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that they facilitated the content clearly.
+-   `r ifelse(nrow(session_survey) >= 1, plot_agree %>% filter(Question == "They effectively built a safe\nlearning community." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that they effectively built a safe learning community.
+-   `r ifelse(nrow(session_survey) >= 1, plot_agree %>% filter(Question == "They demonstrated deep\nknowledge of the content they\nfacilitated." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that they demonstrated deep knowledge of the content they facilitated.
+
+`r if(params$partner %!in% c("Connecticut Partnership (with UnboundEd)", "Delaware Department of Education, DE", "Wisconsin Department of Public Instruction")) {"<!--"}`
+
+Here broken down by ELA and Math separately we see the following
+
+### ELA
+
+::: {.fold .o}
+<center>
+
+```{r session-plot-agree-ela, fig.width = 10, fig.height = 12, eval = T}
+plot_agree <- session_survey %>%
+  dplyr::filter(`Select the content area for today’s professional learning session.` == "ELA") %>%
+  select(c(
+    "How much do you agree with the following statements about this facilitator today? - They demonstrated  deep knowledge of the content they facilitated.",
+    "How much do you agree with the following statements about this facilitator today? - They facilitated the content clearly.",
+    "How much do you agree with the following statements about this facilitator today? - They effectively built a safe learning community.",
+    "How much do you agree with the following statements about this facilitator today? - They were fully prepared for the session.",
+    "How much do you agree with the following statements about this facilitator today? - They responded to the group’s needs."
+  )) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+  drop_na() %>%
+  dplyr::mutate(Question = str_remove_all(
+    Question,
+    "How much do you agree with the following statements about this facilitator today\\? - "
+  )) %>%
+  group_by(Question, Response) %>%
+  count() %>%
+  ungroup() %>%
+  group_by(Question) %>%
+  mutate(Question = str_wrap(Question, width = 30)) %>%
+  summarise(
+    n = n,
+    Response = Response,
+    Percent = n / sum(n) * 100
+  )
+
+n <- plot_agree %>%
+  filter(Question == "They were fully prepared for\nthe session.") %>%
+  summarise(n = sum(n)) %>%
+  pull(n)
+
+ggplot(data = plot_agree, aes(x = Question, y = Percent, fill = factor(Response))) +
+  geom_col() +
+  geom_text(aes(label = if_else(Percent >= 3, paste0(round(Percent), "%"), "")),
+    position = position_stack(vjust = 0.5),
+    fontface = "bold"
+  ) +
+  scale_fill_manual(values = c(
+    "(1) Strongly disagree" = "#040404", "(2) Disagree" = "#032E3F",
+    "(3) Neither agree nor disagree" = "#02587A", "(4) Agree" = "#0182B4", "(5) Strongly agree" = "#00ACF0"
+  )) +
+  labs(
+    fill = "", title = glue::glue("ELA Participant Perceptions of Course Facilitation (n = {n})"),
+    x = "", y = ""
+  ) +
+  coord_flip() +
+  guides(fill = guide_legend(reverse = T)) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  theme_tl(legend = T) +
+  theme(
+    axis.text.x = element_blank(),
+    axis.text.y = element_text(lineheight = 1.1, size = 12),
+    legend.position = "bottom",
+    plot.title = element_text(lineheight = 1.1, size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 14, face = "bold"),
+    legend.key.size = unit(0.75, "cm"),
+    legend.text = element_text(size = 9)
+  )
+```
+
+</center>
+:::
+
+In summary, we see the following % agree or strongly agree with the above statements:
+
+-   `r ifelse(nrow(session_survey) >= 1, plot_agree %>% filter(Question == "They were fully prepared for\nthe session." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that they were fully prepared for the session.
+-   `r ifelse(nrow(session_survey) >= 1, plot_agree %>% filter(Question == "They responded to the group’s\nneeds." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that they responded to the group's needs.
+-   `r ifelse(nrow(session_survey) >= 1, plot_agree %>% filter(Question == "They facilitated the content\nclearly." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that they facilitated the content clearly.
+-   `r ifelse(nrow(session_survey) >= 1, plot_agree %>% filter(Question == "They effectively built a safe\nlearning community." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that they effectively built a safe learning community.
+-   `r ifelse(nrow(session_survey) >= 1, plot_agree %>% filter(Question == "They demonstrated deep\nknowledge of the content they\nfacilitated." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that they demonstrated deep knowledge of the content they facilitated.
+
+### Math
+
+::: {.fold .o}
+<center>
+
+```{r session-plot-agree-math, fig.width = 10, fig.height = 12, eval = T}
+plot_agree <- session_survey %>%
+  dplyr::filter(`Select the content area for today’s professional learning session.` == "Math") %>%
+  select(c(
+    "How much do you agree with the following statements about this facilitator today? - They demonstrated  deep knowledge of the content they facilitated.",
+    "How much do you agree with the following statements about this facilitator today? - They facilitated the content clearly.",
+    "How much do you agree with the following statements about this facilitator today? - They effectively built a safe learning community.",
+    "How much do you agree with the following statements about this facilitator today? - They were fully prepared for the session.",
+    "How much do you agree with the following statements about this facilitator today? - They responded to the group’s needs."
+  )) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+  drop_na() %>%
+  dplyr::mutate(Question = str_remove_all(
+    Question,
+    "How much do you agree with the following statements about this facilitator today\\? - "
+  )) %>%
+  group_by(Question, Response) %>%
+  count() %>%
+  ungroup() %>%
+  group_by(Question) %>%
+  mutate(Question = str_wrap(Question, width = 30)) %>%
+  summarise(
+    n = n,
+    Response = Response,
+    Percent = n / sum(n) * 100
+  )
+
+n <- plot_agree %>%
+  filter(Question == "They were fully prepared for\nthe session.") %>%
+  summarise(n = sum(n)) %>%
+  pull(n)
+
+ggplot(data = plot_agree, aes(x = Question, y = Percent, fill = factor(Response))) +
+  geom_col() +
+  geom_text(aes(label = if_else(Percent >= 3, paste0(round(Percent), "%"), "")),
+    position = position_stack(vjust = 0.5),
+    fontface = "bold"
+  ) +
+  scale_fill_manual(values = c(
+    "(1) Strongly disagree" = "#040404", "(2) Disagree" = "#032E3F",
+    "(3) Neither agree nor disagree" = "#02587A", "(4) Agree" = "#0182B4", "(5) Strongly agree" = "#00ACF0"
+  )) +
+  labs(
+    fill = "", title = glue::glue("Math Participant Perceptions of Course Facilitation (n = {n})"),
+    x = "", y = ""
+  ) +
+  coord_flip() +
+  guides(fill = guide_legend(reverse = T)) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  theme_tl(legend = T) +
+  theme(
+    axis.text.x = element_blank(),
+    axis.text.y = element_text(lineheight = 1.1, size = 12),
+    legend.position = "bottom",
+    plot.title = element_text(lineheight = 1.1, size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 14, face = "bold"),
+    legend.key.size = unit(0.75, "cm"),
+    legend.text = element_text(size = 9)
+  )
+```
+
+</center>
+:::
+
+In summary, we see the following % agree or strongly agree with the above statements:
+
+-   `r ifelse(nrow(session_survey) >= 1, plot_agree %>% filter(Question == "They were fully prepared for\nthe session." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that they were fully prepared for the session.
+-   `r ifelse(nrow(session_survey) >= 1, plot_agree %>% filter(Question == "They responded to the group’s\nneeds." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that they responded to the group's needs.
+-   `r ifelse(nrow(session_survey) >= 1, plot_agree %>% filter(Question == "They facilitated the content\nclearly." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that they facilitated the content clearly.
+-   `r ifelse(nrow(session_survey) >= 1, plot_agree %>% filter(Question == "They effectively built a safe\nlearning community." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that they effectively built a safe learning community.
+-   `r ifelse(nrow(session_survey) >= 1, plot_agree %>% filter(Question == "They demonstrated deep\nknowledge of the content they\nfacilitated." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that they demonstrated deep knowledge of the content they facilitated.
+
+`r if(params$partner %!in% c("Connecticut Partnership (with UnboundEd)", "Delaware Department of Education, DE", "Wisconsin Department of Public Instruction")) {"-->"}`
+
+Here, by visualizing ratings of strongly agree/agree in blue areas, and all other ratings in black areas we visualize feedback over time (If there is just one point of feedback this appears as a dot).
+
+::: {.fold .o}
+<center>
+
+```{r}
+plot_ts <- session_survey %>%
+  select(
+    Date,
+    c(
+      "How much do you agree with the following statements about this facilitator today? - They demonstrated  deep knowledge of the content they facilitated.",
+      "How much do you agree with the following statements about this facilitator today? - They facilitated the content clearly.",
+      "How much do you agree with the following statements about this facilitator today? - They effectively built a safe learning community.",
+      "How much do you agree with the following statements about this facilitator today? - They were fully prepared for the session.",
+      "How much do you agree with the following statements about this facilitator today? - They responded to the group’s needs."
+    )
+  ) %>%
+  pivot_longer(!`Date`, names_to = "question", values_to = "answer") %>%
+  dplyr::mutate(question = str_remove_all(
+    question,
+    "How much do you agree with the following statements about this course\\? - "
+  )) %>%
+  # Rename with line breaks every 27 characters
+  mutate(question = gsub("(.{28,}?)\\s", "\\1\n", question)) %>%
+  drop_na(answer) %>%
+  dplyr::group_by(question, Date) %>%
+  # Group by input variable
+  mutate(`Number Agree/Disagree` = n()) %>%
+  mutate(answer = str_remove_all(answer, "\\([:digit:]\\) ")) %>%
+  mutate(
+    Rating = case_when(
+      answer %in% c("Agree", "Strongly agree") ~ "Agree/Strongly Agree",
+      answer %in% c("Neither agree nor disagree", "Disagree", "Strongly disagree") ~ "Neither/Disagree/Strongly Disagree"
+    ),
+    date_group = lubridate::month(Date)
+  ) %>%
+  ungroup() %>%
+  dplyr::mutate(question = str_remove_all(
+    question,
+    "How much do you agree with the\nfollowing statements about this\nfacilitator today\\? -"
+  )) %>%
+  group_by(date_group, question) %>%
+  mutate(Percent = `Number Agree/Disagree` / sum(`Number Agree/Disagree`) * 100) %>%
+  filter(Rating == "Agree/Strongly Agree") %>%
+  group_by(date_group, Rating, question) %>%
+  summarise(
+    Percent = round(sum(Percent), 2),
+    Date = Date
+  )
+
+n <- nrow(session_survey)
+
+if (nrow(plot_ts) >= 1) {
+  plot_ts %>%
+    ggplot(aes(
+      x = ymd(Date),
+      y = Percent
+    )) +
+    geom_area(color = "gray50", aes(fill = Rating), alpha = 0.6, position = position_identity()) + # position_identity is absolutely necessary here, not sure why
+    geom_ribbon(color = "transparent", aes(
+      ymin = Percent, ymax = 100,
+      fill = "Neither Agree nor Disagree/Disagree/Strongly Disagree"
+    ), alpha = 0.85) +
+    geom_line(size = 1.25, alpha = 0.9, aes(group = 1)) +
+    geom_point(size = 1, alpha = 0.9) +
+    facet_wrap(~ fct_reorder(question, .x = `Percent`, .fun = mean, .desc = T),
+      scales = "free"
+    ) +
+    coord_cartesian() +
+    scale_x_date(
+      date_breaks = "1 month",
+      date_labels = "%b",
+      limits = c(min(as.Date(plot_ts$Date)), max(as.Date(plot_ts$Date))),
+      expand = c(0, 0)
+    ) +
+    scale_y_continuous(
+      breaks = pretty_breaks(n = 5), limits = c(0, 100),
+      labels = scales::percent_format(scale = 1), expand = c(0, 0)
+    ) +
+    scale_fill_manual(values = c(rev(tl_palette(n = 2, color = "blue", theme = "dark")))) +
+    labs(x = "Date", title = glue::glue("Percent that Agree/Strongly Agree (n = {n})")) +
+    theme_bw() + # BW Panel panel elements
+    theme(
+      legend.position = "bottom",
+      legend.title = element_blank(),
+      legend.text = element_text(family = "Calibri"),
+      text = element_text(family = "Calibri", face = "bold"),
+      panel.grid.minor.x = element_blank(),
+      axis.text.x = element_text(size = 10),
+      strip.background = element_rect(fill = "white"),
+      strip.text = element_text(size = 10),
+      axis.title.x = element_blank(),
+      axis.title.y = element_blank(),
+      plot.title = element_text(hjust = 0.5, family = "Calibri", size = 16, face = "bold"),
+      axis.line = element_line(size = 1.5)
+    )
+} else {
+  ggplot(tibble(text = "There was no data for this site here.", x = 0, y = 0)) +
+    geom_text(aes(label = text, x, y)) +
+    theme_void()
+}
+```
+
+</center>
+:::
+
+Finally, here are some highlights from the textual feedback of the end of session survey
+
+### Responses to "What could have been better about today's session?"
+
+::: {.fold .o}
+<center>
+
+```{r facilitation-feedback, fig.dim = c(6.5, 4.5), eval = T}
+quote1 <- session_survey %>%
+  select(Facilitation_Feedback) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "What could have been better about today’s session?") %>%
+  drop_na() %>%
+  filter(`What could have been better about today’s session?` %!in% na_df) %>%
+  select(`What could have been better about today’s session?`) %>%
+  filter(str_length(`What could have been better about today’s session?`) > 30) %>%
+  {
+    if (nrow(.) > 10) slice_sample(., n = 10) else .
+  } %>%
+  distinct()
+if (nrow(quote1) >= 1) {
+  quote_viz(
+    data = quote1,
+    viz_type = "gt",
+    print = F,
+    width = 80,
+    align = "center"
+  ) %>%
+    gtsave("tab1_1.png", path = tempdir(), vheight = "800", vwidth = "700")
+} else {
+  tibble(Quotes = "No Responses at this Site") %>%
+    gt::gt() %>%
+    gt_theme_tl() %>%
+    gtsave("tab1_2.png", path = tempdir(), vheight = "800", vwidth = "700")
+}
+```
+
+</center>
+:::
+
+### Responses to "What went well in today's session?"
+
+::: {.fold .o}
+<center>
+
+```{r went-well, fig.dim = c(6.5, 4.5), eval = T}
+quote2 <- session_survey %>%
+  select(`What went well in today’s session?`) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "What went well in today’s session?") %>%
+  drop_na() %>%
+  filter(`What went well in today’s session?` %!in% na_df) %>%
+  select(`What went well in today’s session?`) %>%
+  filter(str_length(`What went well in today’s session?`) > 30) %>%
+  {
+    if (nrow(.) > 10) slice_sample(., n = 10) else .
+  } %>%
+  distinct()
+if (nrow(quote2) >= 1) {
+  quote_viz(
+    data = quote2,
+    viz_type = "gt",
+    print = F,
+    width = 80,
+    align = "center"
+  ) %>%
+    gtsave("tab2_1.png", path = tempdir(), zoom = 4)
+} else {
+  tibble(Quotes = "No Responses at this Site") %>%
+    gt::gt() %>%
+    gt_theme_tl() %>%
+    gtsave("tab2_2.png", path = tempdir(), vheight = "800", vwidth = 700)
+}
+```
+
+</center>
+:::
+
+### Responses to "What additional feedback do you have about their facilitation skills?"
+
+::: {.fold .o}
+<center>
+
+```{r been-better, fig.dim = c(6.5, 4.5), eval = T}
+quote3 <- session_survey %>%
+  select(`What could have been better about today’s session?`) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "What could have been better about today’s session?") %>%
+  drop_na() %>%
+  filter(`What could have been better about today’s session?` %!in% na_df) %>%
+  select(`What could have been better about today’s session?`) %>%
+  filter(str_length(`What could have been better about today’s session?`) > 30) %>%
+  {
+    if (nrow(.) > 10) slice_sample(., n = 10) else .
+  } %>%
+  distinct()
+if (nrow(quote3) >= 1) {
+  quote_viz(
+    data = quote3,
+    viz_type = "gt",
+    print = F,
+    width = 80,
+    align = "center"
+  ) %>%
+    gtsave("tab3_1.png", path = tempdir(), zoom = 4)
+} else {
+  tibble(Quotes = "No Responses at this Site") %>%
+    gt::gt() %>%
+    gt_theme_tl() %>%
+    gtsave("tab3_3.png", path = tempdir(), vheight = "800", vwidth = 700)
+}
+```
+
+</center>
+:::
+
+## Section `r ifelse(diagnostic_eval == T, 2, 1)`b: End of Course Summary
+
+Participants' feedback on each course is provided below.
+
+::: {.fold .o}
+<center>
+
+```{r course-plot-agree, fig.width = 10, fig.height = 12, eval = T}
+if (nrow(course_survey) >= 1) {
+  plot_agree <- course_survey %>%
+    select(c(
+      "How much do you agree with the following statements about this course? - I am satisfied with the overall quality of this course.",
+      "How much do you agree with the following statements about this course? - I am satisfied with how the course was facilitated.",
+      "How much do you agree with the following statements about this course? - The independent online work activities were well-designed to help me meet the learning targets.",
+      "How much do you agree with the following statements about this course? - I felt a sense of community with the other participants in this course. even though we were meeting virtually.",
+      "How much do you agree with the following statements about this course? - The strategies I’ve learned in this course will improve my instruction.",
+      "How much do you agree with the following statements about this course? - The strategies I’ve learned in this course will improve my coaching or supervision of teachers.",
+      "How much do you agree with the following statements about this course? - The strategies I’ve learned in the course are easy to implement.",
+      "How much do you agree with the following statements about this course? - I will apply what I have learned in this course to my practice in the next 4-6 weeks.",
+      "How much do you agree with the following statements about this course? - This course has supported me in being responsive to students' backgrounds, cultures, and points of view."
+    )) %>%
+    pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+    drop_na() %>%
+    dplyr::mutate(Question = str_remove_all(
+      Question,
+      "How much do you agree with the following statements about this course\\? - "
+    )) %>%
+    group_by(Question, Response) %>%
+    count() %>%
+    ungroup() %>%
+    group_by(Question) %>%
+    mutate(Question = str_wrap(Question, width = 30)) %>%
+    summarise(
+      n = n,
+      Response = Response,
+      Percent = n / sum(n) * 100
+    )
+
+  n <- plot_agree %>%
+    filter(Question == "This course has supported\nme in being responsive\nto students' backgrounds,\ncultures, and points of view.") %>%
+    summarise(n = sum(n)) %>%
+    pull(n)
+
+  ggplot(data = plot_agree, aes(x = Question, y = Percent, fill = factor(Response))) +
+    geom_col() +
+    geom_text(aes(label = if_else(Percent >= 3, paste0(round(Percent), "%"), "")),
+      position = position_stack(vjust = 0.5),
+      fontface = "bold"
+    ) +
+    scale_fill_manual(values = c(
+      "(1) Strongly disagree" = "#040404", "(2) Disagree" = "#032E3F",
+      "(3) Neither agree nor disagree" = "#02587A", "(4) Agree" = "#0182B4", "(5) Strongly agree" = "#00ACF0"
+    )) +
+    labs(
+      fill = "", title = glue::glue("Participant Perceptions of Course (n = {prettyNum(n, big.mark = ',')})"),
+      x = "", y = ""
+    ) +
+    coord_flip() +
+    guides(fill = guide_legend(reverse = T)) +
+    scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+    theme_tl(legend = T) +
+    theme(
+      axis.text.x = element_blank(),
+      axis.text.y = element_text(lineheight = 1.1, size = 12),
+      legend.position = "bottom",
+      plot.title = element_text(lineheight = 1.1, size = 16, face = "bold"),
+      plot.subtitle = element_text(size = 14, face = "bold"),
+      legend.key.size = unit(0.75, "cm"),
+      legend.text = element_text(size = 9)
+    )
+} else {
+  ggplot(tibble(text = "There was no data for this site here.", x = 0, y = 0)) +
+    geom_text(aes(label = text, x, y)) +
+    theme_void()
+}
+```
+
+</center>
+:::
+
+In summary, we see the following % agree or strongly agree with the above statements:
+
+-   `r ifelse(nrow(course_survey) >= 1, plot_agree %>% filter(Question == "I am satisfied with how the\ncourse was facilitated." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that they were satisfied with how the course was facilitated.
+-   `r ifelse(nrow(course_survey) >= 1, plot_agree %>% filter(Question == "I am satisfied with the\noverall quality of this\ncourse." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that they responded to the group's needs.
+-   `r ifelse(nrow(course_survey) >= 1, plot_agree %>% filter(Question == "I felt a sense of community\nwith the other participants\nin this course. even though we\nwere meeting virtually." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that they felt a sense of community with the other participants in the course even though they were meeting virtually.
+-   `r ifelse(nrow(course_survey) >= 1, plot_agree %>% filter(Question == "I will apply what I have\nlearned in this course to\nmy practice in the next 4-6\nweeks." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that they will apply what they have learned in the course to their practice in the next 4-6 weeks.
+-   `r ifelse(nrow(course_survey) >= 1, plot_agree %>% filter(Question == "The independent online work\nactivities were well-designed\nto help me meet the learning\ntargets." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that the independent online work activities were well-designed to help me meet learning targets.
+-   `r ifelse(nrow(course_survey) >= 1, plot_agree %>% filter(Question == "The strategies I’ve learned\nin the course are easy to\nimplement." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that the strategies I've learned in the course are easy to implement.
+-   `r ifelse(nrow(course_survey) >= 1, plot_agree %>% filter(Question == "The strategies I’ve learned\nin this course will improve\nmy coaching or supervision of\nteachers." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that they facilitated the content clearly.
+-   `r ifelse(nrow(course_survey) >= 1, plot_agree %>% filter(Question == "The strategies I’ve learned\nin this course will improve my\ninstruction." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that they've learned in this course will improve my instruction.
+-   `r ifelse(nrow(course_survey) >= 1, plot_agree %>% filter(Question == "This course has supported\nme in being responsive\nto students' backgrounds,\ncultures, and points of view." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that the course has supported me in being responsive to students' backgrounds, cultures, and points of view.
+
+`r if(params$partner %!in% c("Connecticut Partnership (with UnboundEd)", "Delaware Department of Education, DE", "Wisconsin Department of Public Instruction")) {"<!--"}`
+
+Here, broken down by ELA and Math we see the following
+
+### ELA
+
+::: {.fold .o}
+<center>
+
+```{r course-plot-agree-ela, fig.width = 10, fig.height = 12, eval = T}
+if (nrow(course_survey) >= 1) {
+  plot_agree <- course_survey %>%
+    dplyr::filter(`Select the content area for today's professional learning session.` == "ELA") %>%
+    select(c(
+      "How much do you agree with the following statements about this course? - I am satisfied with the overall quality of this course.",
+      "How much do you agree with the following statements about this course? - I am satisfied with how the course was facilitated.",
+      "How much do you agree with the following statements about this course? - The independent online work activities were well-designed to help me meet the learning targets.",
+      "How much do you agree with the following statements about this course? - I felt a sense of community with the other participants in this course. even though we were meeting virtually.",
+      "How much do you agree with the following statements about this course? - The strategies I’ve learned in this course will improve my instruction.",
+      "How much do you agree with the following statements about this course? - The strategies I’ve learned in this course will improve my coaching or supervision of teachers.",
+      "How much do you agree with the following statements about this course? - The strategies I’ve learned in the course are easy to implement.",
+      "How much do you agree with the following statements about this course? - I will apply what I have learned in this course to my practice in the next 4-6 weeks.",
+      "How much do you agree with the following statements about this course? - This course has supported me in being responsive to students' backgrounds, cultures, and points of view."
+    )) %>%
+    pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+    drop_na() %>%
+    dplyr::mutate(Question = str_remove_all(
+      Question,
+      "How much do you agree with the following statements about this course\\? - "
+    )) %>%
+    group_by(Question, Response) %>%
+    count() %>%
+    ungroup() %>%
+    group_by(Question) %>%
+    mutate(Question = str_wrap(Question, width = 30)) %>%
+    summarise(
+      n = n,
+      Response = Response,
+      Percent = n / sum(n) * 100
+    )
+
+  n <- plot_agree %>%
+    filter(Question == "This course has supported\nme in being responsive\nto students' backgrounds,\ncultures, and points of view.") %>%
+    summarise(n = sum(n)) %>%
+    pull(n)
+
+  ggplot(data = plot_agree, aes(x = Question, y = Percent, fill = factor(Response))) +
+    geom_col() +
+    geom_text(aes(label = if_else(Percent >= 3, paste0(round(Percent), "%"), "")),
+      position = position_stack(vjust = 0.5),
+      fontface = "bold"
+    ) +
+    scale_fill_manual(values = c(
+      "(1) Strongly disagree" = "#040404", "(2) Disagree" = "#032E3F",
+      "(3) Neither agree nor disagree" = "#02587A", "(4) Agree" = "#0182B4", "(5) Strongly agree" = "#00ACF0"
+    )) +
+    labs(
+      fill = "", title = glue::glue("ELA Participant Perceptions of Course (n = {prettyNum(n, big.mark = ',')})"),
+      x = "", y = ""
+    ) +
+    coord_flip() +
+    guides(fill = guide_legend(reverse = T)) +
+    scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+    theme_tl(legend = T) +
+    theme(
+      axis.text.x = element_blank(),
+      axis.text.y = element_text(lineheight = 1.1, size = 12),
+      legend.position = "bottom",
+      plot.title = element_text(lineheight = 1.1, size = 16, face = "bold"),
+      plot.subtitle = element_text(size = 14, face = "bold"),
+      legend.key.size = unit(0.75, "cm"),
+      legend.text = element_text(size = 9)
+    )
+} else {
+  ggplot(tibble(text = "There was no data for this site here.", x = 0, y = 0)) +
+    geom_text(aes(label = text, x, y)) +
+    theme_void()
+}
+```
+
+</center>
+:::
+
+In summary, we see the following % agree or strongly agree with the above statements:
+
+-   `r ifelse(nrow(course_survey) >= 1, plot_agree %>% filter(Question == "I am satisfied with how the\ncourse was facilitated." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that they were satisfied with how the course was facilitated.
+-   `r ifelse(nrow(course_survey) >= 1, plot_agree %>% filter(Question == "I am satisfied with the\noverall quality of this\ncourse." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that they responded to the group's needs.
+-   `r ifelse(nrow(course_survey) >= 1, plot_agree %>% filter(Question == "I felt a sense of community\nwith the other participants\nin this course. even though we\nwere meeting virtually." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that they felt a sense of community with the other participants in the course even though they were meeting virtually.
+-   `r ifelse(nrow(course_survey) >= 1, plot_agree %>% filter(Question == "I will apply what I have\nlearned in this course to\nmy practice in the next 4-6\nweeks." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that they will apply what they have learned in the course to their practice in the next 4-6 weeks.
+-   `r ifelse(nrow(course_survey) >= 1, plot_agree %>% filter(Question == "The independent online work\nactivities were well-designed\nto help me meet the learning\ntargets." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that the independent online work activities were well-designed to help me meet learning targets.
+-   `r ifelse(nrow(course_survey) >= 1, plot_agree %>% filter(Question == "The strategies I’ve learned\nin the course are easy to\nimplement." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that the strategies I've learned in the course are easy to implement.
+-   `r ifelse(nrow(course_survey) >= 1, plot_agree %>% filter(Question == "The strategies I’ve learned\nin this course will improve\nmy coaching or supervision of\nteachers." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that they facilitated the content clearly.
+-   `r ifelse(nrow(course_survey) >= 1, plot_agree %>% filter(Question == "The strategies I’ve learned\nin this course will improve my\ninstruction." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that they've learned in this course will improve my instruction.
+-   `r ifelse(nrow(course_survey) >= 1, plot_agree %>% filter(Question == "This course has supported\nme in being responsive\nto students' backgrounds,\ncultures, and points of view." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that the course has supported me in being responsive to students' backgrounds, cultures, and points of view.
+
+### Math
+
+::: {.fold .o}
+<center>
+
+```{r course-plot-agree-math, fig.width = 10, fig.height = 12, eval = T}
+if (nrow(course_survey) >= 1) {
+  plot_agree <- course_survey %>%
+    dplyr::filter(`Select the content area for today's professional learning session.` == "Math") %>%
+    select(c(
+      "How much do you agree with the following statements about this course? - I am satisfied with the overall quality of this course.",
+      "How much do you agree with the following statements about this course? - I am satisfied with how the course was facilitated.",
+      "How much do you agree with the following statements about this course? - The independent online work activities were well-designed to help me meet the learning targets.",
+      "How much do you agree with the following statements about this course? - I felt a sense of community with the other participants in this course. even though we were meeting virtually.",
+      "How much do you agree with the following statements about this course? - The strategies I’ve learned in this course will improve my instruction.",
+      "How much do you agree with the following statements about this course? - The strategies I’ve learned in this course will improve my coaching or supervision of teachers.",
+      "How much do you agree with the following statements about this course? - The strategies I’ve learned in the course are easy to implement.",
+      "How much do you agree with the following statements about this course? - I will apply what I have learned in this course to my practice in the next 4-6 weeks.",
+      "How much do you agree with the following statements about this course? - This course has supported me in being responsive to students' backgrounds, cultures, and points of view."
+    )) %>%
+    pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+    drop_na() %>%
+    dplyr::mutate(Question = str_remove_all(
+      Question,
+      "How much do you agree with the following statements about this course\\? - "
+    )) %>%
+    group_by(Question, Response) %>%
+    count() %>%
+    ungroup() %>%
+    group_by(Question) %>%
+    mutate(Question = str_wrap(Question, width = 30)) %>%
+    summarise(
+      n = n,
+      Response = Response,
+      Percent = n / sum(n) * 100
+    )
+
+  n <- plot_agree %>%
+    filter(Question == "This course has supported\nme in being responsive\nto students' backgrounds,\ncultures, and points of view.") %>%
+    summarise(n = sum(n)) %>%
+    pull(n)
+
+  ggplot(data = plot_agree, aes(x = Question, y = Percent, fill = factor(Response))) +
+    geom_col() +
+    geom_text(aes(label = if_else(Percent >= 3, paste0(round(Percent), "%"), "")),
+      position = position_stack(vjust = 0.5),
+      fontface = "bold"
+    ) +
+    scale_fill_manual(values = c(
+      "(1) Strongly disagree" = "#040404", "(2) Disagree" = "#032E3F",
+      "(3) Neither agree nor disagree" = "#02587A", "(4) Agree" = "#0182B4", "(5) Strongly agree" = "#00ACF0"
+    )) +
+    labs(
+      fill = "", title = glue::glue("Math Participant Perceptions of Course (n = {prettyNum(n, big.mark = ',')})"),
+      x = "", y = ""
+    ) +
+    coord_flip() +
+    guides(fill = guide_legend(reverse = T)) +
+    scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+    theme_tl(legend = T) +
+    theme(
+      axis.text.x = element_blank(),
+      axis.text.y = element_text(lineheight = 1.1, size = 12),
+      legend.position = "bottom",
+      plot.title = element_text(lineheight = 1.1, size = 16, face = "bold"),
+      plot.subtitle = element_text(size = 14, face = "bold"),
+      legend.key.size = unit(0.75, "cm"),
+      legend.text = element_text(size = 9)
+    )
+} else {
+  ggplot(tibble(text = "There was no data for this site here.", x = 0, y = 0)) +
+    geom_text(aes(label = text, x, y)) +
+    theme_void()
+}
+```
+
+</center>
+:::
+
+In summary, we see the following % agree or strongly agree with the above statements:
+
+-   `r ifelse(nrow(course_survey) >= 1, plot_agree %>% filter(Question == "I am satisfied with how the\ncourse was facilitated." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that they were satisfied with how the course was facilitated.
+-   `r ifelse(nrow(course_survey) >= 1, plot_agree %>% filter(Question == "I am satisfied with the\noverall quality of this\ncourse." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that they responded to the group's needs.
+-   `r ifelse(nrow(course_survey) >= 1, plot_agree %>% filter(Question == "I felt a sense of community\nwith the other participants\nin this course. even though we\nwere meeting virtually." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that they felt a sense of community with the other participants in the course even though they were meeting virtually.
+-   `r ifelse(nrow(course_survey) >= 1, plot_agree %>% filter(Question == "I will apply what I have\nlearned in this course to\nmy practice in the next 4-6\nweeks." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that they will apply what they have learned in the course to their practice in the next 4-6 weeks.
+-   `r ifelse(nrow(course_survey) >= 1, plot_agree %>% filter(Question == "The independent online work\nactivities were well-designed\nto help me meet the learning\ntargets." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that the independent online work activities were well-designed to help me meet learning targets.
+-   `r ifelse(nrow(course_survey) >= 1, plot_agree %>% filter(Question == "The strategies I’ve learned\nin the course are easy to\nimplement." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that the strategies I've learned in the course are easy to implement.
+-   `r ifelse(nrow(course_survey) >= 1, plot_agree %>% filter(Question == "The strategies I’ve learned\nin this course will improve\nmy coaching or supervision of\nteachers." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that they facilitated the content clearly.
+-   `r ifelse(nrow(course_survey) >= 1, plot_agree %>% filter(Question == "The strategies I’ve learned\nin this course will improve my\ninstruction." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that they've learned in this course will improve my instruction.
+-   `r ifelse(nrow(course_survey) >= 1, plot_agree %>% filter(Question == "This course has supported\nme in being responsive\nto students' backgrounds,\ncultures, and points of view." & Response %in% c("(4) Agree", "(5) Strongly agree")) %>% summarise(Percent = sum(Percent)) %>% pull(Percent) %>% round() %>% paste0(., "%"), paste0("There were no responses to indicate the number of people that"))` strongly agree or agree that the course has supported me in being responsive to students' backgrounds, cultures, and points of view.
+
+`r if(params$partner %!in% c("Connecticut Partnership (with UnboundEd)", "Delaware Department of Education, DE", "Wisconsin Department of Public Instruction")) {"-->"}`
+
+Here, by visualizing ratings of strongly agree/agree in blue areas, and all other ratings in black areas we visualize feedback over time (If there is just one point of feedback this appears as a dot).
+
+::: {.fold .o}
+<center>
+
+```{r fig.width = 10, fig.height = 10}
+plot_ts <- course_survey %>%
+  select(
+    date_created,
+    c(
+      "How much do you agree with the following statements about this course? - I am satisfied with the overall quality of this course.",
+      "How much do you agree with the following statements about this course? - I am satisfied with how the course was facilitated.",
+      "How much do you agree with the following statements about this course? - The independent online work activities were well-designed to help me meet the learning targets.",
+      "How much do you agree with the following statements about this course? - I felt a sense of community with the other participants in this course. even though we were meeting virtually.",
+      "How much do you agree with the following statements about this course? - The strategies I’ve learned in this course will improve my instruction.",
+      "How much do you agree with the following statements about this course? - The strategies I’ve learned in this course will improve my coaching or supervision of teachers.",
+      "How much do you agree with the following statements about this course? - The strategies I’ve learned in the course are easy to implement.",
+      "How much do you agree with the following statements about this course? - I will apply what I have learned in this course to my practice in the next 4-6 weeks.",
+      "How much do you agree with the following statements about this course? - This course has supported me in being responsive to students' backgrounds, cultures, and points of view."
+    )
+  ) %>%
+  pivot_longer(!`date_created`, names_to = "question", values_to = "answer") %>%
+  dplyr::mutate(question = str_remove_all(
+    question,
+    "How much do you agree with the following statements about this course\\? - "
+  )) %>%
+  # Rename with line breaks every 27 characters
+  mutate(question = gsub("(.{28,}?)\\s", "\\1\n", question)) %>%
+  drop_na(answer) %>%
+  dplyr::group_by(question, date_created) %>%
+  # Group by input variable
+  mutate(`Number Agree/Disagree` = n()) %>%
+  mutate(answer = str_remove_all(answer, "\\([:digit:]\\) ")) %>%
+  mutate(
+    Rating = case_when(
+      answer %in% c("Agree", "Strongly agree") ~ "Agree/Strongly Agree",
+      answer %in% c("Neither agree nor disagree", "Disagree", "Strongly disagree") ~ "Neither/Disagree/Strongly Disagree"
+    ),
+    date_group = lubridate::month(date_created)
+  ) %>%
+  ungroup() %>%
+  group_by(date_group, question) %>%
+  mutate(Percent = `Number Agree/Disagree` / sum(`Number Agree/Disagree`) * 100) %>%
+  filter(Rating == "Agree/Strongly Agree") %>%
+  group_by(date_group, Rating, question) %>%
+  summarise(
+    Percent = round(sum(Percent), 2),
+    date_created = date_created
+  )
+
+n <- nrow(course_survey)
+
+if (nrow(plot_ts) >= 1) {
+  plot_ts %>%
+    ggplot(aes(
+      x = ymd(date_created),
+      y = Percent
+    )) +
+    geom_area(color = "gray50", aes(fill = Rating), alpha = 0.6, position = position_identity()) + # position_identity is absolutely necessary here, not sure why
+    geom_ribbon(color = "transparent", aes(
+      ymin = Percent, ymax = 100,
+      fill = "Neither Agree nor Disagree/Disagree/Strongly Disagree"
+    ), alpha = 0.85) +
+    geom_line(size = 1.25, alpha = 0.9, aes(group = 1)) +
+    geom_point(size = 1, alpha = 0.9) +
+    facet_wrap(~ fct_reorder(question, .x = `Percent`, .fun = mean, .desc = T),
+      scales = "free"
+    ) +
+    coord_cartesian() +
+    scale_x_date(
+      date_breaks = "1 month",
+      date_labels = "%b",
+      limits = c(min(as.Date(plot_ts$date_created)), max(as.Date(plot_ts$date_created))),
+      expand = c(0, 0)
+    ) +
+    scale_y_continuous(
+      breaks = pretty_breaks(n = 5), limits = c(0, 100),
+      labels = scales::percent_format(scale = 1), expand = c(0, 0)
+    ) +
+    scale_fill_manual(values = c(rev(tl_palette(n = 2, color = "blue", theme = "dark")))) +
+    labs(x = "Date", title = glue::glue("Percent that Agree/Strongly Agree (n = {n})")) +
+    theme_bw() + # BW Panel panel elements
+    theme(
+      legend.position = "bottom",
+      legend.title = element_blank(),
+      legend.text = element_text(family = "Calibri"),
+      text = element_text(family = "Calibri", face = "bold"),
+      panel.grid.minor.x = element_blank(),
+      axis.text.x = element_text(size = 10),
+      strip.background = element_rect(fill = "white"),
+      strip.text = element_text(size = 10),
+      axis.title.x = element_blank(),
+      axis.title.y = element_blank(),
+      plot.title = element_text(hjust = 0.5, family = "Calibri", size = 16, face = "bold"),
+      axis.line = element_line(size = 1.5)
+    )
+} else {
+  ggplot(tibble(text = "There was no data for this site here.", x = 0, y = 0)) +
+    geom_text(aes(label = text, x, y)) +
+    theme_void()
+}
+```
+
+</center>
+:::
+
+Several samplings of the textual feedback from the course survey are presented below.
+
+### Responses to "What went well in this course?"
+
+::: {.fold .o}
+<center>
+
+```{r course-quote-1, fig.dim = c(6.5, 4.5), eval = T}
+quote1 <- course_survey %>%
+  select(`Overall, what went well in this course?`) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "Overall, what went well in this course?") %>%
+  drop_na() %>%
+  filter(`Overall, what went well in this course?` %!in% na_df) %>%
+  select(`Overall, what went well in this course?`) %>%
+  filter(str_length(`Overall, what went well in this course?`) > 30) %>%
+  {
+    if (nrow(.) > 10) slice_sample(., n = 10) else .
+  } %>%
+  distinct()
+if (nrow(quote1) >= 1) {
+  quote_viz(
+    data = quote1,
+    viz_type = "gt",
+    print = F,
+    width = 80,
+    align = "center"
+  ) %>%
+    gtsave("tab1_3.png", path = tempdir(), zoom = 4)
+} else {
+  tibble(Quotes = "No Responses at this Site") %>%
+    gt::gt() %>%
+    gt_theme_tl() %>%
+    gtsave("tab1_1.png", path = tempdir(), vheight = "800", vwidth = 700)
+}
+```
+
+</center>
+:::
+
+### Responses to "Overall, what could have been better in this course?"
+
+::: {.fold .o}
+<center>
+
+```{r course-quote-2, fig.dim = c(6.5, 4.5), eval = T}
+quote2 <- course_survey %>%
+  select(`Overall, what could have been better in this course?`) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "Overall, what could have been better in this course?") %>%
+  drop_na() %>%
+  filter(`Overall, what could have been better in this course?` %!in% na_df) %>%
+  filter(str_length(`Overall, what could have been better in this course?`) > 30) %>%
+  select(`Overall, what could have been better in this course?`) %>%
+  {
+    if (nrow(.) > 10) slice_sample(., n = 10) else .
+  } %>%
+  distinct()
+if (nrow(quote2) >= 1) {
+  quote_viz(
+    data = quote2,
+    viz_type = "gt",
+    print = F,
+    width = 80,
+    align = "center"
+  ) %>%
+    gtsave("tab2_3.png", path = tempdir(), zoom = 4)
+} else {
+  tibble(Quotes = "No Responses at this Site") %>%
+    gt::gt() %>%
+    gt_theme_tl() %>%
+    gtsave("tab2_2.png", path = tempdir(), vheight = "800", vwidth = 700)
+}
+```
+
+</center>
+:::
+
+### Responses to "What is the learning from this course that you are most excited about trying out?"
+
+::: {.fold .o}
+<center>
+
+```{r course-quote-3, fig.dim = c(6.5, 4.5), eval = T}
+quote3 <- course_survey %>%
+  select(`What is the learning from this course that you are most excited about trying out?`) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "What is the learning from this course that you are most excited about trying out?") %>%
+  drop_na() %>%
+  filter(`What is the learning from this course that you are most excited about trying out?` %!in% na_df) %>%
+  select(`What is the learning from this course that you are most excited about trying out?`) %>%
+  filter(str_length(`What is the learning from this course that you are most excited about trying out?`) > 30) %>%
+  {
+    if (nrow(.) > 10) slice_sample(., n = 10) else .
+  } %>%
+  distinct()
+
+if (nrow(quote3) >= 1) {
+  quote_viz(
+    data = quote3,
+    viz_type = "gt",
+    print = F,
+    width = 80,
+    align = "center"
+  ) %>%
+    gtsave("tab3_4.png", path = tempdir(), zoom = 4)
+} else {
+  tibble(Quotes = "No Responses at this Site") %>%
+    gt::gt() %>%
+    gt_theme_tl() %>%
+    gtsave("tab3_3.png", path = tempdir(), vheight = "800", vwidth = 700)
+}
+```
+
+</center>
+:::
+
+### Responses to "Which activities best supported your learning in this course?"
+
+::: {.fold .o}
+<center>
+
+```{r course-quote-4, fig.dim = c(6.5, 4.5), eval = T}
+quote4 <- course_survey %>%
+  select(`Which activities best supported your learning in this course?`) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "Which activities best supported your learning in this course?") %>%
+  drop_na() %>%
+  filter(`Which activities best supported your learning in this course?` %!in% na_df) %>%
+  select(`Which activities best supported your learning in this course?`) %>%
+  filter(str_length(`Which activities best supported your learning in this course?`) > 30) %>%
+  {
+    if (nrow(.) > 10) slice_sample(., n = 10) else .
+  } %>%
+  distinct()
+if (nrow(quote4) >= 1) {
+  quote_viz(
+    data = quote4,
+    viz_type = "gt",
+    print = F,
+    width = 80,
+    align = "center"
+  ) %>%
+    gtsave("tab4_5.png", path = tempdir(), zoom = 4)
+} else {
+  tibble(Quotes = "No Responses at this Site") %>%
+    gt::gt() %>%
+    gt_theme_tl() %>%
+    gtsave("tab4_4.png", path = tempdir(), vheight = "800", vwidth = 700)
+}
+```
+
+</center>
+:::
+
+### Responses to "Feel free to leave us any additional comments, concerns, or questions."
+
+::: {.fold .o}
+
+<center>
+
+```{r course-quote-5, fig.dim = c(6.5, 4.5), eval = T}
+quote5 <- course_survey %>%
+  select(`Feel free to leave us any additional comments, concerns, or questions.`) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "Feel free to leave us any additional comments, concerns, or questions.") %>%
+  drop_na() %>%
+  filter(`Feel free to leave us any additional comments, concerns, or questions.` %!in% na_df) %>%
+  select(`Feel free to leave us any additional comments, concerns, or questions.`) %>%
+  filter(str_length(`Feel free to leave us any additional comments, concerns, or questions.`) > 30) %>%
+  {
+    if (nrow(.) > 10) slice_sample(., n = 10) else .
+  } %>%
+  distinct()
+if (nrow(quote5) >= 1) {
+  quote_viz(
+    data = quote5,
+    viz_type = "gt",
+    print = F,
+    width = 80,
+    align = "center"
+  ) %>%
+    gtsave("tab5_6.png", path = tempdir(), zoom = 4)
+} else {
+  tibble(Quotes = "No Responses at this Site") %>%
+    gt::gt() %>%
+    gt_theme_tl() %>%
+    gtsave("tab5_5.png", path = tempdir(), vheight = "800", vwidth = 700)
+}
+```
+
+</center>
+
+:::
+
+`r if(diagnostic_eval == F) {"<!--"}` 
+# Section `r ifelse(diagnostic_eval == T, 3, 2)`: Participant Knowledge (pre/post PL course)
+
+## Section `r ifelse(diagnostic_eval == T, 3, 2)`a: Summary Information
+
+::: {.fold .o}
+<center>
+
+```{r knowledge-assessments-summary, eval = knowledge_eval, fig.dim = c(8,8)}
+unique_tables <- knowledge_assessments$know_assess %>% unique()
+
+n_know_size <- knowledge_assessments %>%
+  dplyr::filter(prepost == "post") %>%
+  dplyr::group_by(id, know_assess) %>%
+  dplyr::count() %>%
+  dplyr::ungroup() %>%
+  dplyr::count() %>%
+  .[[1]] >= 5
+
+if (nrow(knowledge_assessments) == 0) {
+  n_know_size <- T # True so it can recognize there are no tables to make
+}
+
+# walk(unique_tables, ~ gt_know_assess(knowledge_assessments, .x))
+# Same but slightly faster method for saving image files to display in next chunk
+if (n_know_size) {
+  if (length(unique_tables) > 0) {
+    # for (i in 1:length(unique_tables)) {
+    #   TeachingLab::gt_know_assess(knowledge_assessments, unique_tables[i])
+    # }
+
+    for (i in 1:length(unique_tables)) {
+      TeachingLab::know_assess_summary(knowledge_assessments, unique_tables[i])
+    }
+
+    knitr::include_graphics(list.files(here::here("images/report_summary_images"), full.names = T))
+  } else {
+    ggplot(tibble(text = "There was no data for this site here.", x = 0, y = 0)) +
+      geom_text(aes(label = text, x, y)) +
+      theme_void()
+  }
+} else {
+  ggplot(tibble(text = "No data to show as n < 5", x = 0, y = 0)) +
+    geom_text(aes(label = text, x, y)) +
+    theme_void()
+}
+```
+
+</center>
+:::
+
+## Section `r ifelse(diagnostic_eval == T, 3, 2)`b: Knowledge Question Details
+
+::: {.fold .o}
+<center>
+
+
+```{r knowledge-assessments, eval = knowledge_eval, fig.dim = c(10, 14)}
+if (params$partner != "All Partners") {
+  if (!n_know_size) {
+    ggplot(tibble(text = "No data to show as n < 5", x = 0, y = 0)) +
+      geom_text(aes(label = text, x, y)) +
+      theme_void()
+  } else if (length(unique_tables) > 0) {
+    knitr::include_graphics(list.files(here::here("images/report_images"), full.names = T))
+  } else {
+    ggplot(tibble(text = "There was no data for this site here.", x = 0, y = 0)) +
+      geom_text(aes(label = text, x, y)) +
+      theme_void()
+  }
+} else {
+  knitr::include_app("https://teachinglabhq.shinyapps.io/KnowledgeAssessments/",
+    height = "800px"
+  )
+}
+```
+
+</center>
+:::
+
+# Section 4: Diagnostic Educator Survey - Teachers
+
+Teaching Lab administers a Diagnostic Educator Survey in the fall and a Follow-up Educator Survey in the spring. The baseline results from the Diagnostic Educator Survey for teachers are below.
+
+## Section 4a: Teachers - Use of Curricula (ELA)
+
+Teachers responded about the different curricula they use regularly and the most often. For ELA subjects we see the following results:
+
+::: {.fold .o}
+<center>
+
+```{r use-of-curricula-ela, fig.width = 12, fig.height = 12, eval = diagnostic_eval}
+if (sum(!is.na(diagnostic$how_often_do_you_use_the_following_curricula_for_your_instruction_on_average_ckla)) >= 1) {
+  other_curricula <- c(
+    "how_often_do_you_use_the_following_curricula_for_your_instruction_on_average_other_please_specify_2",
+    "how_often_do_you_use_the_following_curricula_for_your_instruction_on_average_other_please_specify"
+  )
+  #### Curricula Column Names ####
+  teacher_curricula_use_ela <- c(
+    "how_often_do_you_use_the_following_curricula_for_your_instruction_on_average_ckla",
+    "how_often_do_you_use_the_following_curricula_for_your_instruction_on_average_el",
+    "how_often_do_you_use_the_following_curricula_for_your_instruction_on_average_guidebooks_learn_zillion_guidebooks",
+    "how_often_do_you_use_the_following_curricula_for_your_instruction_on_average_curricula_i_create_myself",
+    "how_often_do_you_use_the_following_curricula_for_your_instruction_on_average_curricula_my_school_or_district_has_created",
+    "how_often_do_you_use_the_following_curricula_for_your_instruction_on_average_another_published_ela_curriculum_please_specify_below"
+  )
+
+  n <- diagnostic %>%
+    select(all_of(teacher_curricula_use_ela)) %>%
+    pivot_longer(everything()) %>%
+    drop_na(value) %>%
+    filter(value != "Never") %>%
+    count() %>%
+    pull(n)
+
+  plot_data <- diagnostic %>%
+    select(teacher_curricula_use_ela) %>%
+    pivot_longer(everything()) %>%
+    mutate(name = str_remove_all(name, c("how_often_do_you_use_the_following_curricula_for_your_instruction_on_average_|_2"))) %>%
+    mutate(name = html_wrap(str_to_sentence(str_replace_all(name, "_", " ")), n = 40)) %>%
+    tidyr::drop_na(value) %>%
+    group_by(value, name) %>% # Group by both name and value
+    summarise(n = n()) %>% # Get n of union of subgroup
+    group_by(name) %>% # Group by just value
+    mutate(percent = 100 * (n / sum(n))) %>% # Get percent of value within name
+    # String replacement so axis text doesn't get crowded
+    mutate(
+      value = str_replace_all(
+        value,
+        "Three times a week",
+        "Three times<br>a week"
+      ),
+      value = str_replace_all(
+        value,
+        "More than three times a week",
+        "More than<br>three times<br>a week"
+      ),
+      value = str_replace_all(
+        value,
+        "Once a week",
+        "Once a<br>week"
+      ),
+      value = str_replace_all(
+        value,
+        "Twice a week",
+        "Twice a<br>week"
+      ),
+      value = factor(value, levels = c(
+        "Never",
+        "Once a<br>week",
+        "Twice a<br>week",
+        "Three times<br>a week",
+        "More than<br>three times<br>a week"
+      ))
+    )
+
+  plot_data %>%
+    filter(value != "Never") %>%
+    group_by(name, value) %>%
+    summarise(n = sum(n)) %>%
+    ungroup() %>%
+    group_by(name) %>%
+    mutate(
+      percent = round(100 * n / sum(n), 2),
+      text = ifelse(value == "Once a<br>week", "white", "black")
+    ) %>%
+    ungroup() %>%
+    # mutate(value = as.character(value)) %>%
+    ggplot(aes(x = name, y = percent, fill = value)) +
+    geom_col(position = position_stack(reverse = F)) +
+    geom_richtext(aes(
+      label = paste0(round(percent), "%"),
+      color = text,
+      group = value
+    ),
+    size = 4.25, lineheight = 0.5,
+    fill = NA, label.color = NA,
+    position = position_stack(vjust = 0.5, reverse = F),
+    fontface = "bold"
+    ) +
+    labs(
+      x = "", y = "",
+      title = "Average Use of Curricula",
+      subtitle = glue::glue("<i>Note: Participants could select more than one answer. n = {n}"),
+      fill = ""
+    ) +
+    guides(
+      fill = guide_legend(override.aes = list(size = 10), reverse = T),
+      color = "none"
+    ) +
+    coord_flip() +
+    scale_x_discrete(labels = c(
+      "Another Published ELA Curriculum Please<br>Specify Below",
+      "CKLA",
+      "Curricula I Create Myself",
+      "Curricula my School or District has<br>Created",
+      "EL",
+      "Guidebooks Learn Zillion Guidebooks"
+    )) +
+    scale_y_continuous(labels = scales::percent_format(scale = 1), expand = c(0, 0)) +
+    scale_fill_manual(values = tl_palette(color = "blue", n = 4)) +
+    scale_color_manual(values = c("black", "white")) +
+    theme_tl(legend = T) +
+    theme(
+      axis.text.x = element_markdown(family = "Calibri", size = 10, lineheight = 0.7),
+      axis.text.y = element_markdown(size = 14, family = "Calibri"),
+      strip.text = element_markdown(
+        family = "Calibri Bold", size = 15,
+        hjust = 0.5,
+        margin = margin(5, -20, 5, -20)
+      ),
+      axis.title = element_markdown(family = "Calibri", size = 22),
+      plot.title = element_markdown(family = "Calibri Bold", size = 32, face = "bold"),
+      plot.subtitle = element_markdown(family = "Calibri"),
+      legend.position = "bottom",
+      legend.text = element_markdown()
+    )
+} else {
+  ggplot(tibble(text = "There was no data for this site here.", x = 0, y = 0)) +
+    geom_text(aes(label = text, x, y)) +
+    theme_void()
+}
+```
+
+</center>
+:::
+
+## Section 4b: Teachers - Use of Curricula (Math)
+
+::: {.fold .o}
+<center>
+
+```{r use-of-curricula, fig.width = 12, fig.height = 12, eval = diagnostic_eval}
+if (sum(!is.na(diagnostic$how_often_do_you_use_the_following_curricula_for_your_instruction_on_average_engage_ny_eureka)) >= 1) {
+  teacher_curricula_use_math <- c(
+    "how_often_do_you_use_the_following_curricula_for_your_instruction_on_average_engage_ny_eureka",
+    "how_often_do_you_use_the_following_curricula_for_your_instruction_on_average_illustrative_mathematics",
+    "how_often_do_you_use_the_following_curricula_for_your_instruction_on_average_zearn",
+    "how_often_do_you_use_the_following_curricula_for_your_instruction_on_average_curricula_i_create_myself_2",
+    "how_often_do_you_use_the_following_curricula_for_your_instruction_on_average_curricula_my_school_or_district_has_created_2",
+    "how_often_do_you_use_the_following_curricula_for_your_instruction_on_average_another_published_math_curriculum_please_specify_below"
+  )
+
+  plot_data <- diagnostic %>%
+    select(all_of(teacher_curricula_use_math)) %>%
+    pivot_longer(everything()) %>%
+    mutate(name = str_remove_all(name, c("how_often_do_you_use_the_following_curricula_for_your_instruction_on_average_|_2"))) %>%
+    mutate(name = html_wrap(str_to_sentence(str_replace_all(name, "_", " ")), n = 30)) %>%
+    tidyr::drop_na(value) %>%
+    group_by(value, name) %>% # Group by both name and value
+    summarise(n = n()) %>% # Get n of union of subgroup
+    group_by(name) %>% # Group by just value
+    mutate(percent = 100 * (n / sum(n))) %>% # Get percent of value within name
+    # String replacement so axis text doesn't get crowded
+    mutate(
+      value = str_replace_all(
+        value,
+        "Three times a week",
+        "Three times<br>a week"
+      ),
+      value = str_replace_all(
+        value,
+        "More than three times a week",
+        "More than<br>three times<br>a week"
+      ),
+      value = str_replace_all(
+        value,
+        "Once a week",
+        "Once a<br>week"
+      ),
+      value = str_replace_all(
+        value,
+        "Twice a week",
+        "Twice a<br>week"
+      ),
+      value = factor(value, levels = c(
+        "Never",
+        "Once a<br>week",
+        "Twice a<br>week",
+        "Three times<br>a week",
+        "More than<br>three times<br>a week"
+      ))
+    )
+  n <- diagnostic %>%
+    select(teacher_curricula_use_math) %>%
+    janitor::remove_empty("rows") %>%
+    nrow()
+
+  plot_data %>%
+    filter(value != "Never") %>%
+    group_by(name, value) %>%
+    summarise(n = sum(n)) %>%
+    ungroup() %>%
+    group_by(name) %>%
+    mutate(
+      percent = round(100 * n / sum(n), 2),
+      text = ifelse(value == "Once a<br>week", "white", "black")
+    ) %>%
+    ungroup() %>%
+    # mutate(value = as.character(value)) %>%
+    ggplot(aes(x = name, y = percent, fill = value)) +
+    geom_col(position = position_stack(reverse = F)) +
+    geom_richtext(aes(
+      label = paste0(round(percent), "%"),
+      color = text,
+      group = value
+    ),
+    size = 4.25, lineheight = 0.5,
+    fill = NA, label.color = NA,
+    position = position_stack(vjust = 0.5, reverse = F),
+    fontface = "bold"
+    ) +
+    labs(
+      x = "", y = "",
+      title = "Average Use of Curricula",
+      subtitle = glue::glue("<i>Note: Participants could select more than one answer. n = {n}"),
+      fill = ""
+    ) +
+    guides(
+      fill = guide_legend(override.aes = list(size = 10), reverse = T),
+      color = "none"
+    ) +
+    coord_flip() +
+    scale_x_discrete(labels = c(
+      "Another Published<br>Math Curriculum",
+      "Curricula I Create Myself",
+      "Curricula My School or<br>District has Created",
+      "Engage NY/Eureka",
+      "Illustrative Mathematics",
+      "Zearn"
+    )) +
+    scale_y_continuous(labels = scales::percent_format(scale = 1), expand = c(0, 0)) +
+    scale_fill_manual(values = tl_palette(color = "blue", n = 4)) +
+    scale_color_manual(values = c("black", "white")) +
+    theme_tl(legend = T) +
+    theme(
+      axis.text.x = element_markdown(family = "Calibri", size = 10, lineheight = 0.7),
+      axis.text.y = element_markdown(size = 14, family = "Calibri"),
+      strip.text = element_markdown(
+        family = "Calibri Bold", size = 15,
+        hjust = 0.5,
+        margin = margin(5, -20, 5, -20)
+      ),
+      axis.title = element_markdown(family = "Calibri", size = 22),
+      plot.title = element_markdown(family = "Calibri Bold", size = 32, face = "bold"),
+      plot.subtitle = element_markdown(family = "Calibri"),
+      legend.position = "bottom",
+      legend.text = element_markdown()
+    )
+} else {
+  ggplot(tibble(text = "There was no data for this site here.", x = 0, y = 0)) +
+    geom_text(aes(label = text, x, y)) +
+    theme_void()
+}
+```
+
+</center>
+:::
+
+## Section 4c: Teachers - Mindsets
+
+Teachers responded to items about the recognition of race and culture and holding high expectations for all students.
+
+::: {.fold .o}
+<center>
+
+```{r teacher-mindsets, fig.width = 11, fig.height = 14, eval = diagnostic_eval}
+if (sum(!is.na(diagnostic$to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_am_color_blind_when_it_comes_to_my_teaching_i_don_t_think_of_my_students_in_terms_of_their_race_or_ethnicity)) >= 1) {
+  #### Mindsets Column Names ####
+  teacher_mindsets <- c(
+    "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_am_color_blind_when_it_comes_to_my_teaching_i_don_t_think_of_my_students_in_terms_of_their_race_or_ethnicity",
+    "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_the_gap_in_the_achievement_among_students_of_different_races_is_about_poverty_not_race",
+    "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_think_about_my_own_background_and_experiences_and_how_those_affect_my_instruction",
+    "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_try_to_keep_in_mind_the_limits_of_my_students_ability_and_give_them_assignments_that_i_know_they_can_do_so_that_they_do_not_become_discouraged",
+    "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_before_students_are_asked_to_engage_in_complex_learning_tasks_they_need_to_have_a_solid_grasp_of_basic_skills",
+    "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_it_is_not_fair_to_ask_students_who_are_struggling_with_english_to_take_on_challenging_academic_assignments",
+    "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_teachers_should_provide_all_students_the_opportunity_to_work_with_grade_level_texts_and_tasks"
+  )
+  #### Teacher Mindsets Overall Average ####
+  teacher_mindset_average <- diagnostic %>%
+    select(all_of(teacher_mindsets)) %>%
+    pivot_longer(everything()) %>%
+    drop_na(value) %>%
+    mutate(pos_neg = ifelse(name %in% c(teacher_mindsets[1:2], teacher_mindsets[4:7]), "negative", "positive")) %>%
+    group_by(value, pos_neg) %>%
+    count(sort = T) %>%
+    ungroup() %>%
+    mutate(
+      value = readr::parse_number(as.character(value)),
+      value = if_else(pos_neg == "negative",
+        str_replace_all(as.character(value), c(
+          "2" = "four",
+          "1" = "five",
+          "5" = "1",
+          "4" = "2"
+        )),
+        as.character(value)
+      ),
+      value = if_else(pos_neg == "negative",
+        str_replace_all(
+          as.character(value),
+          c(
+            "four" = "4",
+            "five" = "5"
+          )
+        ),
+        as.character(value)
+      ),
+      value = readr::parse_number(value)
+    ) %>%
+    summarise(average = round(weighted.mean(x = value, w = n), digits = 2))
+
+  plot_data <- diagnostic %>%
+    select(teacher_mindsets) %>%
+    pivot_longer(everything()) %>%
+    mutate(name = str_remove_all(name, c("to_what_extent_do_you_agree_or_disagree_with_the_following_statements_"))) %>%
+    mutate(
+      name = html_wrap(str_to_sentence(str_replace_all(name, "_", " ")), n = 40),
+      name = str_replace_all(name, " i ", " I "),
+      name = str_replace_all(name, "don t", "don't"),
+      name = str_replace_all(name, "english", "English"),
+      name = str_replace_all(name, "students ability", "students' ability")
+    ) %>%
+    tidyr::drop_na(value) %>%
+    group_by(value, name) %>% # Group by both name and value
+    summarise(n = n()) %>% # Get n of union of subgroup
+    group_by(name) %>% # Group by just name
+    mutate(percent = 100 * (n / sum(n))) %>% # Get percent of name within value
+    mutate(
+      value = str_remove_all(value, "[:digit:]- "),
+      value = str_replace_all(value, c(
+        "Strongly disagree" =
+          "Strongly<br>disagree",
+        "Neither agree nor disagree" =
+          "Neither agree<br>nor disagree",
+        "Strongly agree" =
+          "Strongly<br>agree"
+      )),
+      value = factor(value, levels = c(
+        "Strongly<br>disagree",
+        "Disagree",
+        "Neither agree<br>nor disagree",
+        "Agree",
+        "Strongly<br>agree"
+      ))
+    )
+
+  n <- diagnostic %>%
+    select(teacher_mindsets) %>%
+    janitor::remove_empty("rows") %>%
+    nrow()
+
+  plot_data %>%
+    ggplot(aes(x = value, y = percent)) +
+    geom_col(aes(fill = percent)) +
+    geom_richtext(aes(
+      label = paste0("**", round(percent), "%**"),
+      color = ifelse(percent <= 15, "black", "white"),
+      vjust = ifelse(percent <= 15, -0.1, 1)
+    ),
+    size = 4.25, lineheight = 0.5, fill = NA,
+    label.color = NA
+    ) +
+    facet_wrap(~name, ncol = 2, scales = "free") +
+    labs(
+      x = "", y = "",
+      title = "Equitable Mindsets and High Expectations<br>for All Students",
+      subtitle = glue::glue("<i>Average score: {teacher_mindset_average}/5 (n = {prettyNum(n, big.mark = ',')})</i>")
+    ) +
+    scale_x_discrete(drop = F) +
+    scale_y_continuous(
+      labels = scales::percent_format(scale = 1),
+      breaks = scales::pretty_breaks(n = 4)
+    ) +
+    scale_color_manual(values = c("black", "white")) +
+    theme_tl() +
+    theme(
+      axis.text.x = element_markdown(family = "Calibri", size = 14, lineheight = 0.7),
+      axis.text.y = element_markdown(size = 14, family = "Calibri"),
+      strip.text = element_markdown(
+        family = "Calibri Bold", size = 15,
+        hjust = 0.5,
+        margin = margin(5, -20, 5, -20)
+      ),
+      axis.title = element_markdown(family = "Calibri", size = 22),
+      plot.title = element_markdown(family = "Calibri Bold", size = 32, face = "bold"),
+      plot.subtitle = element_markdown(family = "Calibri", hjust = 0.5, size = 20)
+    )
+} else {
+  ggplot(tibble(text = "There was no data for this site here.", x = 0, y = 0)) +
+    geom_text(aes(label = text, x, y)) +
+    theme_void()
+}
+```
+
+</center>
+:::
+
+## Section 4d: Teachers - Self-Reported CRSE Practices - Teachers
+
+Teachers rated their confidence related to carrying out various culturally responsive and sustaining education (CRSE) practices.
+
+::: {.fold .o}
+<center>
+
+```{r teacher-crse, fig.width = 10, fig.height = 14, eval = diagnostic_eval}
+if (sum(!is.na(diagnostic$please_rate_your_confidence_on_the_following_items_br_i_am_able_to_adapt_instruction_to_meet_the_needs_of_my_students)) >= 1) {
+  teacher_crse_practices <- c(
+    "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_adapt_instruction_to_meet_the_needs_of_my_students",
+    "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_identify_ways_that_the_school_culture_e_g_values_norms_and_practices_is_different_from_my_students_home_culture",
+    "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_use_my_students_prior_knowledge_to_help_them_make_sense_of_new_information",
+    "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_revise_instructional_material_to_include_a_better_representation_of_cultural_groups",
+    "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_teach_the_curriculum_to_students_with_unfinished_learning",
+    "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_teach_the_curriculum_to_students_who_are_from_historically_marginalized_groups"
+  )
+  #### Teacher CRSE Practices Overall Average ####
+  teacher_crse_average <- diagnostic %>%
+    select(all_of(teacher_crse_practices)) %>%
+    pivot_longer(everything()) %>%
+    drop_na(value) %>%
+    group_by(value) %>%
+    count(sort = T) %>%
+    ungroup() %>%
+    mutate(value = readr::parse_number(as.character(value))) %>%
+    summarise(average = round(weighted.mean(x = value, w = n), digits = 2))
+
+  plot_data <- diagnostic %>%
+    select(teacher_crse_practices) %>%
+    pivot_longer(everything()) %>%
+    mutate(name = str_remove_all(name, c("please_rate_your_confidence_on_the_following_items_br_"))) %>%
+    mutate(
+      name = html_wrap(str_to_sentence(str_replace_all(name, "_", " ")), n = 45),
+      name = str_replace_all(name, "school<br>culture e g values norms and practices is<br>", "school<br>culture \\(e\\.g\\., values, norms and practices\\) is<br>")
+    ) %>%
+    tidyr::drop_na(value) %>%
+    group_by(value, name) %>% # Group by both name and value
+    summarise(n = n()) %>% # Get n of union of subgroup
+    group_by(name) %>% # Group by just value
+    mutate(percent = 100 * (n / sum(n))) %>% # Get percent of value within name
+    mutate(
+      value = readr::parse_number(as.character(value)),
+      value = factor(value, levels = c(0:10))
+    )
+
+  n <- diagnostic %>%
+    select(teacher_crse_practices) %>%
+    janitor::remove_empty("rows") %>%
+    nrow()
+
+  plot_data %>%
+    ggplot(aes(x = value, y = percent)) +
+    geom_col(aes(fill = percent)) +
+    geom_richtext(aes(
+      label = paste0("**", round(percent), "%**"),
+      color = ifelse(percent < 10, "black", "white"),
+      vjust = ifelse(percent < 10, -0.1, 1)
+    ),
+    size = 4.25, lineheight = 0.5, fill = NA,
+    label.color = NA
+    ) +
+    facet_wrap(~name, ncol = 2, scales = "free") +
+    labs(
+      x = "", y = "",
+      title = "Teachers’ Confidence in Implementing<br>CRSE Practices",
+      subtitle = glue::glue("Average score: {teacher_crse_average}/10 (n = {prettyNum(n, big.mark = ',')})")
+    ) +
+    scale_x_discrete(breaks = as.character(c(0:10)), drop = F) +
+    scale_y_continuous(
+      labels = scales::percent_format(scale = 1),
+      breaks = scales::pretty_breaks(n = 4)
+    ) +
+    scale_color_manual(values = c("black", "white")) +
+    theme_tl() +
+    theme(
+      axis.text.x = element_markdown(
+        family = "Calibri",
+        size = 14,
+        lineheight = 0.7
+      ),
+      axis.text.y = element_markdown(size = 14, family = "Calibri"),
+      strip.text = element_markdown(
+        family = "Calibri Bold", size = 15,
+        hjust = 0.5,
+        margin = margin(5, -20, 5, -20),
+        lineheight = 1.2
+      ),
+      axis.title = element_markdown(family = "Calibri", size = 22),
+      plot.title = element_markdown(family = "Calibri Bold", size = 32, face = "bold"),
+      plot.subtitle = element_markdown(family = "Calibri", hjust = 0.5, size = 20)
+    )
+} else {
+  ggplot(tibble(text = "There was no data for this site here.", x = 0, y = 0)) +
+    geom_text(aes(label = text, x, y)) +
+    theme_void()
+}
+```
+
+</center>
+:::
+
+## Section 4e: Teachers - School Environment
+
+Teachers responded to items about their school environment.
+
+::: {.fold .o}
+<center>
+
+```{r teacher-school-environment, fig.width = 11, fig.height = 14, eval = diagnostic_eval}
+if (sum(!is.na(diagnostic$to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_trust_my_fellow_teachers_in_the_school))) {
+  teacher_school_environment <- c(
+    "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_trust_my_fellow_teachers_in_the_school",
+    "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_feel_connected_to_my_fellow_teachers_in_the_school",
+    "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_have_influence_over_the_professional_learning_that_i_receive_through_my_school_or_district",
+    "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_am_confident_that_i_am_implementing_the_curriculum_in_a_way_that_maximizes_positive_impact_for_student_learning_br_note_we_are_referring_to_the_curriculum_that_teaching_lab_will_provide_support_on_only"
+  )
+  #### School Environment Overall Average ####
+  teacher_school_environment_average <- diagnostic %>%
+    select(all_of(teacher_school_environment)) %>%
+    pivot_longer(everything()) %>%
+    drop_na(value) %>%
+    group_by(value) %>%
+    count(sort = T) %>%
+    ungroup() %>%
+    mutate(value = readr::parse_number(as.character(value))) %>%
+    summarise(average = round(weighted.mean(x = value, w = n), digits = 2))
+
+  plot_data <- diagnostic %>%
+    select(teacher_school_environment) %>%
+    pivot_longer(everything()) %>%
+    mutate(name = str_remove_all(name, c("to_what_extent_do_you_agree_or_disagree_with_the_following_statements_"))) %>%
+    mutate(
+      name = str_to_sentence(html_wrap(str_replace_all(name, "_", " "), n = 55)),
+      name = str_replace_all(name, " i ", " I ")
+    ) %>%
+    tidyr::drop_na(value) %>%
+    group_by(value, name) %>% # Group by both name and value
+    summarise(n = n()) %>% # Get n of union of subgroup
+    group_by(name) %>% # Group by just value
+    mutate(percent = 100 * (n / sum(n))) %>% # Get percent of value within name
+    mutate(
+      value = str_remove_all(value, "[:digit:]- "),
+      value = str_replace_all(value, c(
+        "Strongly disagree" =
+          "Strongly<br>disagree",
+        "Neither agree nor disagree" =
+          "Neither agree<br>nor disagree",
+        "Strongly agree" =
+          "Strongly<br>agree"
+      )),
+      value = factor(value, levels = c(
+        "Strongly<br>disagree",
+        "Disagree",
+        "Neither agree<br>nor disagree",
+        "Agree",
+        "Strongly<br>agree"
+      ))
+    )
+
+  n <- diagnostic %>%
+    select(teacher_school_environment) %>%
+    janitor::remove_empty("rows") %>%
+    nrow()
+
+  plot_data %>%
+    ggplot(aes(x = value, y = percent)) +
+    geom_col(aes(fill = percent)) +
+    geom_richtext(aes(
+      label = paste0("**", round(percent), "%**"),
+      color = ifelse(percent < 10, "black", "white"),
+      vjust = ifelse(percent < 10, -0.1, 1)
+    ),
+    size = 4.25, lineheight = 0.5, fill = NA,
+    label.color = NA
+    ) +
+    facet_wrap(~name, ncol = 2, scales = "free") +
+    labs(
+      x = "", y = "",
+      title = "School Environment",
+      subtitle = glue::glue("Average score: {teacher_school_environment_average}/5 (n = {prettyNum(n, big.mark = ',')})")
+    ) +
+    scale_x_discrete(drop = F) +
+    scale_y_continuous(
+      labels = scales::percent_format(scale = 1),
+      breaks = scales::pretty_breaks(n = 4)
+    ) +
+    scale_color_manual(values = c("black", "white")) +
+    theme_tl() +
+    theme(
+      axis.text.x = element_markdown(family = "Calibri", size = 14, lineheight = 0.7),
+      axis.text.y = element_markdown(size = 14, family = "Calibri"),
+      strip.text = element_markdown(
+        family = "Calibri Bold", size = 15,
+        hjust = 0.5,
+        margin = margin(5, -20, 5, -20)
+      ),
+      axis.title = element_markdown(family = "Calibri", size = 22),
+      plot.title = element_markdown(family = "Calibri Bold", size = 32, face = "bold"),
+      plot.subtitle = element_markdown(family = "Calibri", hjust = 0.5, size = 20)
+    )
+} else {
+  ggplot(tibble(text = "There was no data for this site here.", x = 0, y = 0)) +
+    geom_text(aes(label = text, x, y)) +
+    theme_void()
+}
+```
+
+</center>
+:::
+
+# Section 5: Diagnostic Educator Survey - Administrators
+
+Teaching Lab administers a Diagnostic Educator Survey in the fall and a Follow-up Educator Survey in the spring. The baseline results from the Diagnostic Educator Survey for administrators are below.
+
+## Section 5a: Administrators - Mindsets
+
+Administrators responded to items about the recognition of race and culture and holding high expectations for all students.
+
+::: {.fold .o}
+<center>
+
+```{r administrator-mindsets, fig.width = 12, fig.height = 14, eval = diagnostic_eval}
+if (sum(!is.na(diagnostic$to_what_extent_do_you_agree_or_disagree_with_the_following_statements_teachers_should_be_color_blind_when_it_comes_to_their_teaching_they_shouldnt_think_of_students_in_terms_of_their_race_or_ethnicity))) {
+  administrator_mindsets <- c(
+    "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_teachers_should_be_color_blind_when_it_comes_to_their_teaching_they_shouldnt_think_of_students_in_terms_of_their_race_or_ethnicity",
+    "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_the_gap_in_the_achievement_among_students_of_different_races_is_about_poverty_not_race_2",
+    "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_think_about_my_own_background_and_experiences_and_how_those_affect_my_instructional_leadership",
+    "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_teachers_should_try_to_keep_in_mind_the_limits_of_students_ability_and_give_them_assignments_that_they_know_they_can_do_so_that_they_do_not_become_discouraged",
+    "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_before_students_are_asked_to_engage_in_complex_learning_tasks_they_need_to_have_a_solid_grasp_of_basic_skills_2",
+    "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_it_is_not_fair_to_ask_students_who_are_struggling_with_english_to_take_on_challenging_academic_assignments_2",
+    "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_teachers_should_provide_all_students_the_opportunity_to_work_with_grade_level_texts_and_tasks_2"
+  )
+  #### Admin Mindsets Overall Average ####
+  administrator_mindsets_average <- diagnostic %>%
+    select(all_of(administrator_mindsets)) %>%
+    pivot_longer(everything()) %>%
+    drop_na(value) %>%
+    mutate(pos_neg = ifelse(name %in% c(administrator_mindsets[1:2], administrator_mindsets[4:7]), "negative", "positive")) %>%
+    group_by(value, pos_neg) %>%
+    count(sort = T) %>%
+    ungroup() %>%
+    mutate(
+      value = readr::parse_number(as.character(value)),
+      value = if_else(pos_neg == "negative",
+        str_replace_all(as.character(value), c(
+          "2" = "four",
+          "1" = "five",
+          "5" = "1",
+          "4" = "2"
+        )),
+        as.character(value)
+      ),
+      value = if_else(pos_neg == "negative",
+        str_replace_all(
+          as.character(value),
+          c(
+            "four" = "4",
+            "five" = "5"
+          )
+        ),
+        as.character(value)
+      ),
+      value = readr::parse_number(value)
+    ) %>%
+    summarise(average = round(weighted.mean(x = value, w = n), digits = 2))
+
+  plot_data <- diagnostic %>%
+    select(administrator_mindsets) %>%
+    pivot_longer(everything()) %>%
+    mutate(name = str_remove_all(name, c("to_what_extent_do_you_agree_or_disagree_with_the_following_statements_|_2"))) %>%
+    mutate(name = html_wrap(str_to_sentence(str_replace_all(name, "_", " ")), n = 45)) %>%
+    mutate(
+      name = str_replace_all(name, "students ability", "students' ability"),
+      name = str_replace_all(name, "english", "English"),
+      name = str_replace_all(name, "shouldnt", "shouldn't")
+    ) %>%
+    tidyr::drop_na(value) %>%
+    group_by(value, name) %>% # Group by both name and value
+    summarise(n = n()) %>% # Get n of union of subgroup
+    group_by(name) %>% # Group by just value
+    mutate(percent = 100 * (n / sum(n))) %>% # Get percent of value within name
+    mutate(
+      value = str_remove_all(value, "[:digit:]- "),
+      value = str_replace_all(value, c(
+        "Strongly disagree" =
+          "Strongly<br>disagree",
+        "Neither agree nor disagree" =
+          "Neither agree<br>nor disagree",
+        "Strongly agree" =
+          "Strongly<br>agree"
+      )),
+      value = factor(value, levels = c(
+        "Strongly<br>disagree",
+        "Disagree",
+        "Neither agree<br>nor disagree",
+        "Agree",
+        "Strongly<br>agree"
+      ))
+    )
+
+  n <- diagnostic %>%
+    select(administrator_mindsets) %>%
+    janitor::remove_empty("rows") %>%
+    nrow()
+
+  plot_data %>%
+    ggplot(aes(x = value, y = percent)) +
+    geom_col(aes(fill = percent)) +
+    geom_richtext(aes(
+      label = paste0("**", round(percent), "%**"),
+      color = ifelse(percent < 10, "black", "white"),
+      vjust = ifelse(percent < 10, -0.1, 1)
+    ),
+    size = 4.25, lineheight = 0.5, fill = NA,
+    label.color = NA
+    ) +
+    facet_wrap(~name, ncol = 2, scales = "free") +
+    labs(
+      x = "", y = "",
+      title = "Equitable Mindsets and High<br>Expectations for All Students",
+      subtitle = glue::glue("Average score: {administrator_mindsets_average}/5 (n = {n})")
+    ) +
+    scale_x_discrete(drop = F) +
+    scale_y_continuous(
+      labels = scales::percent_format(scale = 1),
+      breaks = scales::pretty_breaks(n = 3)
+    ) +
+    scale_color_manual(values = c("black", "white")) +
+    theme_tl() +
+    theme(
+      axis.text.x = element_markdown(family = "Calibri", size = 14, lineheight = 0.7),
+      axis.text.y = element_markdown(size = 14, family = "Calibri"),
+      strip.text = element_markdown(
+        family = "Calibri Bold", size = 15,
+        hjust = 0.5,
+        margin = margin(5, -20, 5, -20),
+        lineheight = 0.1
+      ),
+      axis.title = element_markdown(family = "Calibri", size = 22),
+      plot.title = element_markdown(family = "Calibri Bold", size = 32, face = "bold"),
+      plot.subtitle = element_markdown(family = "Calibri", hjust = 0.5, size = 20)
+    )
+} else {
+  ggplot(tibble(text = "There was no data for this site here.", x = 0, y = 0)) +
+    geom_text(aes(label = text, x, y)) +
+    theme_void()
+}
+```
+
+</center>
+:::
+
+## Section 5b: Administrators - Support of CRSE Practices
+
+Administrators rated their confidence in supporting teachers to carry out various culturally responsive and sustaining education (CRSE) practices.
+
+::: {.fold .o}
+<center>
+
+```{r administrator-support, fig.width = 10, fig.height = 10, eval = diagnostic_eval}
+if (sum(!is.na(diagnostic$please_rate_the_extent_to_which_you_believe_you_can_support_teachers_in_the_following_areas_br_i_believe_i_can_directly_or_indirectly_support_teachers_to_adapt_instruction_to_meet_the_needs_of_their_students))) {
+  administrator_support_crt <- c(
+    "please_rate_the_extent_to_which_you_believe_you_can_support_teachers_in_the_following_areas_br_i_believe_i_can_directly_or_indirectly_support_teachers_to_adapt_instruction_to_meet_the_needs_of_their_students",
+    "please_rate_the_extent_to_which_you_believe_you_can_support_teachers_in_the_following_areas_br_i_believe_i_can_directly_or_indirectly_support_teachers_to_identify_ways_that_the_school_culture_e_g_values_norms_and_practices_is_different_from_their_students_home_culture",
+    "please_rate_the_extent_to_which_you_believe_you_can_support_teachers_in_the_following_areas_br_i_believe_i_can_directly_or_indirectly_support_teachers_to_use_their_students_prior_knowledge_to_help_them_make_sense_of_new_information",
+    "please_rate_the_extent_to_which_you_believe_you_can_support_teachers_in_the_following_areas_br_i_believe_i_can_directly_or_indirectly_support_teachers_to_revise_instructional_material_to_include_a_better_representation_of_cultural_groups",
+    "please_rate_the_extent_to_which_you_believe_you_can_support_teachers_in_the_following_areas_br_i_believe_i_can_directly_or_indirectly_support_teachers_to_teach_the_curriculum_to_students_with_unfinished_learning",
+    "please_rate_the_extent_to_which_you_believe_you_can_support_teachers_in_the_following_areas_br_i_believe_i_can_directly_or_indirectly_support_teachers_to_teach_the_curriculum_to_students_who_are_from_historically_marginalized_groups"
+  )
+  #### Administrator Support CRT Overall Average ####
+  administrator_support_crt_average <- diagnostic %>%
+    select(all_of(administrator_support_crt)) %>%
+    pivot_longer(everything()) %>%
+    drop_na(value) %>%
+    group_by(value) %>%
+    count(sort = T) %>%
+    ungroup() %>%
+    mutate(value = readr::parse_number(as.character(value))) %>%
+    summarise(average = round(weighted.mean(x = value, w = n), digits = 2))
+
+  plot_data <- diagnostic %>%
+    select(administrator_support_crt) %>%
+    pivot_longer(everything()) %>%
+    mutate(name = str_remove_all(name, c("please_rate_the_extent_to_which_you_believe_you_can_support_teachers_in_the_following_areas_br_"))) %>%
+    mutate(
+      name = html_wrap(str_to_sentence(str_replace_all(name, "_", " ")), n = 45),
+      name = str_replace_all(name, " i ", " I ")
+    ) %>%
+    tidyr::drop_na(value) %>%
+    group_by(value, name) %>% # Group by both name and value
+    summarise(n = n()) %>% # Get n of union of subgroup
+    group_by(name) %>% # Group by just value
+    mutate(percent = 100 * (n / sum(n))) %>%
+    mutate(
+      value = readr::parse_number(as.character(value)),
+      value = factor(value, levels = c(0:10)),
+      name = str_replace_all(name, "<br>school culture e g values norms and practices<br>is", "<br>school culture \\(e\\.g\\., values, norms and practices\\)<br>is")
+    )
+
+  n <- diagnostic %>%
+    select(administrator_support_crt) %>%
+    janitor::remove_empty("rows") %>%
+    nrow()
+
+  plot_data %>%
+    ggplot(aes(x = value, y = percent)) +
+    geom_col(aes(fill = percent)) +
+    geom_richtext(aes(
+      label = paste0("**", round(percent), "%**"),
+      color = ifelse(percent < 5, "black", "white"),
+      vjust = ifelse(percent < 5, -0.1, 1)
+    ),
+    size = 3.75, lineheight = 0.5, fill = NA,
+    label.color = NA
+    ) +
+    facet_wrap(~name, ncol = 2, scales = "free") +
+    labs(
+      x = "", y = "",
+      title = "Administrators’ Beliefs that they<br>can Support Teachers’ CRSE Practices",
+      subtitle = glue::glue("Average score: {administrator_support_crt_average}/10 (n = {prettyNum(n, big.mark = ',')})")
+    ) +
+    scale_x_discrete(drop = F) +
+    scale_y_continuous(
+      labels = scales::percent_format(scale = 1),
+      breaks = scales::pretty_breaks(n = 3)
+    ) +
+    scale_color_manual(values = c("black", "white")) +
+    theme_tl() +
+    theme(
+      axis.text.x = element_markdown(family = "Calibri", size = 14, lineheight = 0.7),
+      axis.text.y = element_markdown(size = 14, family = "Calibri"),
+      strip.text = element_markdown(
+        family = "Calibri Bold", size = 15,
+        hjust = 0.5,
+        margin = margin(5, -20, 5, -20),
+        lineheight = 1.2
+      ),
+      axis.title = element_markdown(family = "Calibri", size = 22),
+      plot.title = element_markdown(
+        family = "Calibri Bold", size = 32,
+        face = "bold"
+      ),
+      plot.subtitle = element_markdown(family = "Calibri", hjust = 0.5, size = 20)
+    )
+} else {
+  ggplot(tibble(text = "There was no data for this site here.", x = 0, y = 0)) +
+    geom_text(aes(label = text, x, y)) +
+    theme_void()
+}
+```
+
+</center>
+:::
+
+## Section 5c: Administrators - Observational Practices
+
+Administrators responded to items about the focus of their observational practices.
+
+::: {.fold .o}
+<center>
+
+```{r administrator-observational, fig.width = 12, fig.height = 10, eval = diagnostic_eval}
+if (sum(!is.na(diagnostic$how_often_does_your_observation_of_teacher_practice_focus_on_the_following_whether_the_lesson_is_focused_on_a_high_quality_text_or_task))) {
+  administrator_observational_practices <- c(
+    "how_often_does_your_observation_of_teacher_practice_focus_on_the_following_whether_the_lesson_is_focused_on_a_high_quality_text_or_task",
+    "how_often_does_your_observation_of_teacher_practice_focus_on_the_following_whether_the_questions_and_tasks_address_the_analytical_thinking_required_by_the_grade_level_standards",
+    "how_often_does_your_observation_of_teacher_practice_focus_on_the_following_whether_all_students_have_opportunities_to_engage_in_the_work_of_the_lesson"
+  )
+  #### Admin Observational Overall Average
+  administrator_observational_average <- diagnostic %>%
+    select(all_of(administrator_observational_practices)) %>%
+    pivot_longer(everything()) %>%
+    drop_na(value) %>%
+    group_by(value) %>%
+    count(sort = T) %>%
+    ungroup() %>%
+    mutate(value = readr::parse_number(as.character(value))) %>%
+    summarise(average = round(weighted.mean(x = value, w = n), digits = 2))
+
+  plot_data <- diagnostic %>%
+    select(administrator_observational_practices) %>%
+    pivot_longer(everything()) %>%
+    mutate(name = str_remove_all(name, c("how_often_does_your_observation_of_teacher_practice_focus_on_the_following_"))) %>%
+    mutate(name = html_wrap(str_to_sentence(str_replace_all(name, "_", " ")), n = 45)) %>%
+    tidyr::drop_na(value) %>%
+    group_by(value, name) %>% # Group by both name and value
+    summarise(n = n()) %>% # Get n of union of subgroup
+    group_by(name) %>% # Group by just value
+    mutate(percent = 100 * (n / sum(n))) %>% # Get percent of value within name
+    mutate(
+      value = str_remove_all(value, "[:digit:]- "),
+      value = str_replace_all(value, " ", "<br>"),
+      value = factor(value, levels = c(
+        "Almost<br>never",
+        "Rarely",
+        "Sometimes",
+        "Very<br>often",
+        "Almost<br>always"
+      ))
+    )
+
+  n <- diagnostic %>%
+    select(administrator_observational_practices) %>%
+    janitor::remove_empty("rows") %>%
+    nrow()
+
+  plot_data %>%
+    ggplot(aes(x = value, y = percent)) +
+    geom_col(aes(fill = percent)) +
+    geom_richtext(aes(
+      label = paste0("**", round(percent), "%**"),
+      color = ifelse(percent < 10, "black", "white"),
+      vjust = ifelse(percent < 10, -0.1, 1)
+    ),
+    size = 3.75, lineheight = 0.5, fill = NA,
+    label.color = NA
+    ) +
+    facet_wrap(~name, ncol = 2, scales = "free") +
+    labs(
+      x = "", y = "",
+      title = "How Often Administrators Focus on Equitable<br>Practices during Observations",
+      subtitle = glue::glue("Average score: {administrator_observational_average}/5 (n = {n})")
+    ) +
+    scale_x_discrete(drop = F) +
+    scale_y_continuous(
+      labels = scales::percent_format(scale = 1),
+      limits = c(0, 100)
+    ) +
+    scale_color_manual(values = c("black", "white")) +
+    theme_tl() +
+    theme(
+      axis.text.x = element_markdown(family = "Calibri", size = 14, lineheight = 0.7),
+      axis.text.y = element_markdown(size = 14, family = "Calibri"),
+      strip.text = element_markdown(
+        family = "Calibri Bold", size = 15,
+        hjust = 0.5,
+        margin = margin(5, -20, 5, -20),
+        lineheight = 1.2
+      ),
+      axis.title = element_markdown(family = "Calibri", size = 22),
+      plot.title = element_markdown(family = "Calibri Bold", size = 32, face = "bold"),
+      plot.subtitle = element_markdown(family = "Calibri", hjust = 0.5, size = 20)
+    )
+} else {
+  ggplot(tibble(text = "There was no data for this site here.", x = 0, y = 0)) +
+    geom_text(aes(label = text, x, y)) +
+    theme_void()
+}
+```
+
+</center>
+:::
+
+`r if(diagnostic_eval == F) {"-->"}` `r if(knowledge_eval == F & diagnostic_eval != F) {"-->"}`

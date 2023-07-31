@@ -1,0 +1,98 @@
+---
+title: "Data Joining"
+author: "Duncan Gates"
+date: "2/24/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(googlesheets4)
+library(here)
+knitr::opts_chunk$set(echo = F, message = F, warning = F)
+```
+
+## Reading in Google Sheets Data
+
+```{r google-sheets}
+big_sheet <- read_sheet("https://docs.google.com/spreadsheets/d/1xfhI6jwUpNdAg4cE3BVrBckvhgV7pgD4ryS4kQDI4S0/edit#gid=704521182",
+                        skip = 1,
+                        sheet = "Form Responses")
+delaware_sheet <- read_sheet("https://docs.google.com/spreadsheets/d/1voIeS_I2GGLRv89z8eFHy21MzPTiLyCbTjMDhQhVqxc/edit#gid=1850278171",
+                             sheet = "Form Responses 1")
+```
+
+## Reading in Moodle Data
+
+- Need date/time
+- Moodle API
+- Demo of report functions
+
+
+```{r moodle}
+
+```
+
+## Cleaning the Data
+
+Here I will note differences that may matter in the data cleaning process:
+
+- There is a difference in the session focus variables for the two datasets, not sure how to resolve, leaving untouched for now
+- 
+
+```{r clean-data}
+big_sheet_join <- big_sheet %>%
+  rename(Date = `Select the date for the final Zoom meeting for this course.`,
+         `Please select the focus of the session you attended today.` = `Portfolio 1`,
+         `S/he facilitated the content clearly #1` = `S/he facilitated the content clearly....16`,
+         `S/he facilitated the content clearly #2` = `S/he facilitated the content clearly....20`,
+         `S/he effectively built a community of learners #1` = `S/he effectively built a community of learners....17`,
+         `S/he effectively built a community of learners #2` = `S/he effectively built a community of learners....21`) %>%
+  mutate(`How, if in any way, this course helped you navigate remote and/or hybrid learning during COVID-19?` = as.character(`How, if in any way, this course helped you navigate remote and/or hybrid learning during COVID-19?`),
+         `Why did you choose this rating?` = as.character(`Why did you choose this rating?`))
+delaware_sheet_join <- delaware_sheet %>%
+  select(-Score) %>%
+  rename(Date = `Select the date for this training`,
+         `I am satisfied with the overall quality of this course.` = `I am satisfied with the overall quality of today’s professional learning session.`,
+         `The topics for this course were relevant for my role.` = `Today’s topic was relevant for my role.`,
+         `The Zoom course activities were well-designed to help me meet the learning targets.` = `The Zoom meeting activities were well-designed to help me meet the learning targets.`,
+         `This course helped me navigate remote and/or hybrid learning during COVID-19.` = `This session helped me navigate remote and/or hybrid learning during COVID-19.`,
+         `Which activities best supported your learning?` = `Which activities best supported your learning today?`,
+         `Do you have additional comments about this course?` = `Do you have additional comments about today?`,
+         `Do you give us permission to include your feedback in promotional materials?` = `Do you give us permission to include your feedback about this course in promotional materials? Only your role and site will be included.`,
+         `How likely are you to recommend this professional learning to a colleague or friend?` = `How likely are you to recommend this professional learning session to a colleague or friend?`,
+         `I felt a sense of community with the other participants in this course even though we were virtual.` = `I felt a sense of community with the other participants in this course even though we were meeting virtually.`,
+         `Overall, what went well in this course?` = `Overall, what went well in today’s professional learning session?`,
+         `S/he effectively built a community of learners #1` = `S/he effectively built a community of learners....15`,
+         `S/he effectively built a community of learners #2` = `S/he effectively built a community of learners....19`,
+         `S/he effectively built a community of learners #3` = `S/he effectively built a community of learners....23`,
+         `S/he facilitated the content clearly #1` = `S/he facilitated the content clearly....14`,
+         `S/he facilitated the content clearly #2` = `S/he facilitated the content clearly....18`,
+         `S/he facilitated the content clearly #3` = `S/he facilitated the content clearly....22`,
+         `Select your course.` = `Please select the training session you attended today.`,
+         `What could have improved your experience?` = `What could have improved your experience today?`,
+         `What is the learning from this course that you are most excited about trying out?` = `What is the learning from today that you are most excited about trying out?`) %>%
+  mutate(`Select your site (district, parish, network, or school).` = "Delaware Professional Learning")
+```
+
+## Comparing the Data
+
+```{r}
+all_equal(big_sheet, delaware_sheet)
+compare_df <- janitor::compare_df_cols(big_sheet_join, delaware_sheet_join)
+compare_df
+```
+
+## Joining the Data
+
+```{r}
+sheets_data <- full_join(big_sheet_join, delaware_sheet_join)
+# all_data <- full_join(moodle_data, sheets_data)
+```
+
+## Saving the Data
+
+```{r}
+write_rds(sheets_data, here("Data/google_sheets_data.rds"))
+```
+

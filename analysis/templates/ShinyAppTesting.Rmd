@@ -1,0 +1,100 @@
+---
+title: "Untitled"
+author: "Duncan Gates"
+date: "3/8/2021"
+output: html_document
+---
+
+## NPS Score testing
+
+```{r}
+test <- teaching_df %>%
+        # dplyr::filter(between(`Date for the session`, input$date[1], input$date[2])) %>%
+        group_by(`Date for the session`) %>%
+        summarise(Mean = mean(`How likely are you to recommend this professional learning to a colleague or friend?`, na.rm = T)) %>%
+  drop_na()
+test %>%
+  ggplot(aes(x = factor(`Date for the session`), y = Mean)) +
+  geom_col() +
+  theme_minimal()
+```
+
+## Time series testing
+
+```{r}
+test <- teaching_df %>%
+  # dplyr::filter(between(`Date for the session`, input$date[1], input$date[2])) %>%
+  group_by(`The activities of today's session were well-designed to help me learn.`, `Date for the session`) %>%
+  summarise(`Number Agree/Disagree` = n()) %>%
+  drop_na() %>%
+  # group_by(`Date for the session`) %>%
+  # mutate(Percent = round(`Number Agree/Disagree`/sum(`Number Agree/Disagree`) * 100, 2)) %>%
+  # select(`Date for the session`, Percent, `The activities of today's session were well-designed to help me learn.`) %>%
+  # relocate(Percent, .after = last_col()) %>%
+  # arrange(desc(`Date for the session`))
+  # pivot_wider(names_from = "The activities of today's session were well-designed to help me learn.", values_from = "Number Agree/Disagree",
+  #             id_cols = "Date for the session") %>%
+  # group_by(`Date for the session`) %>%
+  # mutate(`Number Agree` = sum(Agree, `Strongly agree`, na.rm = T),
+  #        `Number Disagree` = sum(`Neither agree nor disagree`, `Disagree`, `Strongly disagree`, na.rm = T)) %>%
+  # mutate(`Percent Agree/Strongly Agree` = round(`Number Agree`/sum(`Number Agree` + `Number Disagree`)*100, 2),
+  #        `Percent Neither/Disagree/Strongly Disagree` = round(`Number Disagree`/sum(`Number Agree` + `Number Disagree`)*100, 2)) %>%
+  # select(`Date for the session`, `Percent Agree/Strongly Agree`, `Percent Neither/Disagree/Strongly Disagree`) %>%
+  # pivot_longer(names_to = "Rating", values_to = "Percent", !`Date for the session`)
+        mutate(Rating = case_when(`The activities of today's session were well-designed to help me learn.` %in% c("Agree", "Strongly agree") ~ "Good",
+                                  `The activities of today's session were well-designed to help me learn.` %in% c("Neither agree nor disagree", "Disagree", "Strongly disagree") ~ "Bad")) %>%
+  # group_by(`Date for the session`, Rating) %>%
+        # pivot_wider(names_from = "Rating", values_from = "Number Agree/Disagree", id_cols = "Date for the session") #%>%
+        group_by(`Date for the session`) %>%
+        mutate(Percent = `Number Agree/Disagree`/sum(`Number Agree/Disagree`)*100) %>%
+        # filter(Rating == "Good") %>%
+        group_by(`Date for the session`, Rating) %>%
+        summarise(Percent = round(sum(Percent), 2))
+```
+
+## Waffle chart testing
+
+```{r}
+test <- teaching_df %>%
+  dplyr::group_by(`Today's topic was relevant for my role.`) %>% # Group by input variable
+  dplyr::summarise(n = n()) %>% # Get count of variable
+  ungroup() %>% # Ungroup
+  dplyr::filter(`Today's topic was relevant for my role.` != "No Response") %>% # Filter out non-responses
+  dplyr::mutate(percent = round(100 * (n / sum(n)), 2)) %>% # Make a percent column without non-responses
+  dplyr::relocate(percent, .before = n)
+ggplot(test, aes(values = n, fill = `Today's topic was relevant for my role.`)) +
+          waffle::geom_waffle(n_rows = 100, colour = "white", flip = T) +
+            scale_fill_manual(values = c(rev(col(nrow(test))))) + # custom colors
+          labs(
+            fill = "Type", x = NULL, y = NULL
+          ) +
+          coord_equal() +
+          theme_void() +
+          theme(
+            legend.position = "top",
+            legend.title = element_blank(),
+            plot.title = element_text(hjust = 0.5, family = "Open Sans ExtraBold")
+          )
+```
+
+## Tree map testing
+
+```{r}
+treemap::treemap(
+          test,
+          index = c("Today's topic was relevant for my role."),
+          vSize = "n",
+          type = "index",
+          palette = "Blues",
+          title = "asdasdfasa")
+```
+
+## Wordcloud testing
+
+```{r}
+teaching_df %>%
+  select(`What could have improved your experience?`) %>%
+      unnest_tokens(`What could have improved your experience?`, token = "words") %>%
+      mutate(freq = n())
+wordcloud2(text_viz_data(), n, col = col(nrow(text_viz_data())))
+```

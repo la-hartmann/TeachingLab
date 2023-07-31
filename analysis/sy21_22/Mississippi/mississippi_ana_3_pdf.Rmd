@@ -1,0 +1,2091 @@
+---
+params:
+  teacher: "All"
+title: "Mississippi Department of Education\nMathematics Instructional Coaching Services"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  pdf_document:
+    latex_engine: xelatex
+    toc: true
+    number_sections: true
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{=tex}
+\fontspec{Calibri}
+\fontspec{Calibri Bold}
+```
+```{r setup, include=FALSE}
+library(ggtext)
+library(glue)
+library(gt)
+library(here)
+library(knitr)
+library(lubridate)
+library(rmdformats)
+library(scales)
+devtools::load_all()
+library(TeachingLab)
+library(tidyverse)
+
+### List of Mississippi Participants ###
+mississippi_participants <- readr::read_rds(here::here("data/misssissippi_participants.rds"))
+
+### IPG Forms ###
+ipg_forms <- get_ipg_forms() |>
+  filter(str_detect(`Name of Site (Parish, District, Network)`, ", MS")) |>
+  group_by(`Name of teacher observed (for Mississippi Coaching Project - alphabetized by first name)`) |>
+  arrange(Timestamp) |>
+  mutate(`Timeline of Obs` = paste0("Observation ", 1:n())) |>
+  ungroup()
+
+### Student Survey ###
+student_survey <- get_student_survey() |>
+  dplyr::filter(str_detect(`What is the name of your school, district, or parish?`, ", MS")) |>
+  dplyr::mutate(prepost = ifelse(date_created >= as.Date("2022-05-01"), "Post", "Pre"))
+
+### Family Survey ###
+family_survey <- get_family_survey() |>
+  dplyr::filter(str_detect(`What is the name of your child's school, district, or parish?`, ", MS")) |>
+  dplyr::mutate(prepost = ifelse(date_created >= as.Date("2022-05-01"), "Post", "Pre"))
+
+### End of Coaching Participant Feedback ###
+coaching_participant_feedback <- get_coaching_feedback() |>
+  dplyr::filter(str_detect(Site, ", MS")) |>
+  dplyr::mutate(prepost = ifelse(Date >= as.Date("2022-05-01"), "Post", "Pre"))
+
+### Ongoing Coaching Feedback Survey ###
+ongoing_coaching_feedback <- get_ongoing_coaching() |>
+  dplyr::filter(str_detect(`Select your site (district, parish, network, or school).`, ", MS")) |>
+  dplyr::mutate(prepost = ifelse(date_created >= as.Date("2022-05-01"), "Post", "Pre"))
+
+### Diagnostic Survey ###
+diagnostic <- readr::read_rds(here::here("data/diagnostic.rds")) |>
+  filter(str_detect(your_site_district_parish_network_or_school_br_br, ", MS")) |>
+  mutate(code = toupper(paste0(
+    substr(
+      please_write_in_your_3_initials_if_you_do_not_have_a_middle_initial_please_write_x_br_this_is_used_to_link_the_diagnostic_and_follow_up_surveys_but_is_kept_confidential_br_br,
+      1,
+      1
+    ),
+    substr(
+      please_write_in_your_3_initials_if_you_do_not_have_a_middle_initial_please_write_x_br_this_is_used_to_link_the_diagnostic_and_follow_up_surveys_but_is_kept_confidential_br_br,
+      3,
+      3
+    )
+  )))
+
+### Follow Up Educator Read-in ###
+followup_educator <- TeachingLab::get_followup_educator() |>
+  filter(str_detect(`Your site (district, parish, network, or school)`, ", MS"))
+
+### Knowledge Assessments for Mississippi ###
+knowledge_assessments <- readr::read_rds(here::here("data/diagnostic.rds")) |>
+  group_by(respondent_id) |>
+  summarise_all(TeachingLab::coalesce_by_column) |>
+  filter(str_detect(your_site_district_parish_network_or_school_br_br, ", MS")) |>
+  select(1, 4,
+         10:13,
+         97:124)
+# 
+# readr::write_rds(select(knowledge_assessments, c(1:22)), "data/mississippi_reports/math_bootcamp.rds")
+# readr::write_rds(select(knowledge_assessments, c(1:6,
+#                                                  23:34)), "data/mississippi_reports/math_accelerating_learning.rds")
+# 
+# TeachingLab::save_processed_data2(
+#       data = here::here("data/mississippi_reports/math_bootcamp.rds"),
+#       q_and_a = here::here("data/mississippi_reports/q_and_a_math_bootcamp.rds"),
+#       correct = c(
+#         "Going deeper into fewer math topics",
+#         "Making connections between math topics across grades",
+#         "Unguided problem solving lessons are the least effective type of math lesson.",
+#         "Building deep understanding with fewer math topics is more effective than covering a broader range of math topics.",
+#         "Creating opportunities for students to practice saying out loud how they solved a problem.",
+#         "Students do not need to understand English completely before they can start making sense of math instruction in English.",
+#         "An appropriate scaffold for language development is to allow students to make charts, diagrams, and other visual representations of their understanding."
+#       ),
+#       save_name = "mississippi/math_bootcamp"
+#     )
+# 
+# TeachingLab::save_processed_data2(
+#       data = here::here("data/mississippi_reports/math_accelerating_learning.rds"),
+#       q_and_a = here::here("data/mississippi_reports/q_and_a_math_accelerating_learning.rds"),
+#       correct = c(
+#         "Identifying unfinished learning leading up to the current topic and teach 1-2 lessons targeting those prerequisites at the beginning of the topic.",
+#         "Pull the 6 students for a small group to discuss the connections between different strategies they’ve used in previous grades.",
+#         "Plan an activity with multiple entry points to engage the whole class in.",
+#         "Trying to address every gap a student has",
+#         "Choosing content for intervention based solely on students’ weakest area",
+#         "Stick to grade-level content and instructional rigor"
+#       ),
+#       save_name = "mississippi/math_accelerating_learning"
+#     )
+
+
+diagnostic_count <- diagnostic |>
+  filter(response_status == "completed") |>
+  nrow()
+
+equitable_questions <- c(
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_am_color_blind_when_it_comes_to_my_teaching_i_don_t_think_of_my_students_in_terms_of_their_race_or_ethnicity",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_the_gap_in_the_achievement_among_students_of_different_races_is_about_poverty_not_race",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_think_about_my_own_background_and_experiences_and_how_those_affect_my_instruction"
+)
+
+equitable_questions_2 <- c(
+  "To what extent do you agree or disagree with the following statements? - I am color blind when it comes to my teaching - I don’t think of my students in terms of their race or ethnicity.",
+  "To what extent do you agree or disagree with the following statements? - The gap in the achievement among students of different races is about poverty, not race.",
+  "To what extent do you agree or disagree with the following statements? - I think about my own background and experiences and how those affect my instruction."
+)
+
+high_expectations_questions <- c(
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_try_to_keep_in_mind_the_limits_of_my_students_ability_and_give_them_assignments_that_i_know_they_can_do_so_that_they_do_not_become_discouraged",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_before_students_are_asked_to_engage_in_complex_learning_tasks_they_need_to_have_a_solid_grasp_of_basic_skills",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_it_is_not_fair_to_ask_students_who_are_struggling_with_english_to_take_on_challenging_academic_assignments",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_teachers_should_provide_all_students_the_opportunity_to_work_with_grade_level_texts_and_tasks"
+)
+
+high_expectations_questions_2 <- c(
+  "To what extent do you agree or disagree with the following statements? - I try to keep in mind the limits of my students’ ability and give them assignments that I know they can do so that they do not become discouraged.",
+  "To what extent do you agree or disagree with the following statements? - Before students are asked to engage in complex learning tasks, they need to have a solid grasp of basic skills.",
+  "To what extent do you agree or disagree with the following statements? - It is not fair to ask students who are struggling with English to take on challenging academic assignments.",
+  "To what extent do you agree or disagree with the following statements? - Teachers should provide all students the opportunity to work with grade-level texts and tasks."
+)
+
+crse_questions <- c(
+  "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_adapt_instruction_to_meet_the_needs_of_my_students",
+  "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_identify_ways_that_the_school_culture_e_g_values_norms_and_practices_is_different_from_my_students_home_culture",
+  "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_use_my_students_prior_knowledge_to_help_them_make_sense_of_new_information",
+  "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_revise_instructional_material_to_include_a_better_representation_of_cultural_groups",
+  "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_teach_the_curriculum_to_students_with_unfinished_learning",
+  "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_teach_the_curriculum_to_students_who_are_from_historically_marginalized_groups"
+)
+
+crse_questions_2 <- c(
+  "Please rate your confidence on the following items. <br>I am able to... - Adapt instruction to meet the needs of my students",
+  "Please rate your confidence on the following items. <br>I am able to... - Identify ways that the school culture (e.g., values, norms, and practices) is different from my students’ home culture",
+  "Please rate your confidence on the following items. <br>I am able to... - Use my students’ prior knowledge to help them make sense of new information",
+  "Please rate your confidence on the following items. <br>I am able to... - Revise instructional material to include a better representation of cultural groups",
+  "Please rate your confidence on the following items. <br>I am able to... - Teach the curriculum to students with unfinished learning",
+  "Please rate your confidence on the following items. <br>I am able to... - Teach the curriculum to students who are from historically marginalized groups"
+)
+
+student_math <- TeachingLab::get_student_scores_mississippi()
+student_math2 <- TeachingLab::get_student_scores_mississippi2()
+
+no_data_plot <- tibble::tibble(`nothing` = "There was no data\nto display here") %>%
+    ggplot() +
+    geom_text(aes(x = 0, y = 0, label = nothing),
+      family = "Calibri Bold",
+      fontface = "bold", size = 10
+    ) +
+    theme_void()
+
+## Global options
+options(max.print = "75", width = 1000, dpi = 300)
+opts_chunk$set(
+  echo = FALSE,
+  cache = T,
+  prompt = FALSE,
+  tidy = TRUE,
+  comment = NA,
+  message = FALSE,
+  warning = FALSE,
+  dev = "cairo_pdf"
+)
+```
+
+Assets & Needs Assessment #3
+
+May 2022
+
+As part of the third Assets & Needs Assessment, Teaching Lab conducted a
+variety of data collection activities, including a teacher survey and
+classroom observations, a student survey and analysis of student work
+samples, and a family survey.
+
+Summary of Results
+
+-   **The majority of participating teachers gave positive feedback on
+    the coaching experiences**.
+
+    -   100% of participants who responded to the End of Coaching
+        Feedback Survey reported that they were satisfied with the
+        overall quality of the coaching and the support they received,
+        that the strategies were easy to implement, and that they had
+        already applied or would apply what they have learned to their
+        practice.
+
+-   **Teachers improved their confidence in culturally responsive and
+    sustaining education (CRSE) practices**, especially teaching
+    curriculum to students from historically marginalized groups,
+    revising instructional material to include a better representation
+    of cultural groups, and adapting instruction to meet the needs of
+    their students.
+
+-   **Teachers' instructional practices improved over their time** in
+    the coaching series, **especially related to Core Actions 2 and 3.**
+
+-   **Students reported that their learning experiences improved over
+    time** for all constructs (experiencing CRSE, teacher-student
+    relationships, self-efficacy, happiness and sense of belonging, and
+    being challenged).
+
+-   The most significant finding was the **increase in teachers who
+    assigned grade-level work** (65% to 77%) and students' proficiency
+    on these tasks: for the first round of student work samples, **31%
+    of students demonstrated proficiency on grade-level tasks, which
+    increased to 53% of students for the second round of samples.**
+
+-   Although the response rate was low for the second administration of
+    the family survey, results point to **improvements in the family
+    experience and their perception of student learning.**
+
+# Section 1: Participant Feedback
+
+## Ongoing Coaching Participant Feedback
+
+```{r coaching-feedback-1, fig.dim = c(10, 12)}
+plot_agree1 <- coaching_participant_feedback |>
+  select(
+      `They demonstrated deep knowledge of the content they coach.`,
+      `Their coaching is clear.`,
+      `They seem fully prepared for the coaching sessions.`,
+      `They effectively build a safe learning environment.`,
+      `They make necessary adjustments based on my needs.`
+    ) |>
+    pivot_longer(everything(), names_to = "Question", values_to = "Response") |>
+    drop_na(Response) |>
+    group_by(Question, Response) |>
+    count(sort = T) |>
+    ungroup() |>
+    group_by(Question) |>
+    mutate(
+      Percent = round(100 * n / sum(n), 2),
+      Response = factor(Response, levels = c(
+        "(1) Strongly disagree",
+        "(2) Disagree",
+        "(3) Neither agree nor disagree",
+        "(4) Agree",
+        "(5) Strongly agree"
+      )),
+      Question = TeachingLab::html_wrap(Question, n = 30)
+    ) |>
+    ungroup()
+
+n_size_agree1 <- coaching_participant_feedback |>
+  count(sort = T)
+
+### Percent Agree Strongly Agrees ###
+knowledge_agree <- plot_agree1 |>
+  agree_strongly_agree(question = "They demonstrated deep<br>knowledge of the content they<br>coach.")
+prepared_agree <- plot_agree1 |>
+  agree_strongly_agree(question = "They seem fully prepared for<br>the coaching sessions.")
+adjustments_agree <- plot_agree1 |>
+  agree_strongly_agree(question = "They make necessary<br>adjustments based on my needs.")
+effectively_agree <- plot_agree1 |>
+  agree_strongly_agree(question = "They effectively build a safe<br>learning environment.")
+clear_coaching_agree <- plot_agree1 |>
+  agree_strongly_agree(question = "Their coaching is clear.")
+
+plot_agree1 |>
+  ggplot(aes(
+  x = fct_reorder(Question, Percent, .desc = T),
+  y = Percent,
+  color = Response,
+  fill = Response
+)) +
+  geom_col(color = NA) +
+  geom_text(aes(label = paste0(round(Percent), "%")),
+    position = position_stack(vjust = 0.5),
+    family = "Calibri Bold",
+    fontface = "bold",
+    size = 4.5
+  ) +
+  labs(
+    x = "", y = "",
+    title = "% Answering Each Item in Coaching Participant Feedback",
+    fill = "",
+    caption = paste0("n = ", n_size_agree1)
+  ) +
+  scale_fill_manual(values = c(
+    "(1) Strongly disagree" = "#040404",
+    "(2) Disagree" = "#032E3F",
+    "(3) Neither agree nor disagree" = "#02587A",
+    "(4) Agree" = "#0182B4",
+    "(5) Strongly agree" = "#00ACF0"
+  )) +
+  scale_color_manual(values = c(
+    "(1) Strongly disagree" = "white",
+    "(2) Disagree" = "black",
+    "(3) Neither agree nor disagree" = "black",
+    "(4) Agree" = "black",
+    "(5) Strongly agree" = "black"
+  )) +
+  guides(
+    fill = guide_legend(
+      label.position = "bottom",
+      reverse = T
+    ),
+    color = "none"
+  ) +
+  scale_y_continuous(
+    labels = scales::label_percent(scale = 1),
+    expand = c(0.14, 0),
+    limits = c(0, 100.1),
+    breaks = scales::pretty_breaks(n = 5)
+  ) +
+  coord_flip() +
+  theme_tl(markdown = T) +
+  theme(
+    strip.text.x = element_markdown(size = 14, family = "Calibri Bold",
+                                    face = "bold"),
+    axis.text.y = element_markdown(size = 11),
+    axis.text.x = element_blank(),
+    strip.text = element_markdown(hjust = 0.5, family = "Calibri Bold"),
+    plot.title = element_markdown(family = "Calibri Bold", size = 10),
+    legend.position = "bottom",
+    legend.direction = "horizontal",
+    legend.key.size = unit(1, "cm"),
+    legend.text = element_text(size = 8, family = "Calibri"),
+    legend.key.width = unit(2, "cm")
+  )
+```
+
+In summary, we see the following % agree or strongly agree with the
+above statements:
+
+-   `r knowledge_agree` strongly agree or agree that they were fully
+    prepared for the session.
+-   `r prepared_agree` strongly agree or agree that they responded to
+    the group's needs.
+-   `r adjustments_agree` strongly agree or agree that they effectively
+    built a safe learning community.
+-   `r effectively_agree` strongly agree or agree that they demonstrated
+    deep knowledge of the content they facilitated.
+-   `r clear_coaching_agree` strongly agree or agree that their coaching
+    was clear.
+
+### Qualitative Feedback
+
+The following qualitative feedback was given to the ongoing coaching
+feedback survey.
+
+```{r ongoing-qualitative-feedback}
+coach_feedback_qual <- ongoing_coaching_feedback |>
+  select(
+    `What is the learning that you are most excited about trying out?`,
+    `Which activities best supported your learning during this coaching series?`,
+    `Feel free to leave us any additional comments, concerns, or questions.`) |>
+  slice(c(3, 5:6)) |>
+  mutate(across(everything(), ~ replace_na(.x, " "))) |>
+  pivot_longer(everything()) |>
+  select(value) |>
+  drop_na(value) |>
+  filter(value != " ") |>
+  rename(`Coaching Feedback` = value) |>
+  TeachingLab::quote_viz(print = F)
+
+gtsave(coach_feedback_qual, here::here("Images/Mississippi/coach_feedback_qual.png"), zoom = 1, vheight = 900, vwidth = 500)
+
+knitr::include_graphics(here::here("Images/Mississippi/coach_feedback_qual.png"))
+```
+
+## End-of-Coaching Participant Feedback
+
+```{r coaching-feedback-2, fig.dim = c(10, 12)}
+plot_agree2 <- ongoing_coaching_feedback |>
+  select(
+      `How much do you agree with the following statements about this course? - I am satisfied with the overall quality of the coaching series.`,
+  `How much do you agree with the following statements about this course? - I am satisfied with the coaching support I received`,
+  `How much do you agree with the following statements about this course? - The strategies I’ve learned through coaching have improved my instruction or my coaching and supervision of teachers.`,
+  `How much do you agree with the following statements about this course? - The strategies I’ve learned are easy to implement.`,
+  `How much do you agree with the following statements about this course? - I have applied or will apply what I have learned to my practice in the next 4-6 weeks.`,
+  `How much do you agree with the following statements about this course? - This course has supported me in being responsive to students' backgrounds, cultures, and points of view.`
+    ) |>
+    pivot_longer(everything(), names_to = "Question", values_to = "Response") |>
+    mutate(Question = str_remove_all(Question, "How much do you agree with the following statements about this course\\? - ")) |>
+    drop_na(Response) |>
+    group_by(Question, Response) |>
+    count(sort = T) |>
+    ungroup() |>
+    group_by(Question) |>
+    mutate(
+      Percent = round(100 * n / sum(n), 2),
+      Response = factor(Response, levels = c(
+        "(1) Strongly disagree",
+        "(2) Disagree",
+        "(3) Neither agree nor disagree",
+        "(4) Agree",
+        "(5) Strongly agree"
+      )),
+      Question = TeachingLab::html_wrap(Question, n = 30)
+    ) |>
+    ungroup()
+
+n_size_agree2 <- ongoing_coaching_feedback |>
+  count(sort = T)
+
+course_support <- plot_agree2 |>
+  agree_strongly_agree(question = "This course has supported<br>me in being responsive<br>to students' backgrounds,<br>cultures, and points of view.")
+strategies_learned <- plot_agree2 |>
+  agree_strongly_agree(question = "The strategies I’ve learned<br>through coaching have<br>improved my instruction or my<br>coaching and supervision of<br>teachers.")
+four_six_weeks <- plot_agree2 |>
+  agree_strongly_agree(question = "I have applied or will apply<br>what I have learned to my<br>practice in the next 4-6<br>weeks.")
+easy_implement <- plot_agree2 |>
+  agree_strongly_agree(question = "The strategies I’ve learned<br>are easy to implement.")
+overall_quality <- plot_agree2 |>
+  agree_strongly_agree(question = "I am satisfied with the<br>overall quality of the<br>coaching series.")
+coaching_support <- plot_agree2 |>
+  agree_strongly_agree(question = "I am satisfied with the<br>coaching support I received")
+
+plot_agree2 |>
+  ggplot(aes(
+  x = fct_reorder(Question, Percent, .desc = T),
+  y = Percent,
+  color = Response,
+  fill = Response
+)) +
+  geom_col(color = NA) +
+  geom_text(aes(label = paste0(round(Percent), "%")),
+    position = position_stack(vjust = 0.5),
+    family = "Calibri Bold",
+    fontface = "bold",
+    size = 4.5
+  ) +
+  labs(
+    x = "", y = "",
+    title = "% Answering Each Item in Coaching Participant Feedback",
+    fill = "",
+    caption = paste0("n = ", n_size_agree2)
+  ) +
+  scale_fill_manual(values = c(
+    "(1) Strongly disagree" = "#040404",
+    "(2) Disagree" = "#032E3F",
+    "(3) Neither agree nor disagree" = "#02587A",
+    "(4) Agree" = "#0182B4",
+    "(5) Strongly agree" = "#00ACF0"
+  )) +
+  scale_color_manual(values = c(
+    "(1) Strongly disagree" = "white",
+    "(2) Disagree" = "black",
+    "(3) Neither agree nor disagree" = "black",
+    "(4) Agree" = "black",
+    "(5) Strongly agree" = "black"
+  )) +
+  guides(
+    fill = guide_legend(
+      label.position = "bottom",
+      reverse = T
+    ),
+    color = "none"
+  ) +
+  scale_y_continuous(
+    labels = scales::label_percent(scale = 1),
+    expand = c(0.14, 0),
+    limits = c(0, 100.1),
+    breaks = scales::pretty_breaks(n = 5)
+  ) +
+  coord_flip() +
+  theme_tl(markdown = T) +
+  theme(
+    strip.text.x = element_markdown(size = 14, family = "Calibri Bold",
+                                    face = "bold"),
+    axis.text.y = element_markdown(size = 11),
+    axis.text.x = element_blank(),
+    strip.text = element_markdown(hjust = 0.5, family = "Calibri Bold"),
+    plot.title = element_markdown(family = "Calibri Bold", size = 10),
+    legend.position = "bottom",
+    legend.direction = "horizontal",
+    legend.key.size = unit(1, "cm"),
+    legend.text = element_text(size = 8, family = "Calibri"),
+    legend.key.width = unit(2, "cm")
+  )
+```
+
+In summary, we see the following % agree or strongly agree with the
+above statements:
+
+-   `r course_support` strongly agree or agree that the course has
+    supported them in being responsive to students' backgrounds,
+    cultures, and points of view.
+-   `r strategies_learned` strongly agree or agree that the strategies
+    they've learned through coaching have improved their instruction or
+    their coaching and supervision of teachers.
+-   `r four_six_weeks` strongly agree or agree that they have applied or
+    will apply what they have learned to their practice in the next 4-6
+    weeks.
+-   `r easy_implement` strongly agree or agree that the strategies
+    they've learned are easy to implement.
+-   `r overall_quality` strongly agree or agree that they were satisfied
+    with the overall quality of the coaching series.
+-   `r coaching_support` strongly agree or agree that they were
+    satisfied with the coaching support they received.
+
+### Qualitative Feedback
+
+The following qualitative feedback was given to the end of coaching
+feedback survey.
+
+#### What went well?
+
+⠀⠀⠀⠀⠀⠀
+
+```{r went-well}
+went_well_gt <- coaching_participant_feedback |>
+  select(Gone_well) |>
+  drop_na() |>
+  filter(Gone_well %!in% TeachingLab::na_df) |>
+  rename(`What went well?` = Gone_well) |>
+  slice_sample(n = 10) |>
+  TeachingLab::quote_viz(print = F, n = 3)
+
+gtsave(went_well_gt, here::here("Images/Mississippi/went_well_gt.png"), zoom = 1, vheight = 900, vwidth = 500)
+
+knitr::include_graphics(here::here("Images/Mississippi/went_well_gt.png"))
+```
+
+#### What could have been better?
+
+⠀⠀⠀⠀⠀⠀
+
+```{r could-be-better}
+could_better_gt <- coaching_participant_feedback |>
+  select(Could_be_better) |>
+  drop_na() |>
+  filter(Could_be_better %!in% TeachingLab::na_df) |>
+  rename(`What could have been better?` = Could_be_better) |>
+  slice_sample(n = 10) |>
+  TeachingLab::quote_viz(print = F, n = 5)
+
+gtsave(could_better_gt, here::here("Images/Mississippi/could_better_gt.png"), zoom = 1, vheight = 900, vwidth = 500)
+
+knitr::include_graphics(here::here("Images/Mississippi/could_better_gt.png"))
+```
+
+#### Additional Feedback
+
+⠀⠀⠀⠀⠀⠀
+
+```{r additional-feedback}
+add_feedback_gt <- coaching_participant_feedback |>
+  select(Additional_feedback) |>
+  drop_na() |>
+  filter(Additional_feedback %!in% TeachingLab::na_df) |>
+  rename(`Additional Feedback` = Additional_feedback) |>
+  slice_sample(n = 10) |>
+  TeachingLab::quote_viz(print = F, n = 5)
+
+gtsave(add_feedback_gt, here::here("Images/Mississippi/add_feedback_gt.png"), zoom = 1, vheight = 900, vwidth = 500)
+
+knitr::include_graphics(here::here("Images/Mississippi/add_feedback_gt.png"))
+```
+
+# Section 2: Mindsets
+
+## Equitable Mindsets Summary
+
+Teachers responded to seven items about mindsets, including three items
+related to recognizing race and culture and four items related to
+holding high expectations for all students on a 5-point Likert scale.
+Composite measures were created for each construct by reverse coding
+some items and then averaging responses across items. In this way,
+higher scores correspond to holding equitable mindsets.
+
+```{r mindsets-overall, fig.dim = c(6.5, 4.5)}
+mindsets_data_1 <- diagnostic |>
+  select(all_of(c(equitable_questions, high_expectations_questions, crse_questions)))
+
+mindsets_data_2 <- followup_educator |>
+  select(all_of(c(equitable_questions_2, high_expectations_questions_2, crse_questions_2)))
+
+mindsets_count_1 <- mindsets_data_1 |>
+  summarise(across(everything(), ~ sum(!is.na(.x)))) |>
+  pivot_longer(everything())
+mindsets_count_2 <- mindsets_data_2 |>
+  summarise(across(everything(), ~ sum(!is.na(.x)))) |>
+  pivot_longer(everything())
+
+mindsets_n_1 <- mean(mindsets_count_1$value) %>%
+  paste0("n = ", .)
+mindsets_n_2 <- mean(mindsets_count_2$value) %>%
+  paste0("n = ", .)
+
+
+mindsets_initial <- mindsets_data_1 |>
+  mutate(site = "Mississippi") |>
+  TeachingLab::tl_summary_table(
+    summarise = T,
+    grouping = "summarise",
+    save = F,
+    n_size_single = mindsets_n,
+    prepost = T,
+    rename = F
+) |>
+  rename(Pre = Percent) |>
+  select(-site)
+
+mindsets_followup <- mindsets_data_2 |>
+  mutate(site = "Mississippi") |>
+  TeachingLab::tl_summary_table(
+    summarise = T,
+    grouping = "summarise",
+    save = F,
+    n_size_single = mindsets_n,
+    prepost = T,
+    rename = T
+) |>
+  rename(Post = Percent) |>
+  select(-site)
+
+gt1 <- mindsets_initial |>
+  left_join(mindsets_followup) |>
+  gt::gt() |>
+  gt::fmt_markdown(columns = c(` `)) |>
+  gt::fmt_percent(columns = c(Pre, Post),
+                          decimals = 0,
+                          scale_values = F) |>
+  gt::data_color(
+    columns = c(Pre, Post),
+    colors = scales::col_bin(
+      palette = c(
+        TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+      ),
+      domain = c(0, 100),
+      bins = c(0, 39, 79, 100)
+    )
+  ) |>
+  gt::cols_align(align = "left",
+                         columns = ` `) |>
+  gt::tab_footnote(footnote = mindsets_n_1,
+                           locations = cells_column_labels("Pre")) |>
+  gt::tab_footnote(footnote = mindsets_n_2,
+                           locations = cells_column_labels("Post")) |>
+  TeachingLab::gt_theme_tl(align = "left")
+
+gtsave(gt1, here::here("Images/Mississippi/gt1.png"), zoom = 1, vheight = 900, vwidth = 500)
+
+knitr::include_graphics(here::here("Images/Mississippi/gt1.png"))
+```
+
+```{r mindsets-bar-graph}
+mindsets_initial |>
+  left_join(mindsets_followup) |>
+  pivot_longer(!` `) |>
+  mutate(name = factor(name, levels = c("Pre", "Post")),
+         ` ` = TeachingLab::html_wrap(` `, n = 10)) |>
+  ggplot(aes(x = ` `, y = value, fill = name)) +
+  geom_col(position = position_dodge2()) +
+  labs(y = "", title = "Overall Shifts in Mindsets") +
+  scale_y_continuous(labels = scales::percent_format(scale = 1), limits = c(0, 100)) +
+  scale_fill_manual(values = c(TeachingLab::tl_palette(color = "blue", n = 4)[c(1, 4)])) +
+  theme_tl(legend = T) +
+  theme(axis.text.x = element_markdown(),
+        legend.title = element_blank(),
+        legend.position = "top",
+        plot.title = element_text(face = "bold"))
+```
+
+## Recognizing Race and Culture Items
+
+```{r equitable-mindsets-items}
+equitable_count_1 <- mindsets_data_1 |>
+  select(all_of(equitable_questions)) |>
+  summarise(across(everything(), ~ sum(!is.na(.x)))) |>
+  pivot_longer(everything())
+
+equitable_count_2 <- mindsets_data_2 |>
+  select(all_of(equitable_questions_2)) |>
+  summarise(across(everything(), ~ sum(!is.na(.x)))) |>
+  pivot_longer(everything())
+
+equitable_n_1 <- mean(equitable_count_1$value)
+equitable_n_2 <- mean(equitable_count_2$value)
+
+equitable_initial <- TeachingLab::tl_summary_table(
+  data = mindsets_data_1 |>
+    mutate(site = "Mississippi"),
+  grouping = "equitable",
+  summarise = F,
+  save = F,
+  n_size_single = equitable_n_1,
+  explain = F,
+  prepost = T,
+  rename = F
+) |>
+  rename(Pre = Percent) |>
+  select(-site)
+
+equitable_followup <- TeachingLab::tl_summary_table(
+  data = mindsets_data_2 |>
+    mutate(site = "Mississippi"),
+  grouping = "equitable",
+  summarise = F,
+  save = F,
+  n_size_single = equitable_n_2,
+  explain = F,
+  prepost = T,
+  rename = T
+) |>
+  rename(Post = Percent) |>
+  select(-site)
+
+recognizing_gt <- equitable_initial |>
+  mutate(Post = equitable_followup$Post) |>
+  gt::gt() |>
+  gt::fmt_markdown(columns = c(` `, Question)) |>
+  gt::fmt_percent(columns = c(Pre, Post),
+                          decimals = 0,
+                          scale_values = F) |>
+  gt::data_color(
+    columns = c(Pre, Post),
+    colors = scales::col_bin(
+      palette = c(
+        TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+      ),
+      domain = c(0, 100),
+      bins = c(0, 39, 79, 100)
+    )
+  ) |>
+  gt::cols_align(align = "left",
+                         columns = ` `) |>
+  gt::tab_footnote(footnote = equitable_n_1,
+                   locations = cells_column_labels("Pre")) |>
+  gt::tab_footnote(footnote = equitable_n_2,
+                   locations = cells_column_labels("Post")) |>
+  TeachingLab::gt_theme_tl(align = "left")
+
+gtsave(recognizing_gt, here::here("Images/Mississippi/recognizing_gt.png"), zoom = 1, vheight = 900, vwidth = 500)
+
+knitr::include_graphics(here::here("Images/Mississippi/recognizing_gt.png"))
+```
+
+## High Expectations items
+
+```{r high-expectations-items}
+high_expectations_count_1 <- mindsets_data_1 |>
+    select(all_of(high_expectations_questions)) |>
+    summarise(across(everything(), ~ sum(!is.na(.x)))) |>
+    pivot_longer(everything())
+high_expectations_count_2 <- mindsets_data_2 |>
+    select(all_of(high_expectations_questions_2)) |>
+    summarise(across(everything(), ~ sum(!is.na(.x)))) |>
+    pivot_longer(everything())
+
+high_expectations_n_1 <- mean(high_expectations_count_1$value)
+high_expectations_n_2 <- mean(high_expectations_count_2$value)
+
+high_expectations_initial <- TeachingLab::tl_summary_table(
+  data = mindsets_data_1 |>
+    mutate(site = "Mississippi"),
+  grouping = "high_expectations",
+  summarise = F,
+  save = F,
+  n_size_single = equitable_n_1,
+  explain = F,
+  prepost = T,
+  rename = F
+) |>
+  rename(Pre = Percent) |>
+  select(-site)
+
+high_expectations_followup <- TeachingLab::tl_summary_table(
+  data = mindsets_data_2 |>
+    mutate(site = "Mississippi"),
+  grouping = "high_expectations",
+  summarise = F,
+  save = F,
+  n_size_single = equitable_n_1,
+  explain = F,
+  prepost = T,
+  rename = T
+) |>
+  rename(Post = Percent) |>
+  select(-site)
+
+high_expectations_gt <- high_expectations_initial |>
+  mutate(Post = high_expectations_followup$Post) |>
+  gt::gt() |>
+  gt::fmt_markdown(columns = c(` `, Question)) |>
+  gt::fmt_percent(columns = c(Pre, Post),
+                          decimals = 0,
+                          scale_values = F) |>
+  gt::data_color(
+    columns = c(Pre, Post),
+    colors = scales::col_bin(
+      palette = c(
+        TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+      ),
+      domain = c(0, 100),
+      bins = c(0, 39, 79, 100)
+    )
+  ) |>
+  gt::cols_align(align = "left",
+                         columns = ` `) |>
+  gt::tab_footnote(footnote = high_expectations_n_1,
+                           locations = cells_column_labels("Pre")) |>
+  gt::tab_footnote(footnote = high_expectations_n_2,
+                           locations = cells_column_labels("Post")) |>
+  TeachingLab::gt_theme_tl(align = "left")
+
+gtsave(high_expectations_gt, here::here("Images/Mississippi/high_expectations_gt.png"), zoom = 1, vheight = 900, vwidth = 500)
+
+knitr::include_graphics(here::here("Images/Mississippi/high_expectations_gt.png"))
+```
+
+Teachers also responded to six items about self-confidence in their
+ability to engage in culturally responsive and sustaining education
+(CRSE) practices on a scale from 0 (not at all confident) to 10
+(extremely confident). Responses were averaged across items. Higher
+scores correspond to higher self confidence.
+
+## Culturally Responsive and Sustaining Education Self-Efficacy Summary and Items
+
+```{r crse-items}
+crse_data_1 <- diagnostic |>
+  select(all_of(crse_questions))
+
+crse_data_2 <- followup_educator |>
+  select(all_of(crse_questions_2))
+
+crse_count_1 <- mindsets_data_1 |>
+    select(all_of(crse_questions)) |>
+    summarise(across(everything(), ~ sum(!is.na(.x)))) |>
+    pivot_longer(everything())
+crse_count_2 <- mindsets_data_2 |>
+    select(all_of(crse_questions_2)) |>
+    summarise(across(everything(), ~ sum(!is.na(.x)))) |>
+    pivot_longer(everything())
+
+crse_n_1 <- mean(crse_count_1$value)
+crse_n_2 <- mean(crse_count_2$value)
+
+
+
+crse_initial <- TeachingLab::tl_summary_table(
+  data = crse_data_1 |>
+    mutate(site = "Mississippi"),
+  grouping = "crse",
+  summarise = T,
+  save = F,
+  n_size_single = crse_n,
+  explain = F,
+  prepost = T,
+  rename = F
+) |>
+  rename(Pre = Percent) |>
+  select(-site)
+
+crse_followup <- TeachingLab::tl_summary_table(
+  data = crse_data_2 |>
+    mutate(site = "Mississippi"),
+  grouping = "crse",
+  summarise = T,
+  save = F,
+  n_size_single = crse_n,
+  explain = F,
+  prepost = T,
+  rename = T
+) |>
+  rename(Post = Percent) |>
+  select(-site)
+
+crse_gt <- crse_initial |>
+  mutate(Post = crse_followup$Post) |>
+  gt::gt() |>
+  gt::fmt_markdown(columns = c(` `, Question)) |>
+  gt::fmt_percent(columns = c(Pre, Post),
+                          decimals = 0,
+                          scale_values = F) |>
+  gt::data_color(
+    columns = c(Pre, Post),
+    colors = scales::col_bin(
+      palette = c(
+        TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+      ),
+      domain = c(0, 100),
+      bins = c(0, 39, 79, 100)
+    )
+  ) |>
+  gt::cols_align(align = "left",
+                         columns = ` `) |>
+  gt::tab_footnote(footnote = mean(crse_count_1$value),
+                           locations = cells_column_labels("Pre")) |>
+  gt::tab_footnote(footnote = mean(crse_count_2$value),
+                           locations = cells_column_labels("Post")) |>
+  TeachingLab::gt_theme_tl(align = "left")
+
+gtsave(crse_gt, here::here("Images/Mississippi/crse_gt.png"), zoom = 1, vheight = 900, vwidth = 500)
+
+knitr::include_graphics(here::here("Images/Mississippi/crse_gt.png"))
+```
+
+# Section 3: Content and Pedagogical Content Knowledge
+
+Teachers answered eight questions related to content and pedagogical
+content knowledge, including strategies for students with unfinished
+learning and equitable instruction. The score below is the overall
+percent correct (note: some questions had multiple correct answers and
+were worth more than one point).
+
+```{r knowledge-assessments}
+knowledge_assessments_gt <- tibble::tibble(
+    ` ` = c(
+      "<b>Overall % Correct</b>",
+    "Which of the following actions BEST describes equitable instructional strategies for supporting students with unfinished learning in math?",
+    "Ms. Clark is preparing to teach a new unit and the first lesson builds off of work from the previous grade level. She has identified 6 students who have unfinished learning around this topic in her class of 25 and she determines that students need to have a conceptual understanding of the topic, but not necessarily procedural skill to fully engage in the lesson. Select all strategies that will best support her students.",
+    "When supporting students with unfinished learning, which of the following are MISSTEPS when it comes to maintaining focus and coherence? Select all that apply.",
+    "Which of the following is the most effective at addressing unfinished learning?",
+    "Which of the following statements describe math instructional shifts associated with college-and-career readiness standards?",
+    " Which of the following statements are true about the research into types of math instruction?",
+    "Equitable instruction in math includes which of the following?",
+    "Which of the following statements are true about the principles behind the Mathematical Language Routines?"
+    ),
+    `% Correct Pre` = c(
+      45, 48, 45, 63, 15, 49, 39, 45, 51
+    ),
+    `% Correct Post` = c(
+      50, 51, 52, 64, 20, 49, 42, 50, 53
+    ),
+    Answer = c(
+      " ",
+      "Identifying unfinished learning leading up to the current topic and teach 1-2 lessons targeting those prerequisites at the beginning of the topic.",
+      "Pull the 6 students for a small group to discuss the connections between different strategies they’ve used in previous grades.<br>Plan an activity with multiple entry points to engage the whole class in.",
+      "Trying to address every gap a student has<br>Choosing content for intervention based solely on students’ weakest area",
+      "Stick to grade-level content and instructional rigor",
+      "Going deeper into fewer math topics.<br>Making connections between math topics across grades.",
+      "Unguided problem solving lessons are the least effective type of math lesson.<br>Building deep understanding with fewer math topics is more effective than covering a broader range of math topics.",
+      "Creating opportunities for students to practice saying out loud how they solved a problem.",
+      "Students do not need to understand English completely before they can start making sense of math instruction in English.<br>An appropriate scaffold for language development is to allow students to make charts, diagrams, and other visual representations of their understanding."
+    )
+  ) |>
+    gt::gt() |>
+    gt::fmt_markdown(columns = c(` `, Answer)) %>%
+    gt::fmt_percent(c("% Correct Pre", "% Correct Post"),
+      scale_values = F,
+      decimals = 0
+    ) %>%
+    gt::data_color(
+      columns = c("% Correct Pre", "% Correct Post"),
+      colors = scales::col_bin(
+        palette = paletteer::paletteer_d(
+          palette = "ggsci::blue_material"
+        ) %>% as.character(),
+        domain = NULL
+      )
+    ) |>
+    gt::data_color(
+      columns = c("% Correct Pre", "% Correct Post"),
+      colors = scales::col_bin(
+        palette = c(
+          TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+        ),
+        domain = c(0, 100),
+        bins = c(0, 39, 79, 100)
+      )
+    ) |>
+    gt::cols_align(align = "left",
+                           columns = ` `) |>
+    gt::tab_footnote(footnote = "45",
+                             locations = cells_column_labels("% Correct Pre")) |>
+    gt::tab_footnote(footnote = "30",
+                             locations = cells_column_labels("% Correct Post")) |>
+    TeachingLab::gt_theme_tl()
+
+gtsave(crse_gt, here::here("Images/Mississippi/knowledge_assessments_gt.png"), zoom = 1, vheight = 900, vwidth = 500)
+
+knitr::include_graphics(here::here("Images/Mississippi/knowledge_assessments_gt.png"))
+```
+
+# Section 4: Instructional Practices
+
+Teaching Lab staff observed teachers using the IPG rubric. Ratings of 3
+and 4 on 4-point Likert scales and Yes on a Yes/No items were considered
+positive.
+
+## IPG Ratings
+
+```{r practices-overall, fig.dim = c(6.5, 4.5)}
+different_actions <- ipg_forms |>
+  colnames() |>
+  as_tibble() |>
+  filter(str_detect(value, "CA")) |>
+  mutate(
+    core_action = case_when(
+      str_detect(value, "CA1|CA\\.1") ~ "ca1",
+      str_detect(value, "CA2|CA\\.2") ~ "ca2",
+      str_detect(value, "CA3|CA\\.3") ~ "ca3"
+    ),
+    value = as.character(value)
+  )
+
+ca1 <- different_actions |>
+  filter(core_action == "ca1") |>
+  pull(value)
+
+ca2 <- different_actions |>
+  filter(core_action == "ca2") |>
+  pull(value)
+
+ca3 <- different_actions |>
+  filter(core_action == "ca3") |>
+  pull(value)
+
+ca1_percent <- ipg_forms |>
+    select(all_of(ca1), `Timeline of Obs`) |>
+    group_by(`Timeline of Obs`) |>
+    summarise(across(everything(), ~ grade_ipg(.x))) |>
+    pivot_longer(!`Timeline of Obs`, names_to = "name", values_to = "value") |>
+    group_by(`Timeline of Obs`) |>
+    summarise(percent = mean(value, na.rm = T)) |>
+    mutate(percent = round(percent, 2))
+
+ca2_percent <- ipg_forms |>
+  select(all_of(ca2), `Timeline of Obs`) |>
+  group_by(`Timeline of Obs`) |>
+  summarise(across(everything(), ~ grade_ipg(.x, type = "numeric"))) |>
+  pivot_longer(!`Timeline of Obs`, names_to = "name", values_to = "value") |>
+  group_by(`Timeline of Obs`) |>
+  summarise(percent = mean(value, na.rm = T)) |>
+  mutate(percent = round(percent, 2))
+
+ca3_percent <- ipg_forms |>
+  select(all_of(ca3), `Timeline of Obs`) |>
+  group_by(`Timeline of Obs`) |>
+  summarise(across(everything(), ~ grade_ipg(.x, type = "numeric"))) |>
+  pivot_longer(!`Timeline of Obs`, names_to = "name", values_to = "value") |>
+  group_by(`Timeline of Obs`) |>
+  summarise(percent = mean(value, na.rm = T)) |>
+  mutate(percent = round(percent, 2))
+
+ca1_grades <- ipg_forms |>
+  select(all_of(ca1), `Timeline of Obs`) |>
+  group_by(`Timeline of Obs`) |>
+  summarise(across(everything(), ~ grade_ipg(.x))) |>
+  janitor::remove_empty("cols") |>
+  pivot_longer(!`Timeline of Obs`, names_to = "name", values_to = "value") |>
+  mutate(name = str_remove_all(name, "\\.\\.\\.")) |>
+  mutate(name = str_remove_all(name, "\\d+$")) |>
+  group_by(name, `Timeline of Obs`) |>
+  summarise(value = round(mean(value, na.rm = T), 2))
+
+ca2_grades <- ipg_forms |>
+  select(all_of(ca2), `Timeline of Obs`) |>
+  group_by(`Timeline of Obs`) |>
+  summarise(across(everything(), ~ grade_ipg(.x, type = "numeric"))) |>
+  janitor::remove_empty("cols") |>
+  pivot_longer(!`Timeline of Obs`, names_to = "name", values_to = "value") |>
+  mutate(name = str_remove_all(name, "\\.\\.\\.")) |>
+  mutate(name = str_remove_all(name, "\\d+$")) |>
+  group_by(name, `Timeline of Obs`) |>
+  summarise(value = round(mean(value, na.rm = T), 2))
+
+ca3_grades <- ipg_forms |>
+  select(all_of(ca3), `Timeline of Obs`) |>
+  group_by(`Timeline of Obs`) |>
+  summarise(across(everything(), ~ grade_ipg(.x, type = "numeric"))) |>
+  janitor::remove_empty("cols") |>
+  pivot_longer(!`Timeline of Obs`, names_to = "name", values_to = "value") |>
+  mutate(name = str_remove_all(name, "\\.\\.\\.")) |>
+  mutate(name = str_remove_all(name, "\\d+$")) |>
+  group_by(name, `Timeline of Obs`) |>
+  summarise(value = round(mean(value, na.rm = T), 2))
+
+practices_count <- ipg_forms |>
+  select(`Timeline of Obs`, all_of(c(ca1, ca2, ca3))) |>
+  group_by(`Timeline of Obs`) |>
+  summarise(across(everything(), ~ sum(!is.na(.x)))) |>
+  pivot_longer(!`Timeline of Obs`) |>
+  filter(value != 0) |>
+  mutate(name = str_remove_all(name, "\\.\\.\\.\\.[:digit:][:digit:][:digit:]")) |>
+  group_by(name, `Timeline of Obs`) |>
+  summarise(value = sum(value))
+
+timeline_count <- practices_count |>
+  group_by(`Timeline of Obs`) |>
+  summarise(n = round(mean(value))) |>
+  ungroup()
+
+ca_timeline_count <- practices_count |>
+  mutate(name = case_when(
+    str_detect(name, "CA1") ~ "CA1",
+    str_detect(name, "CA2") ~ "CA2",
+    str_detect(name, "CA3") ~ "CA3"
+  )) |>
+  group_by(`Timeline of Obs`, name) |>
+  summarise(n = round(mean(value))) |>
+  ungroup() |>
+  rename(`Core Action` = name)
+
+practices_data <-
+  ca1_percent |>
+  mutate(`Core Action` = "CA1") |>
+  bind_rows(
+    ca2_percent |>
+      mutate(`Core Action` = "CA2"),
+    ca3_percent |>
+      mutate(`Core Action` = "CA3")
+  )
+
+  # if (params$teacher == "All") {
+  #   practices_data <- practices_data |>
+  #     left_join(timeline_count, by = c("Timeline of Obs")) |>
+  #     mutate(`Timeline of Obs` = paste0(`Timeline of Obs`, "\n(n = ", n, ")"))
+  # }
+
+practices_data |>
+  filter(`Timeline of Obs` != "Observation 6") |>
+  group_by(`Timeline of Obs`) |>
+  summarise(percent = mean(percent, na.rm = T)) |>
+  left_join(timeline_count, by = "Timeline of Obs") |>
+  mutate(`Timeline of Obs` = paste0(`Timeline of Obs`, "\n(n = ", n, ")")) |>
+  ggplot2::ggplot(ggplot2::aes(x = `Timeline of Obs`, y = percent)) +
+  ggplot2::geom_path(
+    color = "#04abeb", group = 1,
+    size = 1.5,
+    alpha = 0.9,
+    arrow = arrow(
+      length = unit(0.175, "inches"),
+      type = "closed"
+    ),
+    linetype = "dashed"
+  ) +
+  ggplot2::geom_point(color = "#04abeb", alpha = 0.9, size = 1.5) +
+  geom_text(aes(label = paste0(round(percent, 2), "%")),
+    fontface = "bold",
+    family = "Calibri",
+    vjust = -1
+  ) +
+  ggplot2::labs(
+    x = "", y = "% Positive Indicators",
+    title = "IPG scores over time",
+    caption = "Note: n sizes are average of the n sizes for Core Action 1, 2, 3, which can vary slightly."
+  ) +
+  ggplot2::scale_y_continuous(
+    labels = scales::percent_format(scale = 1), expand = c(0.1, 0),
+    limits = c(0, 100)
+  ) +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(
+    plot.title = ggtext::element_markdown(
+      lineheight = 1.1, hjust = 0.5,
+      family = "Calibri Bold",
+      face = "bold",
+      size = 15
+    ),
+    legend.position = "none",
+    plot.caption = element_text(family = "Calibri"),
+    axis.text.x = ggplot2::element_text(face = "bold"),
+    axis.text.y.left = ggplot2::element_text(face = "bold"),
+    axis.title = element_text(face = "bold")
+  )
+```
+
+## Core Action 1
+
+```{r core-action-1-items, fig.dim = c(8, 8)}
+practices_data |>
+  filter(`Timeline of Obs` != "Observation 6") |>
+  filter(`Core Action` == "CA1") |>
+  left_join(timeline_count, by = "Timeline of Obs") |>
+  mutate(`Timeline of Obs` = paste0(`Timeline of Obs`, "\n(n = ", n, ")")) |>
+  ggplot2::ggplot(ggplot2::aes(x = `Timeline of Obs`, y = percent)) +
+    ggplot2::geom_path(
+      color = "#D17DF7", group = 1,
+      size = 2,
+      alpha = 0.8,
+      arrow = arrow(
+        length = unit(0.1, "inches"),
+        type = "closed"
+      ),
+      linetype = "dashed"
+    ) +
+    ggplot2::geom_text(aes(label = paste0(percent, "%")),
+      vjust = -1,
+      family = "Calibri Bold",
+      fontface = "bold"
+    ) +
+    ggplot2::geom_point(color = "#D17DF7", alpha = 0.9, size = 2) +
+    ggplot2::labs(
+      x = "", y = "% Positive Indicators",
+      title = "IPG scores over time Core Action 1",
+    ) +
+    ggplot2::scale_y_continuous(
+      labels = scales::percent_format(scale = 1), expand = c(0.1, 0),
+      limits = c(0, 100)
+    ) +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(
+      plot.title = ggtext::element_markdown(
+        lineheight = 1.1, hjust = 0.5,
+        family = "Calibri Bold",
+        face = "bold",
+        size = 15
+      ),
+      legend.position = "none",
+      axis.text.x = ggplot2::element_text(face = "bold"),
+      axis.text.y.left = ggplot2::element_text(face = "bold"),
+      axis.title = element_text(face = "bold")
+    )
+```
+
+## Core Action 2
+
+```{r core-action-2-items, fig.dim = c(8, 8)}
+practices_data |>
+  filter(`Timeline of Obs` != "Observation 6") |>
+  filter(`Core Action` == "CA2") |>
+  left_join(ca_timeline_count, by = c("Timeline of Obs", "Core Action")) |>
+  mutate(`Timeline of Obs` = paste0(`Timeline of Obs`, "\n(n = ", n, ")")) |>
+  ggplot2::ggplot(ggplot2::aes(x = `Timeline of Obs`, y = percent)) +
+  ggplot2::geom_path(
+    color = "#D17DF7", group = 1,
+    size = 2,
+    alpha = 0.8,
+    arrow = arrow(
+      length = unit(0.1, "inches"),
+      type = "closed"
+    ),
+    linetype = "dashed"
+  ) +
+  ggplot2::geom_text(aes(label = paste0(percent, "%")),
+    vjust = -1,
+    family = "Calibri Bold",
+    fontface = "bold"
+  ) +
+  ggplot2::geom_point(color = "#D17DF7", alpha = 0.9, size = 1.1) +
+  ggplot2::labs(
+    x = "", y = "% Positive Indicators Core Action 2",
+    title = "IPG Scores Over Time Core Action 2",
+  ) +
+  ggplot2::scale_y_continuous(
+    labels = scales::percent_format(scale = 1), expand = c(0.1, 0),
+    limits = c(0, 100)
+  ) +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(
+    plot.title = ggtext::element_markdown(
+      lineheight = 1.1, hjust = 0.5,
+      family = "Calibri Bold",
+      face = "bold",
+      size = 15
+    ),
+    legend.position = "none",
+    axis.text.x = ggplot2::element_text(face = "bold"),
+    axis.text.y.left = ggplot2::element_text(face = "bold"),
+    axis.title = element_text(face = "bold")
+  )
+```
+
+## Core Action 3
+
+```{r core-action-3-items, fig.dim = c(8, 8)}
+practices_data |>
+  filter(`Timeline of Obs` != "Observation 6") |>
+  filter(`Core Action` == "CA3") |>
+  left_join(ca_timeline_count, by = c("Timeline of Obs", "Core Action")) |>
+  mutate(`Timeline of Obs` = paste0(`Timeline of Obs`, "\n(n = ", n, ")")) |>
+  ggplot2::ggplot(ggplot2::aes(x = `Timeline of Obs`, y = percent)) +
+  ggplot2::geom_path(
+    color = "#D17DF7", group = 1,
+    size = 2,
+    alpha = 0.8,
+    arrow = arrow(
+      length = unit(0.1, "inches"),
+      type = "closed"
+    ),
+    linetype = "dashed"
+  ) +
+  ggplot2::geom_text(aes(label = paste0(percent, "%")),
+    vjust = -1,
+    family = "Calibri Bold",
+    fontface = "bold"
+  ) +
+  ggplot2::geom_point(color = "#D17DF7", alpha = 0.9, size = 1.1) +
+  ggplot2::labs(
+    x = "", y = "% Positive Indicators Core Action 3",
+    title = "IPG Scores Over Time Core Action 3",
+  ) +
+  ggplot2::scale_y_continuous(
+    labels = scales::percent_format(scale = 1), expand = c(0.1, 0),
+    limits = c(0, 100)
+  ) +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(
+    plot.title = ggtext::element_markdown(
+      lineheight = 1.1, hjust = 0.5,
+      family = "Calibri Bold",
+      face = "bold",
+      size = 15
+    ),
+    legend.position = "none",
+    axis.text.x = ggplot2::element_text(face = "bold"),
+    axis.text.y.left = ggplot2::element_text(face = "bold"),
+    axis.title = element_text(face = "bold")
+  )
+```
+
+# Section 5: Student Learning Experiences
+
+Teachers administered a student survey to at least one of their groups.
+Using 5-point Likert-type scales, students responded to eight items
+related to their teachers' engagement in CRSE practices, three items
+related to teacher-student relationships, five items about
+self-efficacy, six items about happiness and sense of belonging, and
+five items about being challenged. Responses were averaged across items.
+Higher scores correspond to more positive experiences.
+
+```{r student-learn-exper-overall}
+crse <- student_survey |>
+  selection_sum(select = 23:29, group = prepost)
+
+crse_overall <- crse |>
+    group_by(prepost) |>
+    dplyr::summarise(Percent = mean(value)) |>
+    pivot_wider(names_from = prepost, values_from = Percent)
+
+teacher_student_rel <- student_survey %>%
+  selection_sum(select = 36:38, group = prepost)
+teacher_student_rel_overall <- teacher_student_rel |>
+    group_by(prepost) |>
+    dplyr::summarise(Percent = mean(value)) |>
+    pivot_wider(names_from = prepost, values_from = Percent)
+
+self_efficacy <- student_survey %>%
+  selection_sum(select = 39:43, group = prepost)
+self_efficacy_overall <- self_efficacy |>
+    group_by(prepost) |>
+    dplyr::summarise(Percent = mean(value)) |>
+    pivot_wider(names_from = prepost, values_from = Percent)
+
+happiness_belonging <- student_survey |>
+  selection_sum(select = 30:35, group = prepost)
+happiness_belonging_overall <- happiness_belonging |>
+    group_by(prepost) |>
+    dplyr::summarise(Percent = mean(value)) |>
+    pivot_wider(names_from = prepost, values_from = Percent)
+
+being_challenged <- student_survey %>%
+  selection_sum(select = 44:48, group = prepost)
+being_challenged_overall <- being_challenged |>
+    group_by(prepost) |>
+    dplyr::summarise(Percent = mean(value)) |>
+    pivot_wider(names_from = prepost, values_from = Percent)
+
+student_learn_count <- student_survey |>
+    group_by(prepost) |>
+    count(sort = T)
+
+student_overall_pre <- mean(c(crse$value[crse$prepost == "Pre"],
+            teacher_student_rel$value[teacher_student_rel$prepost == "Pre"],
+            self_efficacy$value[self_efficacy$prepost == "Pre"],
+            happiness_belonging$value[happiness_belonging$prepost == "Pre"],
+            being_challenged$value[being_challenged$prepost == "Pre"]))
+student_overall_post <- mean(c(crse$value[crse$prepost == "Post"],
+             teacher_student_rel$value[teacher_student_rel$prepost == "Post"],
+             self_efficacy$value[self_efficacy$prepost == "Post"],
+             happiness_belonging$value[happiness_belonging$prepost == "Post"],
+             being_challenged$value[being_challenged$prepost == "Post"]))
+
+student_learn_gt <- tibble::tibble(
+  ` ` = c(
+    "<b>Overall Positive Student Learning Environment Score</b>",
+    "Culturally Responsive & Sustaining Education",
+    "Teacher-Student Relationships",
+    "Self-Efficacy",
+    "Happiness & Sense of Belonging",
+    "Being challenged"
+  ),
+    Pre = c(student_overall_pre,
+            mean(crse$value[crse$prepost == "Pre"]),
+            mean(teacher_student_rel$value[teacher_student_rel$prepost == "Pre"]),
+            mean(self_efficacy$value[self_efficacy$prepost == "Pre"]),
+            mean(happiness_belonging$value[happiness_belonging$prepost == "Pre"]),
+            mean(being_challenged$value[being_challenged$prepost == "Pre"])),
+    Post = c(student_overall_post,
+             mean(crse$value[crse$prepost == "Post"]),
+             mean(teacher_student_rel$value[teacher_student_rel$prepost == "Post"]),
+             mean(self_efficacy$value[self_efficacy$prepost == "Post"]),
+             mean(happiness_belonging$value[happiness_belonging$prepost == "Post"]),
+             mean(being_challenged$value[being_challenged$prepost == "Post"]))
+) |>
+  gt::gt() |>
+    gt::fmt_markdown(columns = ` `) |>
+    gt::fmt_percent(
+        columns = c(Pre, Post),
+        scale_values = F,
+        decimals = 0
+    ) |>
+    gt::data_color(
+        columns = c(Pre, Post),
+        colors = scales::col_bin(
+            palette = c(
+                TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+            ),
+            domain = c(0, 100),
+            bins = c(0, 39, 79, 100)
+        )
+    ) |>
+    gt::tab_footnote(footnote = paste0("n = ", student_learn_count$n[student_learn_count$prepost == "Pre"]),
+                     locations = cells_column_labels(columns = "Pre")) |>
+    gt::tab_footnote(footnote = paste0("n = ", student_learn_count$n[student_learn_count$prepost == "Post"]),
+                     locations = cells_column_labels(columns = "Post")) |>
+    TeachingLab::gt_theme_tl()
+
+
+gtsave(student_learn_gt, here::here("Images/Mississippi/student_learn_gt.png"), zoom = 1, vheight = 900, vwidth = 500)
+
+knitr::include_graphics(here::here("Images/Mississippi/student_learn_gt.png"))
+# student_learn_img <- gt::gtsave(
+#   data = student_learn_gt,
+#   path = here::here("images/report_images"),
+#   filename = tempfile(fileext = ".png")
+# )
+# knitr::include_graphics(student_learn_img)
+```
+
+```{r student-learn-ggplot}
+tibble::tibble(
+  ` ` = c(
+    "<b>Overall Positive Student Learning Environment Score</b>",
+    "Culturally Responsive & Sustaining Education",
+    "Teacher-Student Relationships",
+    "Self-Efficacy",
+    "Happiness & Sense of Belonging",
+    "Being challenged"
+  ),
+    Pre = c(student_overall_pre,
+            mean(crse$value[crse$prepost == "Pre"]),
+            mean(teacher_student_rel$value[teacher_student_rel$prepost == "Pre"]),
+            mean(self_efficacy$value[self_efficacy$prepost == "Pre"]),
+            mean(happiness_belonging$value[happiness_belonging$prepost == "Pre"]),
+            mean(being_challenged$value[being_challenged$prepost == "Pre"])),
+    Post = c(student_overall_post,
+             mean(crse$value[crse$prepost == "Post"]),
+             mean(teacher_student_rel$value[teacher_student_rel$prepost == "Post"]),
+             mean(self_efficacy$value[self_efficacy$prepost == "Post"]),
+             mean(happiness_belonging$value[happiness_belonging$prepost == "Post"]),
+             mean(being_challenged$value[being_challenged$prepost == "Post"]))
+) |>
+  pivot_longer(!` `) |>
+  mutate(name = factor(name, levels = c("Pre", "Post")),
+         ` ` = TeachingLab::html_wrap(` `, n = 10)) |>
+  ggplot(aes(x = ` `, y = value, fill = name)) +
+  geom_col(position = position_dodge2()) +
+  labs(y = "", title = "Overall Shifts in Student Learning") +
+  scale_y_continuous(labels = scales::percent_format(scale = 1), limits = c(0, 100)) +
+  scale_fill_manual(values = c(TeachingLab::tl_palette(color = "blue", n = 4)[c(1, 4)])) +
+  theme_tl(legend = T) +
+  theme(axis.text.x = element_markdown(),
+        legend.title = element_blank(),
+        legend.position = "top",
+        plot.title = element_text(face = "bold"))
+```
+
+## Culturally Responsive & Sustaining Education
+
+```{r culturally-responsive}
+culturally_responsive_gt <- tibble::tibble(
+  ` ` = c(
+    "<b>Overall Culturally Responsive & Sustaining Education Score</b>",
+    crse$name[crse$prepost == "Pre"]
+  ),
+    Pre = c(mean(crse$value[crse$prepost == "Pre"]),
+            crse$value[crse$prepost == "Pre"]),
+    Post = c(mean(crse$value[crse$prepost == "Post"]),
+             crse$value[crse$prepost == "Post"])
+) |>
+  mutate(` ` = str_remove_all(` `, "How often does your teacher do these things\\? - |To what extent do you agree or disagree with the following statements\\? - |To what extent are the following statements true or not true\\? - ")) |>
+  gt::gt() |>
+    gt::fmt_markdown(columns = ` `) |>
+    gt::fmt_percent(
+        columns = c(Pre, Post),
+        scale_values = F,
+        decimals = 0
+    ) |>
+    gt::data_color(
+        columns = c(Pre, Post),
+        colors = scales::col_bin(
+            palette = c(
+                TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+            ),
+            domain = c(0, 100),
+            bins = c(0, 39, 79, 100)
+        )
+    ) |>
+    gt::tab_footnote(footnote = paste0("n = ", student_learn_count$n[student_learn_count$prepost == "Pre"]),
+                     locations = cells_column_labels(columns = "Pre")) |>
+    gt::tab_footnote(footnote = paste0("n = ", student_learn_count$n[student_learn_count$prepost == "Post"]),
+                     locations = cells_column_labels(columns = "Post")) |>
+    TeachingLab::gt_theme_tl()
+
+gtsave(culturally_responsive_gt, here::here("Images/Mississippi/culturally_responsive_gt.png"), zoom = 1, vheight = 900, vwidth = 500)
+
+knitr::include_graphics(here::here("Images/Mississippi/culturally_responsive_gt.png"))
+```
+
+## Teacher-Student Relationships
+
+```{r teacher-student}
+teacher_student_gt <- tibble::tibble(
+  ` ` = c(
+    "<b>Overall Teacher-Student Relationship Score</b>",
+    teacher_student_rel$name[teacher_student_rel$prepost == "Pre"]
+  ),
+    Pre = c(mean(teacher_student_rel$value[teacher_student_rel$prepost == "Pre"]),
+            teacher_student_rel$value[teacher_student_rel$prepost == "Pre"]),
+    Post = c(mean(teacher_student_rel$value[teacher_student_rel$prepost == "Post"]),
+             teacher_student_rel$value[teacher_student_rel$prepost == "Post"])
+) |>
+  mutate(` ` = str_remove_all(` `, "How often does your teacher do these things\\? - |To what extent do you agree or disagree with the following statements\\? - |To what extent are the following statements true or not true\\? - ")) |>
+  gt::gt() |>
+    gt::fmt_markdown(columns = ` `) |>
+    gt::fmt_percent(
+        columns = c(Pre, Post),
+        scale_values = F,
+        decimals = 0
+    ) |>
+    gt::data_color(
+        columns = c(Pre, Post),
+        colors = scales::col_bin(
+            palette = c(
+                TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+            ),
+            domain = c(0, 100),
+            bins = c(0, 39, 79, 100)
+        )
+    ) |>
+    gt::tab_footnote(footnote = paste0("n = ", student_learn_count$n[student_learn_count$prepost == "Pre"]),
+                     locations = cells_column_labels(columns = "Pre")) |>
+    gt::tab_footnote(footnote = paste0("n = ", student_learn_count$n[student_learn_count$prepost == "Post"]),
+                     locations = cells_column_labels(columns = "Post")) |>
+    TeachingLab::gt_theme_tl()
+
+gtsave(teacher_student_gt, here::here("Images/Mississippi/teacher_student_gt.png"), zoom = 1, vheight = 900, vwidth = 500)
+
+knitr::include_graphics(here::here("Images/Mississippi/teacher_student_gt.png"))
+```
+
+## Self-Efficacy
+
+```{r self-efficacy}
+self_efficacy_gt <- tibble::tibble(
+  ` ` = c(
+    "<b>Overall Self-Efficacy Score</b>",
+    self_efficacy$name[self_efficacy$prepost == "Pre"]
+  ),
+    Pre = c(mean(self_efficacy$value[self_efficacy$prepost == "Pre"]),
+            self_efficacy$value[self_efficacy$prepost == "Pre"]),
+    Post = c(mean(self_efficacy$value[self_efficacy$prepost == "Post"]),
+             self_efficacy$value[self_efficacy$prepost == "Post"])
+) |>
+  mutate(` ` = str_remove_all(` `, "How often does your teacher do these things\\? - |To what extent do you agree or disagree with the following statements\\? - |To what extent are the following statements true or not true\\? - ")) |>
+  gt::gt() |>
+    gt::fmt_markdown(columns = ` `) |>
+    gt::fmt_percent(
+        columns = c(Pre, Post),
+        scale_values = F,
+        decimals = 0
+    ) |>
+    gt::data_color(
+        columns = c(Pre, Post),
+        colors = scales::col_bin(
+            palette = c(
+                TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+            ),
+            domain = c(0, 100),
+            bins = c(0, 39, 79, 100)
+        )
+    ) |>
+    gt::tab_footnote(footnote = paste0("n = ", student_learn_count$n[student_learn_count$prepost == "Pre"]),
+                     locations = cells_column_labels(columns = "Pre")) |>
+    gt::tab_footnote(footnote = paste0("n = ", student_learn_count$n[student_learn_count$prepost == "Post"]),
+                     locations = cells_column_labels(columns = "Post")) |>
+    TeachingLab::gt_theme_tl()
+
+
+gtsave(self_efficacy_gt, here::here("Images/Mississippi/self_efficacy_gt.png"), zoom = 1, vheight = 900, vwidth = 500)
+
+knitr::include_graphics(here::here("Images/Mississippi/self_efficacy_gt.png"))
+```
+
+## Happiness & Sense of Belonging
+
+```{r happiness-belonging}
+happiness_belonging_gt <- tibble::tibble(
+  ` ` = c(
+    "<b>Overall Happiness & Sense of Belonging Score</b>",
+    happiness_belonging$name[happiness_belonging$prepost == "Pre"]
+  ),
+    Pre = c(mean(happiness_belonging$value[happiness_belonging$prepost == "Pre"]),
+            happiness_belonging$value[happiness_belonging$prepost == "Pre"]),
+    Post = c(mean(happiness_belonging$value[happiness_belonging$prepost == "Post"]),
+             happiness_belonging$value[happiness_belonging$prepost == "Post"])
+) |>
+  mutate(` ` = str_remove_all(` `, "How often does your teacher do these things\\? - |To what extent do you agree or disagree with the following statements\\? - |To what extent are the following statements true or not true\\? - ")) |>
+  gt::gt() |>
+    gt::fmt_markdown(columns = ` `) |>
+    gt::fmt_percent(
+        columns = c(Pre, Post),
+        scale_values = F,
+        decimals = 0
+    ) |>
+    gt::data_color(
+        columns = c(Pre, Post),
+        colors = scales::col_bin(
+            palette = c(
+                TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+            ),
+            domain = c(0, 100),
+            bins = c(0, 39, 79, 100)
+        )
+    ) |>
+    gt::tab_footnote(footnote = paste0("n = ", student_learn_count$n[student_learn_count$prepost == "Pre"]),
+                     locations = cells_column_labels(columns = "Pre")) |>
+    gt::tab_footnote(footnote = paste0("n = ", student_learn_count$n[student_learn_count$prepost == "Post"]),
+                     locations = cells_column_labels(columns = "Post")) |>
+    TeachingLab::gt_theme_tl()
+
+
+gtsave(happiness_belonging_gt, here::here("Images/Mississippi/happiness_belonging_gt.png"), zoom = 1, vheight = 900, vwidth = 500)
+
+knitr::include_graphics(here::here("Images/Mississippi/happiness_belonging_gt.png"))
+```
+
+## Being Challenged
+
+```{r being-challenged}
+being_challenged_gt <- tibble::tibble(
+  ` ` = c(
+    "<b>Overall Being Challenged Score</b>",
+    being_challenged$name[being_challenged$prepost == "Pre"]
+  ),
+    Pre = c(mean(being_challenged$value[being_challenged$prepost == "Pre"]),
+            being_challenged$value[being_challenged$prepost == "Pre"]),
+    Post = c(mean(being_challenged$value[being_challenged$prepost == "Post"]),
+             being_challenged$value[being_challenged$prepost == "Post"])
+) |>
+  mutate(` ` = str_remove_all(` `, "How often does your teacher do these things\\? - |To what extent do you agree or disagree with the following statements\\? - |To what extent are the following statements true or not true\\? - ")) |>
+  gt::gt() |>
+    gt::fmt_markdown(columns = ` `) |>
+    gt::fmt_percent(
+        columns = c(Pre, Post),
+        scale_values = F,
+        decimals = 0
+    ) |>
+    gt::data_color(
+        columns = c(Pre, Post),
+        colors = scales::col_bin(
+            palette = c(
+                TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+            ),
+            domain = c(0, 100),
+            bins = c(0, 39, 79, 100)
+        )
+    ) |>
+    gt::tab_footnote(footnote = paste0("n = ", student_learn_count$n[student_learn_count$prepost == "Pre"]),
+                     locations = cells_column_labels(columns = "Pre")) |>
+    gt::tab_footnote(footnote = paste0("n = ", student_learn_count$n[student_learn_count$prepost == "Post"]),
+                     locations = cells_column_labels(columns = "Post")) |>
+    TeachingLab::gt_theme_tl()
+
+
+gtsave(being_challenged_gt, here::here("Images/Mississippi/being_challenged_gt.png"), zoom = 1, vheight = 900, vwidth = 500)
+
+knitr::include_graphics(here::here("Images/Mississippi/being_challenged_gt.png"))
+
+```
+
+# Section 6: Student Math Proficiency
+
+Teachers collected student work samples of a task that involved
+explaining mathematical thinking or reasoning from all students in at
+least one of their groups. Teaching Lab coaches first determined whether
+the task was on grade-level and whether it met the criteria of
+explaining mathematical thinking or reasoning. If so, then the work
+samples were scored using a 2-point rubric. Students who scored 2 on the
+rubric were considered to demonstrate proficiency on the grade-level
+task.
+
+```{r student-math-prof-overall, fig.dim = c(6.5, 4.5)}
+student_math_count <- student_math |>
+  group_by(grade_level_task_y_n) |>
+  count(sort = T) |>
+  drop_na(grade_level_task_y_n)
+
+student_math_count2 <- student_math2 |>
+  group_by(grade_level_task_y_n) |>
+  count(sort = T) |>
+  drop_na(grade_level_task_y_n)
+
+student_percent_on_grade <- round(100 * student_math_count$n[student_math_count$grade_level_task_y_n == "Y"] /
+  sum(student_math_count$n), 2)
+
+student_percent_on_grade2 <- round(100 * student_math_count2$n[student_math_count2$grade_level_task_y_n == "Y"] /
+  sum(student_math_count2$n), 2)
+
+student_math_percent_count <- student_math |>
+  filter(grade_level_task_y_n == "Y" & !is.na(score_0_2)) |>
+  group_by(score_0_2) |>
+  count(sort = T)
+
+student_math_percent_count2 <- student_math2 |>
+  filter(grade_level_task_y_n == "Y" & !is.na(score_0_2)) |>
+  group_by(score_0_2) |>
+  count(sort = T)
+
+student_math_n_sizes <- tibble::tibble(n = c(
+  sum(student_math_count$n),
+  sum(student_math_percent_count$n)
+))
+
+student_math_n_sizes2 <- tibble::tibble(n = c(
+  sum(student_math_count2$n),
+  sum(student_math_percent_count2$n)
+))
+
+student_percent_proficient <- round(100 * student_math_percent_count$n[student_math_percent_count$score_0_2 == 2] /
+  sum(student_math_percent_count$n), 2)
+student_percent_proficient2 <- round(100 * student_math_percent_count2$n[student_math_percent_count2$score_0_2 == 2] /
+  sum(student_math_percent_count2$n), 2)
+
+student_math_gt <- tibble::tibble(
+  name = c(
+    "Student tasks on grade-level.",
+    "Students who demonstrated proficiency on a grade-level task"
+  ),
+  Pre = c(student_percent_on_grade, student_percent_proficient),
+  n = student_math_n_sizes$n,
+  Post = c(student_percent_on_grade2, student_percent_proficient2),
+  `n ` = student_math_n_sizes2$n
+) |>
+  gt::gt(rowname_col = "name") |>
+  gt::fmt_percent(c("Pre", "Post"),
+    scale_values = F,
+    decimals = 0
+  ) |>
+  gt::data_color(
+    columns = c("Pre", "Post"),
+    colors = scales::col_bin(
+      palette = paletteer::paletteer_d(
+        palette = "ggsci::blue_material"
+      ) %>% as.character(),
+      domain = 20:80
+    )
+  ) |>
+  TeachingLab::gt_theme_tl()
+
+
+gtsave(student_math_gt, here::here("Images/Mississippi/student_math_gt.png"), zoom = 1, vheight = 900, vwidth = 500)
+
+knitr::include_graphics(here::here("Images/Mississippi/student_math_gt.png"))
+
+# student_math_img <- gt::gtsave(
+#   data = student_math_gt,
+#   path = here::here("images/report_images"),
+#   filename = tempfile(fileext = ".png")
+# )
+# knitr::include_graphics(student_math_img)
+```
+
+```{r student-math-proficiency}
+tibble::tibble(
+  ` ` = c(
+    "Student tasks on grade-level.",
+    "Students who demonstrated proficiency on a grade-level task"
+  ),
+  Pre = c(student_percent_on_grade, student_percent_proficient),
+  Post = c(student_percent_on_grade2, student_percent_proficient2),
+) |>
+  pivot_longer(!` `, names_to = "prepost", values_to = "Percent") |>
+  mutate(prepost = factor(prepost, levels = c("Pre", "Post")),
+         ` ` = TeachingLab::html_wrap(` `, n = 18)) |>
+  ggplot(aes(x = ` `, y = Percent, fill = prepost)) +
+  geom_col(position = position_dodge2()) +
+  geom_text(vjust = -1, aes(label = paste0(round(Percent), "%")),
+            family = "Calibri Bold",
+            fontface = "bold",
+            position = position_dodge2(width = 1)) +
+  labs(y = "", title = "Overall Shifts in Student Learning") +
+  scale_y_continuous(labels = scales::percent_format(scale = 1), limits = c(0, 100)) +
+  scale_fill_manual(values = c(TeachingLab::tl_palette(color = "blue", n = 4)[c(1, 4)])) +
+  theme_tl(legend = T) +
+  theme(axis.text.x = element_markdown(),
+        legend.title = element_blank(),
+        legend.position = "top",
+        plot.title = element_text(face = "bold"))
+  
+```
+
+# Section 7: Family Experiences & Perceptions
+
+Schools and teachers assisted in sending home a voluntary survey to
+their students' families. Using Likert-type scales, caregivers responded
+to seven items related to teacher-family relationships and support, five
+items related to teacher-student relationships, and two items related to
+their child's learning. Responses were averaged across items. Higher
+scores correspond to more positive family perceptions and experiences.
+
+```{r family-exper-percep-overall}
+teacher_family <- family_survey |>
+  mutate(bipoc = case_when(!is.na(`How do you describe your child’s race? You may check more than one box. - Native American Indian or Alaska Native`) ~ "BIPOC",
+!is.na(`How do you describe your child’s race? You may check more than one box. - Asian`) ~ "BIPOC",
+!is.na(`How do you describe your child’s race? You may check more than one box. - Black or African American`) ~ "BIPOC",
+!is.na(`How do you describe your child’s race? You may check more than one box. - Native Hawaiian or Other Pacific Islander`) ~ "BIPOC",
+!is.na(`How do you describe your child’s race? You may check more than one box. - White`) ~ "White",
+!is.na(`How do you describe your child’s race? You may check more than one box. - Prefer not to say`) ~ "BIPOC",
+!is.na(`How do you describe your child’s race? You may check more than one box. - Other (please specify)`) ~ "BIPOC")) |>
+  drop_na(bipoc) |>
+  dplyr::select(tidyselect::all_of(23:29), bipoc, prepost) |>
+    janitor::remove_empty("rows") |>
+    dplyr::group_by(bipoc, prepost) |>
+    dplyr::summarise(dplyr::across(tidyselect::everything(), ~ TeachingLab::tl_score_numeric(as.character(.x)))) |>
+    dplyr::ungroup() |>
+    pivot_longer(!c(prepost, bipoc))
+  
+teacher_family_overall <- teacher_family |>
+  group_by(prepost) |>
+  dplyr::summarise(Percent = mean(value, na.rm = T)) |>
+  pivot_wider(names_from = prepost, values_from = Percent)
+
+teacher_student <- family_survey |>
+  TeachingLab::selection_sum(30:33, group = prepost)
+teacher_student_overall <- teacher_student |>
+  group_by(prepost) |>
+  dplyr::summarise(Percent = mean(value, na.rm = T)) |>
+  pivot_wider(names_from = prepost, values_from = Percent)
+
+family_exper_count <- family_survey |>
+  group_by(prepost) |>
+  count(sort = T)
+
+family_exper_gt <- tibble::tibble(
+  ` ` = c(
+    "<b>Overall Positive Family Experiences & Perceptions %</b>",
+    "Teacher-Family Relationships and Support",
+    "Teacher-Student Relationships"
+  ),
+  Pre = c(75,
+          mean(teacher_family$value[teacher_family$prepost == "Pre"], na.rm = T),
+          mean(teacher_student$value[teacher_student$prepost == "Pre"], na.rm = T)),
+  Post = c(87,
+           mean(teacher_family$value[teacher_family$prepost == "Post"], na.rm = T),
+           mean(teacher_student$value[teacher_student$prepost == "Post"], na.rm = T))
+) |>
+  gt::gt() |>
+  gt::fmt_markdown(columns = ` `) |>
+  gt::fmt_percent(
+    columns = c(Pre, Post),
+    scale_values = F,
+    decimals = 0
+  ) |>
+  gt::data_color(
+            columns = c(Pre, Post),
+            colors = scales::col_bin(
+              palette = c(
+                TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+              ),
+              domain = c(0, 100),
+              bins = c(0, 39, 79, 100)
+            )
+          ) |>
+  gt::tab_footnote(footnote = paste0("n = ", family_exper_count$n[family_exper_count$prepost == "Pre"]),
+                   locations = cells_column_labels(columns = "Pre")) |>
+  gt::tab_footnote(footnote = paste0("n = ", family_exper_count$n[family_exper_count$prepost == "Post"]),
+                   locations = cells_column_labels(columns = "Post")) |>
+  TeachingLab::gt_theme_tl()
+
+gtsave(family_exper_gt, here::here("Images/Mississippi/family_exper_gt.png"), zoom = 1, vheight = 900, vwidth = 500)
+
+knitr::include_graphics(here::here("Images/Mississippi/family_exper_gt.png"))
+```
+
+## Teacher-Family Relationships and Support
+
+```{r teacher-family}
+teacher_family_gt <- tibble::tibble(
+  ` ` = c(
+    "<b>Overall Teacher-Family Relationships Score</b>",
+    teacher_family$name[teacher_family$prepost == "Post"]
+  ),
+    Pre = c(mean(teacher_family$value[teacher_family$prepost == "Pre"]),
+            teacher_family |>
+    group_by(prepost, name) |>
+    summarise(value = mean(value)) |>
+    filter(prepost == "Pre") |>
+    pull(value)),
+    Post = c(mean(teacher_family$value[teacher_family$prepost == "Post"]),
+             teacher_family |>
+    group_by(prepost, name) |>
+    summarise(value = mean(value)) |>
+    filter(prepost == "Post") |>
+    pull(value))
+) |>
+  mutate(` ` = str_remove_all(` `, "How often does your teacher do these things\\? - |To what extent do you agree or disagree with the following statements\\? - |To what extent are the following statements true or not true\\? - |Please indicate your level of agreement with the following statements\\. - ")) |>
+  gt::gt() |>
+    gt::fmt_markdown(columns = ` `) |>
+    gt::fmt_percent(
+        columns = c(Pre, Post),
+        scale_values = F,
+        decimals = 0
+    ) |>
+    gt::data_color(
+        columns = c(Pre, Post),
+        colors = scales::col_bin(
+            palette = c(
+                TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+            ),
+            domain = c(0, 100),
+            bins = c(0, 39, 79, 100)
+        )
+    ) |>
+    gt::tab_footnote(footnote = paste0("n = ", family_exper_count$n[family_exper_count$prepost == "Pre"]),
+                     locations = cells_column_labels(columns = "Pre")) |>
+    gt::tab_footnote(footnote = paste0("n = ", family_exper_count$n[family_exper_count$prepost == "Post"]),
+                     locations = cells_column_labels(columns = "Post")) |>
+    TeachingLab::gt_theme_tl()
+
+
+gtsave(teacher_family_gt, here::here("Images/Mississippi/teacher_family_gt.png"), zoom = 1, vheight = 900, vwidth = 500)
+
+knitr::include_graphics(here::here("Images/Mississippi/teacher_family_gt.png"))
+```
+
+## Teacher-Students Relationships and Support
+
+```{r teacher-student-rel-supp}
+teacher_student_gt <- tibble::tibble(
+  ` ` = c(
+    "<b>Overall Teacher-Family Relationships Score</b>",
+    teacher_student$name[teacher_student$prepost == "Pre"]
+  ),
+    Pre = c(mean(teacher_student$value[teacher_student$prepost == "Pre"]),
+            teacher_student$value[teacher_student$prepost == "Pre"]),
+    Post = c(mean(teacher_student$value[teacher_student$prepost == "Post"]),
+             teacher_student$value[teacher_student$prepost == "Post"])
+) |>
+  mutate(` ` = str_remove_all(` `, "How often does your teacher do these things\\? - |To what extent do you agree or disagree with the following statements\\? - |To what extent are the following statements true or not true\\? - ")) |>
+  gt::gt() |>
+    gt::fmt_markdown(columns = ` `) |>
+    gt::fmt_percent(
+        columns = c(Pre, Post),
+        scale_values = F,
+        decimals = 0
+    ) |>
+    gt::data_color(
+        columns = c(Pre, Post),
+        colors = scales::col_bin(
+            palette = c(
+                TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+            ),
+            domain = c(0, 100),
+            bins = c(0, 39, 79, 100)
+        )
+    ) |>
+    gt::tab_footnote(footnote = paste0("n = ", family_exper_count$n[family_exper_count$prepost == "Pre"]),
+                     locations = cells_column_labels(columns = "Pre")) |>
+    gt::tab_footnote(footnote = paste0("n = ", family_exper_count$n[family_exper_count$prepost == "Post"]),
+                     locations = cells_column_labels(columns = "Post")) |>
+    TeachingLab::gt_theme_tl()
+
+gtsave(teacher_student_gt, here::here("Images/Mississippi/teacher_student_gt.png"), zoom = 1, vheight = 900, vwidth = 500)
+
+knitr::include_graphics(here::here("Images/Mississippi/teacher_student_gt.png"))
+```
+
+## Caregiver Perceptions of Student Learning
+
+### How many assignments does your child complete?
+
+```{r childs-assignments-completed}
+childs_assignments_n <- family_survey |>
+  group_by(prepost) |>
+  summarise(n = sum(!is.na(`How many assignments does your child complete?`)))
+
+childs_assignments_gt <- family_survey |>
+  drop_na(`How many assignments does your child complete?`) |>
+  group_by(`How many assignments does your child complete?`, prepost) |>
+  count(sort = T, .drop = T) |>
+  ungroup() |>
+  group_by(prepost) |>
+  mutate(`Percent Selected` = round(100 * n / sum(n), 2)) |>
+  mutate(name = `How many assignments does your child complete?`) |>
+  select(name, `Percent Selected`, prepost) |>
+  pivot_wider(names_from = prepost, values_from = `Percent Selected`) |>
+  gt::gt(rowname_col = "name") |>
+  gt::fmt_percent(
+    columns = c(Pre, Post),
+    scale_values = F,
+    decimals = 0
+  ) |>
+  gt::sub_missing(columns = c(Pre, Post),
+                  missing_text = "") |>
+  gt::data_color(
+            columns = c(Pre, Post),
+            colors = scales::col_bin(
+              palette = c(
+                TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+              ),
+              domain = c(0, 100),
+              bins = c(0, 39, 79, 100)
+            )
+          ) |>
+  gt::tab_footnote(footnote = paste0("n = ", childs_assignments_n$n[childs_assignments_n$prepost == "Pre"]),
+                   locations = cells_column_labels(columns = Pre)) |>
+  gt::tab_footnote(footnote = paste0("n = ", childs_assignments_n$n[childs_assignments_n$prepost == "Post"]),
+                   locations = cells_column_labels(columns = Post)) |>
+  TeachingLab::gt_theme_tl()
+
+gtsave(childs_assignments_gt, here::here("Images/Mississippi/childs_assignments_gt.png"), zoom = 1, vheight = 900, vwidth = 500)
+
+knitr::include_graphics(here::here("Images/Mississippi/childs_assignments_gt.png"))
+```
+
+### Which best matches your belief about your child's experience so far this year?
+
+```{r childs-experience}
+child_exper_n <- family_survey |>
+  group_by(prepost) |>
+  summarise(n = sum(!is.na(`Which best matches your belief about your child’s experience so far this year?`)))
+
+child_exper_gt <- family_survey |>
+  drop_na(`Which best matches your belief about your child’s experience so far this year?`) |>
+  group_by(`Which best matches your belief about your child’s experience so far this year?`,
+           prepost) |>
+  count(sort = T, .drop = T) |>
+  ungroup() |>
+  group_by(prepost) |>
+  mutate(`Percent True` = round(100 * n / sum(n), 2)) |>
+  mutate(name = `Which best matches your belief about your child’s experience so far this year?`) |>
+  select(name, `Percent True`, prepost) |>
+  pivot_wider(names_from = prepost, values_from = `Percent True`) |>
+  gt::gt(rowname_col = "name") |>
+  gt::fmt_percent(
+    columns = c(Pre, Post),
+    scale_values = F,
+    decimals = 0
+  ) |>
+  gt::sub_missing(columns = c(Pre, Post),
+                  missing_text = "") |>
+  gt::data_color(
+            columns = c(Pre, Post),
+            colors = scales::col_bin(
+              palette = c(
+                TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+              ),
+              domain = c(0, 100),
+              bins = c(0, 39, 79, 100)
+            )
+          ) |>
+  gt::tab_footnote(footnote = paste0("n = ", child_exper_n$n[child_exper_n$prepost == "Pre"]),
+                   locations = cells_column_labels(columns = Pre)) |>
+  gt::tab_footnote(footnote = paste0("n = ", child_exper_n$n[child_exper_n$prepost == "Post"]),
+                   locations = cells_column_labels(columns = Post)) |>
+  TeachingLab::gt_theme_tl()
+
+gtsave(child_exper_gt, here::here("Images/Mississippi/child_exper_gt.png"), zoom = 1, vheight = 900, vwidth = 500)
+
+knitr::include_graphics(here::here("Images/Mississippi/child_exper_gt.png"))
+```

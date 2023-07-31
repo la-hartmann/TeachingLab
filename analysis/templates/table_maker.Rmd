@@ -1,0 +1,1476 @@
+---
+title: "Table Maker for S19-20 Report"
+author: "Duncan Gates"
+date: "5/10/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+devtools::load_all()
+library(TeachingLab)
+library(tidyverse)
+library(gt)
+library(here)
+library(scales)
+library(glue)
+library(googlesheets4)
+```
+
+# Define Function
+
+```{r}
+table_maker <- function(data, column_names, title, spanner, n1, n2, save_name, rows_positive, rows_negative) {
+  colnames(data)[2:5] <- c("name_1", "name_2", "name_3", "name_4")
+
+  sy1920_report <- data %>%
+    gt(rowname_col = "rowname") %>%
+    # Add spanner
+    tab_spanner(
+      label = spanner,
+      columns = c(2:4)
+    ) %>%
+    # Add title
+    tab_header(title = md(glue::glue("**{title}, by Survey Administration**"))) %>%
+    # Make labels colorful
+    cols_label(
+      name_1 = html("<strong><center><span style = 'color:#00acf0;'>Diagnostic Survey</span></center></strong>"),
+      name_2 = html("<strong><center><span style = 'color:#00acf0;'>Follow-up Survey</span></center></strong>"),
+      name_3 = html("<strong><center><span style = 'color:#00acf0;'>Percentage Point Change</span></center></strong>"),
+      name_4 = html("<strong><center><span style = 'color:#43c6b9;'>% of Educators that Improved or Sustained</span></center></strong>")
+    ) %>%
+    # Column widths
+    cols_width(
+      1 ~ px(200),
+      2 ~ px(125),
+      3 ~ px(125),
+      4 ~ px(125),
+      5 ~ px(200)
+    ) %>%
+    # Percent format the data
+    fmt_percent(
+      columns = c(2, 3, 5),
+      scale_values = F,
+      decimals = 0
+    ) %>%
+    # Add + symbol where needed
+    fmt_percent(
+      columns = c(4),
+      scale_values = F,
+      decimals = 0,
+      rows = rows_positive,
+      pattern = "+{x}"
+    ) %>%
+    # For - make percent as well
+    fmt_percent(
+      columns = c(4),
+      scale_values = F,
+      decimals = 0,
+      rows = rows_negative
+    ) %>%
+    # Color all the data columns (2-5)
+    # data_color(
+    #   columns = c(2),
+    #   colors = scales::col_numeric(
+    #     # custom defined values - notice that order matters!
+    #     palette = tl_palette(n = 6, theme = "light", color = "blue"),
+    #     domain = NULL
+    #   )
+    # ) %>%
+    # data_color(
+    #   columns = c(3),
+    #   colors = scales::col_numeric(
+    #     # custom defined values - notice that order matters!
+    #     palette = tl_palette(n = 6, theme = "light", color = "blue"),
+    #     domain = NULL
+    #   )
+    # ) %>%
+    # data_color(
+    #   columns = c(4),
+    #   colors = scales::col_numeric(
+    #     # custom defined values - notice that order matters!
+    #     palette = tl_palette(n = 6, theme = "light", color = "blue"),
+    #     domain = NULL
+    #   )
+    # ) %>%
+    # data_color(
+    #   columns = c(5),
+    #   colors = scales::col_numeric(
+    #     # custom defined values - notice that order matters!
+    #     palette = tl_palette(n = 6, theme = "light", color = "green"),
+    #     domain = NULL
+    #   )
+    # ) %>%
+    # Color by gradation, < 40 is light, 40-80 is medium, > 80 is dark
+    # Blue
+    tab_style(
+      style = list(
+        cell_fill(color = "#89d7f7")
+      ),
+      locations = cells_body(
+        columns = c(2),
+        rows = `name_1` < 40
+      )
+    ) %>%
+    tab_style(
+      style = list(
+        cell_fill(color = "#52c6f4")
+      ),
+      locations = cells_body(
+        columns = c(2),
+        rows = `name_1` >= 40
+      )
+    ) %>%
+    tab_style(
+      style = list(
+        cell_fill(color = "#00ACF0")
+      ),
+      locations = cells_body(
+        columns = c(2),
+        rows = `name_1` > 80
+      )
+    ) %>%
+    tab_style(
+      style = list(
+        cell_fill(color = "#89d7f7")
+      ),
+      locations = cells_body(
+        columns = c(3),
+        rows = `name_2` < 40
+      )
+    ) %>%
+    tab_style(
+      style = list(
+        cell_fill(color = "#52c6f4")
+      ),
+      locations = cells_body(
+        columns = c(3),
+        rows = `name_2` >= 40
+      )
+    ) %>%
+    tab_style(
+      style = list(
+        cell_fill(color = "#00ACF0")
+      ),
+      locations = cells_body(
+        columns = c(3),
+        rows = `name_2` > 80
+      )
+    ) %>%
+    # Green
+    tab_style(
+      style = list(
+        cell_fill(color = "#A7E3DE")
+      ),
+      locations = cells_body(
+        columns = c(5),
+        rows = `name_4` < 40
+      )
+    ) %>%
+    tab_style(
+      style = list(
+        cell_fill(color = "#7FD7CF")
+      ),
+      locations = cells_body(
+        columns = c(5),
+        rows = `name_4` >= 40
+      )
+    ) %>%
+    tab_style(
+      style = list(
+        cell_fill(color = "#43C6B9")
+      ),
+      locations = cells_body(
+        columns = c(5),
+        rows = `name_4` > 80
+      )
+    ) %>%
+    # Add black line next to row group
+    tab_style(
+      style = list(
+        cell_borders(
+          sides = c("right"),
+          color = "black",
+          weight = px(3)
+        )
+      ),
+      locations = cells_stub()
+    ) %>%
+    # Add black line next to tab spanner
+    tab_style(
+      style = list(
+        cell_borders(
+          sides = c("right"),
+          color = "black",
+          weight = px(3)
+        )
+      ),
+      locations = cells_body(
+        columns = c(4)
+      )
+    ) %>%
+    # Add thin black line next to improvement column
+    tab_style(
+      style = list(
+        cell_borders(
+          sides = c("left"),
+          color = "black",
+          weight = px(1.5)
+        )
+      ),
+      locations = cells_body(
+        columns = c(4)
+      )
+    ) %>%
+    # Footnotes
+    tab_footnote(
+      footnote = md(glue::glue("Note: The number of observations varies between items from {n2[1]} to {n2[2]}")),
+      locations = cells_column_labels(
+        columns = c(1:3)
+      )
+    ) %>%
+    tab_footnote(
+      footnote = md(glue::glue("n = {n1}")),
+      locations = cells_column_labels(
+        columns = c(4)
+      )
+    ) %>%
+    # Final theming
+    gt_theme_tl() %>%
+    tab_options(
+      column_labels.border.lr.style = "solid",
+      column_labels.vlines.style = "solid",
+      heading.border.lr.style = "solid",
+      heading.border.bottom.width = px(3),
+      heading.border.bottom.color = "black",
+      heading.border.lr.width = px(3),
+      heading.border.lr.color = "black"
+    )
+
+  sy1920_report %>%
+    gtsave(glue::glue(here("Images/SY19-20 Tables/{save_name}.png")))
+}
+```
+
+# SY19-20 Report Tables
+
+## Table 1
+
+```{r}
+data <- tibble(
+  rowname = c("Overall score", "Recognition of race & culture", "Holding growth mindsets", "Having high expectations and beliefs", "Beliefs in the impact of professional learning"),
+  `% of educators who held growth mindsets and/or high expectations Fall` = c(64, 31, 90, 53, 83),
+  `% of educators who held growth mindsets and/or high expectations Spring` = c(63, 30, 87, 55, 79),
+  `Percentage point change of educators who held growth mindsets and/or high expectations Fall to Spring` = c(-1, -1, 3, 2, -4),
+  `% of educators who improved or sustained growth mindsets and/or high expectations` = c(63, 30, 86, 55, 79)
+)
+
+table_maker(data = data, column_names = colnames(data)[2:5], 
+            title = "Educators with Equitable Mindsets and Beliefs", 
+            spanner = "% of Educators with Equitable Mindsets & Beliefs", 
+            n1 = 141, n2 = c(118, 141), 
+            rows_positive = c(3, 4),
+            rows_negative = c(1, 2, 5),
+            save_name = "SY1920Table1")
+```
+
+## Table 2
+
+```{r}
+data2 <- read_sheet("https://docs.google.com/spreadsheets/d/1A9Y4tuDQjMkr8QITur5KZPUlagLtcx_Sd5ZH0gGAZjQ/edit#gid=296696640",
+  sheet = 1, skip = 1
+) %>%
+  slice(-8) %>%
+  dplyr::mutate(dplyr::across(.cols = c(2, 5), ~ unlist(.x))) %>%
+  dplyr::mutate(dplyr::across(.cols = c(2:5), ~ as.double(.x))) %>%
+  dplyr::mutate(dplyr::across(.cols = c(2:5), ~ 100 * .x)) %>%
+  rename(rowname = `...1`)
+
+table_maker(
+  data = data2, column_names = colnames(data2)[2:5],
+  title = "Educators’ ELA Content and Pedagogical Content Knowledge", 
+  spanner = "% of Educators with ELA Content & Pedagogical Content Knowledge", 
+  n1 = 87, n2 = c(85, 87),
+  rows_positive = c(1:7),
+  rows_negative = !c(1:7),
+  save_name = "SY1920Table2"
+)
+```
+
+## Table 3
+
+```{r}
+data3 <- read_sheet("https://docs.google.com/spreadsheets/d/1A9Y4tuDQjMkr8QITur5KZPUlagLtcx_Sd5ZH0gGAZjQ/edit#gid=296696640",
+  sheet = 2, skip = 1
+) %>%
+  slice(-8) %>%
+  dplyr::mutate(dplyr::across(.cols = where(is.list), ~ unlist(.x))) %>%
+  dplyr::mutate(dplyr::across(.cols = c(2:5), ~ as.double(.x))) %>%
+  dplyr::mutate(dplyr::across(.cols = c(2:5), ~ 100 * .x)) %>%
+  rename(rowname = `...1`)
+
+table_maker(
+  data = data3, column_names = colnames(data3)[2:5],
+  title = "Educators Math Content and Pedagogical Content Knowledge", 
+  spanner = "% of Educators with Math Content & Pedagogical Content Knowledge", 
+  n1 = 29, n2 = c(118, 141), 
+  rows_positive = c(1:2, 4:5, 7),
+  rows_negative = c(3, 6),
+  save_name = "SY1920Table3"
+)
+```
+
+
+## Table 4
+
+```{r}
+data4 <- read_sheet("https://docs.google.com/spreadsheets/d/1A9Y4tuDQjMkr8QITur5KZPUlagLtcx_Sd5ZH0gGAZjQ/edit#gid=296696640",
+  sheet = 3, skip = 1
+) %>%
+  slice(-6) %>%
+  dplyr::mutate(dplyr::across(.cols = where(is.list), ~ unlist(.x))) %>%
+  dplyr::mutate(dplyr::across(.cols = c(2:5), ~ as.double(.x))) %>%
+  dplyr::mutate(dplyr::across(.cols = c(2:5), ~ 100 * .x)) %>%
+  dplyr::mutate(dplyr::across(.cols = c(1), ~ str_remove_all(.x, "[:digit:]"))) %>%
+  dplyr::mutate(dplyr::across(.cols = c(1), ~ str_remove_all(.x, "\\(\\)"))) %>%
+  dplyr::mutate(dplyr::across(.cols = c(1), ~ str_trim(.x))) %>%
+  rename(rowname = `...1`)
+
+table_maker(
+  data = data4, column_names = colnames(data4)[2:5],
+  title = "Educators Perception of School Culture and Climate", 
+  spanner = "% of Educators with Positive Perceptions of School Culture and Climate", 
+  n1 = 101, n2 = c(100, 101), 
+  rows_positive = c(3:5),
+  rows_negative = c(1:2),
+  save_name = "SY1920Table4"
+)
+```
+
+
+## Table 5
+
+```{r}
+data5 <- read_sheet("https://docs.google.com/spreadsheets/d/1A9Y4tuDQjMkr8QITur5KZPUlagLtcx_Sd5ZH0gGAZjQ/edit#gid=296696640",
+  sheet = 4, skip = 1
+) %>%
+  slice(-5) %>%
+  dplyr::mutate(dplyr::across(.cols = where(is.list), ~ unlist(.x))) %>%
+  dplyr::mutate(dplyr::across(.cols = c(2:5), ~ as.double(.x))) %>%
+  dplyr::mutate(dplyr::across(.cols = c(2:5), ~ 100 * .x)) %>%
+  dplyr::mutate(dplyr::across(.cols = c(1), ~ str_remove_all(.x, "[:digit:]"))) %>%
+  dplyr::mutate(dplyr::across(.cols = c(1), ~ str_remove_all(.x, "\\(\\)"))) %>%
+  dplyr::mutate(dplyr::across(.cols = c(1), ~ str_trim(.x))) %>%
+  rename(rowname = `The times teachers reported collaborating 3 or more times in the last month with a(n)...`)
+
+table_maker(
+  data = data5, column_names = colnames(data5)[2:5],
+  title = "Collaboration in Schools", 
+  spanner = "% of Educators Collaborating 3 or More Times in the Last Month", 
+  n1 = 97, n2 = c(97, 102), 
+  rows_positive = c(4),
+  rows_negative = c(1:3),
+  save_name = "SY1920Table5"
+)
+```
+
+## Table 6
+
+```{r}
+data6 <- read_sheet("https://docs.google.com/spreadsheets/d/1A9Y4tuDQjMkr8QITur5KZPUlagLtcx_Sd5ZH0gGAZjQ/edit#gid=296696640",
+  sheet = 5, skip = 1
+) %>%
+  slice(-5) %>%
+  dplyr::mutate(dplyr::across(.cols = where(is.list), ~ unlist(.x))) %>%
+  dplyr::mutate(dplyr::across(.cols = c(2:5), ~ as.double(.x))) %>%
+  dplyr::mutate(dplyr::across(.cols = c(2:5), ~ 100 * .x)) %>%
+  dplyr::mutate(dplyr::across(.cols = c(1), ~ str_remove_all(.x, "[:digit:]"))) %>%
+  dplyr::mutate(dplyr::across(.cols = c(1), ~ str_remove_all(.x, "\\(\\)"))) %>%
+  dplyr::mutate(dplyr::across(.cols = c(1), ~ str_trim(.x))) %>%
+  rename(rowname = `...1`)
+
+table_maker(
+  data = data6, column_names = colnames(data6)[2:5],
+  title = "Lab Leaders Perceptions of School Culture and Climate", 
+  spanner = "% of Educators who Agreed or Strongly Agreed", 
+  n1 = 10, n2 = c(10, 20), 
+  rows_positive = c(3),
+  rows_negative = c(1,2,4),
+  save_name = "SY1920Table6"
+)
+```
+
+
+## Table 7
+
+```{r}
+table_maker <- function(data, column_names, title, spanner, n1, n2, save_name, rows_positive, rows_negative) {
+  colnames(data)[2:5] <- c("name_1", "name_2", "name_3", "name_4")
+
+  sy1920_report <- data %>%
+    gt(rowname_col = "rowname") %>%
+    # Add spanner
+    tab_spanner(
+      label = spanner,
+      columns = c(2:4)
+    ) %>%
+    # Add title
+    tab_header(title = md(glue::glue("**{title}, by Survey Administration**"))) %>%
+    # Make labels colorful
+    cols_label(
+      name_1 = html("<strong><center><span style = 'color:#00acf0;'>Diagnostic Survey</span></center></strong>"),
+      name_2 = html("<strong><center><span style = 'color:#00acf0;'>Follow-up Survey</span></center></strong>"),
+      name_3 = html("<strong><center><span style = 'color:#00acf0;'>Percentage Point Change</span></center></strong>"),
+      name_4 = html("<strong><center><span style = 'color:#43c6b9;'>% of Educators that Improved or Sustained</span></center></strong>")
+    ) %>%
+    # Column widths
+    cols_width(
+      1 ~ px(200),
+      2 ~ px(125),
+      3 ~ px(125),
+      4 ~ px(125),
+      5 ~ px(200)
+    ) %>%
+    # Percent format the data
+    fmt_percent(
+      columns = c(2,3, 5),
+      scale_values = F,
+      decimals = 0
+    ) %>%
+    # Add + symbol where needed
+    fmt_percent(
+      columns = c(4),
+      scale_values = F,
+      decimals = 0,
+      rows = rows_positive,
+      pattern = "+{x}"
+    ) %>%
+    # For - make percent as well
+    fmt_percent(
+      columns = c(4),
+      scale_values = F,
+      decimals = 0,
+      rows = rows_negative
+    ) %>%
+    # Color all the data columns (2-5)
+    # data_color(
+    #   columns = c(2),
+    #   colors = scales::col_numeric(
+    #     # custom defined values - notice that order matters!
+    #     palette = tl_palette(n = 6, theme = "light", color = "blue"),
+    #     domain = NULL
+    #   )
+    # ) %>%
+    # data_color(
+    #   columns = c(3),
+    #   colors = scales::col_numeric(
+    #     # custom defined values - notice that order matters!
+    #     palette = tl_palette(n = 6, theme = "light", color = "blue"),
+    #     domain = NULL
+    #   )
+    # ) %>%
+    # data_color(
+    #   columns = c(4),
+    #   colors = scales::col_numeric(
+    #     # custom defined values - notice that order matters!
+    #     palette = tl_palette(n = 6, theme = "light", color = "blue"),
+    #     domain = NULL
+    #   )
+    # ) %>%
+    # data_color(
+    #   columns = c(5),
+    #   colors = scales::col_numeric(
+    #     # custom defined values - notice that order matters!
+    #     palette = tl_palette(n = 6, theme = "light", color = "green"),
+    #     domain = NULL
+    #   )
+    # ) %>%
+    # Color by gradation, < 40 is light, 40-80 is medium, > 80 is dark
+    # Blue
+    tab_style(
+      style = list(
+        cell_fill(color = "#89d7f7")
+      ),
+      locations = cells_body(
+        columns = c(2),
+        rows = `name_1` < 40
+      )
+    ) %>%
+    tab_style(
+      style = list(
+        cell_fill(color = "#52c6f4")
+      ),
+      locations = cells_body(
+        columns = c(2),
+        rows = `name_1` >= 40
+      )
+    ) %>%
+    tab_style(
+      style = list(
+        cell_fill(color = "#00ACF0")
+      ),
+      locations = cells_body(
+        columns = c(2),
+        rows = `name_1` > 80
+      )
+    ) %>%
+    tab_style(
+      style = list(
+        cell_fill(color = "#89d7f7")
+      ),
+      locations = cells_body(
+        columns = c(3),
+        rows = `name_2` < 40
+      )
+    ) %>%
+    tab_style(
+      style = list(
+        cell_fill(color = "#52c6f4")
+      ),
+      locations = cells_body(
+        columns = c(3),
+        rows = `name_2` >= 40
+      )
+    ) %>%
+    tab_style(
+      style = list(
+        cell_fill(color = "#00ACF0")
+      ),
+      locations = cells_body(
+        columns = c(3),
+        rows = `name_2` > 80
+      )
+    ) %>%
+    # Green
+    tab_style(
+      style = list(
+        cell_fill(color = "#A7E3DE")
+      ),
+      locations = cells_body(
+        columns = c(5),
+        rows = `name_4` < 40
+      )
+    ) %>%
+    tab_style(
+      style = list(
+        cell_fill(color = "#7FD7CF")
+      ),
+      locations = cells_body(
+        columns = c(5),
+        rows = `name_4` >= 40
+      )
+    ) %>%
+    tab_style(
+      style = list(
+        cell_fill(color = "#43C6B9")
+      ),
+      locations = cells_body(
+        columns = c(5),
+        rows = `name_4` > 80
+      )
+    ) %>%
+    # Add black line next to row group
+    tab_style(
+      style = list(
+        cell_borders(
+          sides = c("right"),
+          color = "black",
+          weight = px(3)
+        )
+      ),
+      locations = cells_stub()
+    ) %>%
+    # Add black line next to tab spanner
+    tab_style(
+      style = list(
+        cell_borders(
+          sides = c("right"),
+          color = "black",
+          weight = px(3)
+        )
+      ),
+      locations = cells_body(
+        columns = c(4)
+      )
+    ) %>%
+    # Add thin black line next to improvement column
+    tab_style(
+      style = list(
+        cell_borders(
+          sides = c("left"),
+          color = "black",
+          weight = px(1.5)
+        )
+      ),
+      locations = cells_body(
+        columns = c(4)
+      )
+    ) %>%
+    # Footnotes
+    tab_footnote(
+      footnote = md(glue::glue("Note: The number of observations varies between items from {n2[1]} to {n2[2]}")),
+      locations = cells_column_labels(
+        columns = c(1:3)
+      )
+    ) %>%
+    # tab_footnote(
+    #   footnote = md(glue::glue("Scores are not reported due to insufficient n in follow-up survey scores, and interest in avoiding type 1 and 2 errors.")),
+    #   locations = cells_column_labels(
+    #     columns = c(2:3)
+    #   )
+    # ) %>%
+    tab_footnote(
+      footnote = md(glue::glue("n = {n1}")),
+      locations = cells_column_labels(
+        columns = c(4)
+      )
+    ) %>%
+    # Final theming
+    gt_theme_tl() %>%
+    tab_options(
+      column_labels.border.lr.style = "solid",
+      column_labels.vlines.style = "solid",
+      heading.border.lr.style = "solid",
+      heading.border.bottom.width = px(3),
+      heading.border.bottom.color = "black",
+      heading.border.lr.width = px(3),
+      heading.border.lr.color = "black"
+    )
+
+  sy1920_report %>%
+    gtsave(glue::glue(here("Images/SY19-20 Tables/{save_name}.png")))
+}
+
+data7 <- read_sheet("https://docs.google.com/spreadsheets/d/1A9Y4tuDQjMkr8QITur5KZPUlagLtcx_Sd5ZH0gGAZjQ/edit#gid=296696640",
+  sheet = 6, skip = 1
+) %>%
+  slice(-9) %>%
+  dplyr::mutate(dplyr::across(.cols = where(is.list), ~ unlist(.x))) %>%
+  dplyr::mutate(dplyr::across(.cols = c(2:5), ~ as.double(.x))) %>%
+  dplyr::mutate(dplyr::across(.cols = c(2:5), ~ 100 * .x)) %>%
+  dplyr::mutate(dplyr::across(.cols = c(1), ~ str_remove_all(.x, "[:digit:]"))) %>%
+  dplyr::mutate(dplyr::across(.cols = c(1), ~ str_remove_all(.x, "\\(\\)"))) %>%
+  dplyr::mutate(dplyr::across(.cols = c(1), ~ str_trim(.x))) %>%
+  rename(rowname = `...1`) %>%
+  mutate(across(c(4), ~ .x/100)) #%>%
+  # mutate(`% of educators who reported engaging in content-related action\nSpring` = NA) %>%
+  # mutate(`Percentage point change of educators who \nwho reported engaging in content-related action` = NA)
+
+table_maker(
+  data = data7, column_names = colnames(data7)[2:5],
+  title = "Lab Leaders Actions Related to Content", 
+  spanner = "% of Lab Leaders Engaging in Content", 
+  n1 = 27, n2 = c(27, 47), 
+  rows_positive = c(2,3),
+  rows_negative = c(1, 4:8),
+  save_name = "SY1920Table7"
+)
+
+
+```
+
+## Table 8
+
+```{r}
+data8 <- read_sheet("https://docs.google.com/spreadsheets/d/1A9Y4tuDQjMkr8QITur5KZPUlagLtcx_Sd5ZH0gGAZjQ/edit#gid=296696640",
+  sheet = 7, skip = 1
+) %>%
+  slice(-8) %>%
+  dplyr::mutate(dplyr::across(.cols = where(is.list), ~ unlist(.x))) %>%
+  dplyr::mutate(dplyr::across(.cols = c(2:5), ~ as.double(.x))) %>%
+  dplyr::mutate(dplyr::across(.cols = c(2:5), ~ 100 * .x)) %>%
+  dplyr::mutate(dplyr::across(.cols = c(1), ~ str_remove_all(.x, "[:digit:]"))) %>%
+  dplyr::mutate(dplyr::across(.cols = c(1), ~ str_remove_all(.x, "\\(\\)"))) %>%
+  dplyr::mutate(dplyr::across(.cols = c(1), ~ str_trim(.x))) %>%
+  rename(rowname = `...1`)
+
+table_maker(
+  data = data8, column_names = colnames(data8)[2:5],
+  title = "Lab Leaders Leadership Activities", 
+  spanner = "% of Lab Leaders Engaging in Content-related Action", 
+  n1 = 15, n2 = c(0, 15), 
+  rows_positive = !c(1:7),
+  rows_negative = c(1:7),
+  save_name = "SY1920Table8"
+)
+```
+
+
+## Table 9
+
+```{r}
+data9 <- read_sheet("https://docs.google.com/spreadsheets/d/1A9Y4tuDQjMkr8QITur5KZPUlagLtcx_Sd5ZH0gGAZjQ/edit#gid=296696640",
+  sheet = 8, skip = 1
+) %>%
+  slice(-5) %>%
+  dplyr::mutate(dplyr::across(.cols = where(is.list), ~ unlist(.x))) %>%
+  dplyr::mutate(dplyr::across(.cols = c(1), ~ gsub("\\s*\\([^\\)]+\\)", "", .x))) %>%
+  dplyr::mutate(dplyr::across(.cols = c(1), ~ str_trim(.x))) %>%
+  rename(rowname = `...1`)
+
+colnames(data9) <- map(1:9, ~ paste0("name", .x))
+
+data9[2:9][2:4, ] <- data9[2:9][2:4, ] %>%
+  mutate(across(everything(), ~ paste0(.x, "%"))) %>%
+  mutate(across(c(name6, name7), ~ str_replace_all(.x, c("3%" = "+3%", "6%" = "+6%", "9%" = "+9%"))))
+
+# data9 %>% 
+#   dplyr::mutate(dplyr::across(.cols = c(2:8), ~ as.double(.x))) %>%
+#   dplyr::mutate(dplyr::across(.cols = c(2:8), ~ 100 * .x)) %>%
+#   gt(rowname_col = "rowname")
+
+(table9 <- data9 %>%
+  mutate(name1 = replace_na(name1, "")) %>%
+  gt(rowname_col = "rowname") %>%
+  tab_header(
+    title = md("**Teachers who Often or Almost Always Engage in Evidence-based Practices, by Survey Administration**")
+  ) %>%
+  cols_label(
+    name1 = "",
+    name2 = "",
+    name3 = "",
+    name4 = "",
+    name5 = "",
+    name6 = "",
+    name7 = "",
+    name8 = "",
+    name9 = ""
+  ) %>%
+  tab_spanner(label = html("<strong><center><span style = 'color:#00acf0;'>Fall Average Score % of Educators</span></center></strong>"),
+              columns = c(2, 3)) %>%
+  tab_spanner(label =  html("<strong><center><span style = 'color:#00acf0;'>Spring Average Score % of Educators</span></center></strong>"),
+              columns = c(4, 5)) %>%
+  tab_spanner(label = html("<strong><center><span style = 'color:#00acf0;'>Average Change</span></center></strong>"),
+              columns = c(6, 7)) %>%
+  tab_spanner(label = html("<strong><center><span style = 'color:#43C6B9;'>% of Educators that Improved or Sustained</span></center></strong>"),
+              columns = c(8, 9)) %>%
+    tab_style(
+      style = list(
+        cell_borders(
+          sides = c("left"),
+          color = "black",
+          weight = px(1.5)
+        )
+      ),
+      locations = cells_body(
+        columns = c(2, 4, 6, 8)
+      )
+    ) %>%
+    tab_style(
+      style = list(
+        cell_borders(
+          sides = c("top"),
+          color = "black",
+          weight = px(1.5)
+        )
+      ),
+      locations = cells_body(
+        rows = c(2)
+      )
+    ) %>%
+    tab_style(
+      style = list(
+        cell_borders(
+          sides = c("top"),
+          color = "black",
+          weight = px(3)
+        )
+      ),
+      locations = cells_body(
+        rows = c(1)
+      )
+    ) %>%
+    tab_style(
+      style = list(
+        cell_fill(color = "#89d7f7")
+      ),
+      locations = cells_body(
+        columns = c(3, 5),
+        rows = c(2, 4)
+      )
+    ) %>%
+    tab_style(
+      style = list(
+        cell_fill(color = "#52c6f4")
+      ),
+      locations = cells_body(
+        columns = c(2:5),
+        rows = c(3)
+      )
+    ) %>%
+    tab_style(
+      style = list(
+        cell_fill(color = "#52c6f4")
+      ),
+      locations = cells_body(
+        columns = c(2),
+        rows = c(4)
+      )
+    ) %>%
+    tab_style(
+      style = list(
+        cell_fill(color = "#52c6f4")
+      ),
+      locations = cells_body(
+        columns = c(4),
+        rows = c(4)
+      )
+    ) %>%
+    tab_style(
+      style = list(
+        cell_fill(color = "#00ACF0")
+      ),
+      locations = cells_body(
+        columns = c(2, 4),
+        rows = c(2)
+      )
+    ) %>%
+    tab_style(
+      style = list(
+        cell_fill(color = "#43C6B9")
+      ),
+      locations = cells_body(
+        columns = c(8),
+        rows = c(2:4)
+      )
+    ) %>%
+    tab_style(
+      style = list(
+        cell_fill(color = "#7FD7CF")
+      ),
+      locations = cells_body(
+        columns = c(9),
+        rows = c(2:4)
+      )
+    ) %>%
+    tab_source_note(
+      source_note = "n ranges from 30 to 32"
+    ) %>%
+  gt_theme_tl() %>%
+    tab_options(
+      column_labels.border.bottom.width = px(0),
+      # Table.border.top.width = px(3),
+      # Table.border.top.color = "black",
+      # Table.border.top.style = "solid"
+      # column_labels.border.lr.style = "solid",
+      # column_labels.vlines.style = "solid",
+      # heading.border.lr.style = "solid",
+      # heading.border.bottom.width = px(3),
+      # heading.border.bottom.color = "black",
+      # heading.border.lr.width = px(3),
+      # heading.border.lr.color = "black"
+    ))
+
+gtsave(table9, here("Images/SY19-20 Tables/SY1920Table9.png"))
+```
+
+# Legacy SY19-20 Report
+
+## Function
+
+```{r}
+table_maker_legacy <- function(data, column_names, title, spanner, note1, note2, note3, note4, save_name, rows_positive, rows_negative) {
+  colnames(data)[2:5] <- c("name_1", "name_2", "name_3", "name_4")
+
+  sy1920_report <- data %>%
+    gt(rowname_col = "rowname") %>%
+    # Add spanner
+    tab_spanner(
+      label = spanner,
+      columns = c(2:4)
+    ) %>%
+    # Add title
+    tab_header(title = md(glue::glue("**{title}**"))) %>%
+    # Make labels colorful
+    cols_label(
+      name_1 = html("<strong><center><span style = 'color:#00acf0;'>Diagnostic Survey</span></center></strong>"),
+      name_2 = html("<strong><center><span style = 'color:#00acf0;'>Follow-up Survey</span></center></strong>"),
+      name_3 = html("<strong><center><span style = 'color:#00acf0;'>Percentage Point Change</span></center></strong>"),
+      name_4 = html("<strong><center><span style = 'color:#43c6b9;'>% of Educators that Improved or Sustained</span></center></strong>")
+    ) %>%
+    # Column widths
+    cols_width(
+      1 ~ px(200),
+      2 ~ px(125),
+      3 ~ px(125),
+      4 ~ px(125),
+      5 ~ px(200)
+    ) %>%
+    # Percent format the data
+    fmt_percent(
+      columns = c(2, 3, 5),
+      rows = c(1:5),
+      scale_values = F,
+      decimals = 0
+    ) %>%
+    # Add + symbol where needed
+    # fmt_percent(
+    #   columns = c(4),
+    #   scale_values = F,
+    #   decimals = 0,
+    #   rows = rows_positive,
+    #   pattern = "+{x}"
+    # ) %>%
+    # For - make percent as well
+    # fmt_percent(
+    #   columns = c(4),
+    #   scale_values = F,
+    #   decimals = 0,
+    #   rows = rows_negative
+    # ) %>%
+    # Color all the data columns (2-5)
+    # data_color(
+    #   columns = c(2),
+    #   colors = scales::col_numeric(
+    #     # custom defined values - notice that order matters!
+    #     palette = tl_palette(n = 6, theme = "light", color = "blue"),
+    #     domain = NULL
+    #   )
+    # ) %>%
+    # data_color(
+    #   columns = c(3),
+    #   colors = scales::col_numeric(
+    #     # custom defined values - notice that order matters!
+    #     palette = tl_palette(n = 6, theme = "light", color = "blue"),
+    #     domain = NULL
+    #   )
+    # ) %>%
+    # data_color(
+    #   columns = c(4),
+    #   colors = scales::col_numeric(
+    #     # custom defined values - notice that order matters!
+    #     palette = tl_palette(n = 6, theme = "light", color = "blue"),
+    #     domain = NULL
+    #   )
+    # ) %>%
+    # data_color(
+    #   columns = c(5),
+    #   colors = scales::col_numeric(
+    #     # custom defined values - notice that order matters!
+    #     palette = tl_palette(n = 6, theme = "light", color = "green"),
+    #     domain = NULL
+    #   )
+    # ) %>%
+    # Color by gradation, < 40 is light, 40-80 is medium, > 80 is dark
+    # Blue
+    tab_style(
+      style = list(
+        cell_fill(color = "#89d7f7")
+      ),
+      locations = cells_body(
+        columns = c(2),
+        rows = `name_1` < 40
+      )
+    ) %>%
+    tab_style(
+      style = list(
+        cell_fill(color = "#52c6f4")
+      ),
+      locations = cells_body(
+        columns = c(2),
+        rows = `name_1` >= 40
+      )
+    ) %>%
+    tab_style(
+      style = list(
+        cell_fill(color = "#00ACF0")
+      ),
+      locations = cells_body(
+        columns = c(2),
+        rows = `name_1` > 80
+      )
+    ) %>%
+    tab_style(
+      style = list(
+        cell_fill(color = "#89d7f7")
+      ),
+      locations = cells_body(
+        columns = c(3),
+        rows = `name_2` < 40
+      )
+    ) %>%
+    tab_style(
+      style = list(
+        cell_fill(color = "#52c6f4")
+      ),
+      locations = cells_body(
+        columns = c(3),
+        rows = `name_2` >= 40
+      )
+    ) %>%
+    tab_style(
+      style = list(
+        cell_fill(color = "#00ACF0")
+      ),
+      locations = cells_body(
+        columns = c(3),
+        rows = `name_2` > 80
+      )
+    ) %>%
+    # Green
+    tab_style(
+      style = list(
+        cell_fill(color = "#A7E3DE")
+      ),
+      locations = cells_body(
+        columns = c(5),
+        rows = `name_4` < 40
+      )
+    ) %>%
+    tab_style(
+      style = list(
+        cell_fill(color = "#7FD7CF")
+      ),
+      locations = cells_body(
+        columns = c(5),
+        rows = `name_4` >= 40
+      )
+    ) %>%
+    tab_style(
+      style = list(
+        cell_fill(color = "#43C6B9")
+      ),
+      locations = cells_body(
+        columns = c(5),
+        rows = `name_4` > 80
+      )
+    ) %>%
+    # Add black line next to row group
+    tab_style(
+      style = list(
+        cell_borders(
+          sides = c("right"),
+          color = "black",
+          weight = px(3)
+        )
+      ),
+      locations = cells_stub()
+    ) %>%
+    # Add black line next to tab spanner
+    tab_style(
+      style = list(
+        cell_borders(
+          sides = c("right"),
+          color = "black",
+          weight = px(3)
+        )
+      ),
+      locations = cells_body(
+        columns = c(4)
+      )
+    ) %>%
+    # Add thin black line next to improvement column
+    tab_style(
+      style = list(
+        cell_borders(
+          sides = c("left"),
+          color = "black",
+          weight = px(1.5)
+        )
+      ),
+      locations = cells_body(
+        columns = c(4)
+      )
+    ) %>%
+    fmt_missing(
+      columns = c(2),
+      missing_text = glue::glue("{note1}")
+    ) %>%
+    fmt_missing(
+      columns = c(3),
+      missing_text = glue::glue("{note2}")
+    ) %>%
+    fmt_missing(
+      columns = c(4),
+      missing_text = glue::glue("{note3}")
+    ) %>%
+    fmt_missing(
+      columns = c(5),
+      missing_text = glue::glue("{note4}")
+    ) %>%
+    # Final theming
+    gt_theme_tl() %>%
+    tab_options(
+      column_labels.border.lr.style = "solid",
+      column_labels.vlines.style = "solid",
+      heading.border.lr.style = "solid",
+      heading.border.bottom.width = px(3),
+      heading.border.bottom.color = "black",
+      heading.border.lr.width = px(3),
+      heading.border.lr.color = "black"
+    )
+
+  sy1920_report %>%
+    gtsave(glue::glue(here("Images/Legacy Tables/{save_name}.png")))
+}
+```
+
+## Table 2
+
+```{r}
+ns1 <- tribble(
+  ~rowname, ~`% of educators who agreed or strongly agreed\nDiagnostic`, ~`% of educators who agreed or strongly agreed\nFollow-up`, ~`Percentage point change from diagnostic to follow-up`, ~`% of educators who improved or maintained their response`,
+  "", NA, NA, NA, NA
+)
+
+(data1 <- read_sheet("https://docs.google.com/spreadsheets/d/1239RSZgFOatVe0sJcxIEyhX3Kuz4e8RM0r_xdv1A8AA/edit#gid=1314686264",
+  sheet = "Table 2", range = "A2:E7") %>%
+  dplyr::mutate(dplyr::across(.cols = where(is.list), ~ unlist(.x))) %>%
+  dplyr::mutate(dplyr::across(.cols = c(2, 3, 5), ~ as.double(.x))) %>%
+  dplyr::mutate(dplyr::across(.cols = c(2, 3, 5), ~ 100 * .x)) %>%
+  dplyr::mutate(dplyr::across(.cols = c(1), ~ str_remove_all(.x, "[:digit:]"))) %>%
+  dplyr::mutate(dplyr::across(.cols = c(1), ~ str_remove_all(.x, "\\(\\)"))) %>%
+  dplyr::mutate(dplyr::across(.cols = c(1), ~ str_trim(.x))) %>%
+  rename(rowname = `...1`) %>%
+  bind_rows(ns1))
+
+
+
+table_maker_legacy(
+  data = data1, column_names = colnames(data1)[2:5],
+  title = "Educators' Perceptions of School Culture and Climate", 
+  spanner = "% of Educators with Positive Perceptions of School Culture and Climate", 
+  note1 = "n = 38", note2 = "n = 13", note3 = "", note4 = "n = 8",
+  rows_positive = c(3, 5),
+  rows_negative = c(1,2,4),
+  save_name = "Legacy Table 2"
+)
+```
+
+
+## Table 3
+
+```{r}
+table_maker_legacy_3 <- function(data, column_names, title, spanner, note1, note2, note3, note4, save_name, rows_positive, rows_negative) {
+  colnames(data)[2:5] <- c("name_1", "name_2", "name_3", "name_4")
+
+  sy1920_report <- data %>%
+    gt(rowname_col = "rowname") %>%
+    # Add spanner
+    tab_spanner(
+      label = spanner,
+      columns = c(2:4)
+    ) %>%
+    # Add title
+    tab_header(title = md(glue::glue("**{title}**"))) %>%
+    # Make labels colorful
+    cols_label(
+      name_1 = html("<strong><center><span style = 'color:#00acf0;'>Diagnostic Survey</span></center></strong>"),
+      name_2 = html("<strong><center><span style = 'color:#00acf0;'>Follow-up Survey</span></center></strong>"),
+      name_3 = html("<strong><center><span style = 'color:#00acf0;'>Percentage Point Change</span></center></strong>"),
+      name_4 = html("<strong><center><span style = 'color:#43c6b9;'>% of Educators that Improved or Sustained</span></center></strong>")
+    ) %>%
+    # Column widths
+    cols_width(
+      1 ~ px(200),
+      2 ~ px(125),
+      3 ~ px(125),
+      4 ~ px(125),
+      5 ~ px(200)
+    ) %>%
+    # Percent format the data
+    fmt_percent(
+      columns = c(2, 3),
+      scale_values = F,
+      decimals = 0
+    ) %>%
+    # Add + symbol where needed
+    # fmt_percent(
+    #   columns = c(4),
+    #   scale_values = F,
+    #   decimals = 0,
+    #   rows = rows_positive,
+    #   pattern = "+{x}"
+    # ) %>%
+    # For - make percent as well
+    # fmt_percent(
+    #   columns = c(4),
+    #   scale_values = F,
+    #   decimals = 0,
+    #   rows = rows_negative
+    # ) %>%
+    # Color all the data columns (2-5)
+    # data_color(
+    #   columns = c(2),
+    #   colors = scales::col_numeric(
+    #     # custom defined values - notice that order matters!
+    #     palette = tl_palette(n = 6, theme = "light", color = "blue"),
+    #     domain = NULL
+    #   )
+    # ) %>%
+    # data_color(
+    #   columns = c(3),
+    #   colors = scales::col_numeric(
+    #     # custom defined values - notice that order matters!
+    #     palette = tl_palette(n = 6, theme = "light", color = "blue"),
+    #     domain = NULL
+    #   )
+    # ) %>%
+    # data_color(
+    #   columns = c(4),
+    #   colors = scales::col_numeric(
+    #     # custom defined values - notice that order matters!
+    #     palette = tl_palette(n = 6, theme = "light", color = "blue"),
+    #     domain = NULL
+    #   )
+    # ) %>%
+    # data_color(
+    #   columns = c(5),
+    #   colors = scales::col_numeric(
+    #     # custom defined values - notice that order matters!
+    #     palette = tl_palette(n = 6, theme = "light", color = "green"),
+    #     domain = NULL
+    #   )
+    # ) %>%
+    # Color by gradation, < 40 is light, 40-80 is medium, > 80 is dark
+    # Blue
+    tab_style(
+      style = list(
+        cell_fill(color = "#89d7f7")
+      ),
+      locations = cells_body(
+        columns = c(2),
+        rows = `name_1` < 40
+      )
+    ) %>%
+    tab_style(
+      style = list(
+        cell_fill(color = "#52c6f4")
+      ),
+      locations = cells_body(
+        columns = c(2),
+        rows = `name_1` >= 40
+      )
+    ) %>%
+    tab_style(
+      style = list(
+        cell_fill(color = "#00ACF0")
+      ),
+      locations = cells_body(
+        columns = c(2),
+        rows = `name_1` > 80
+      )
+    ) %>%
+    tab_style(
+      style = list(
+        cell_fill(color = "#89d7f7")
+      ),
+      locations = cells_body(
+        columns = c(3),
+        rows = `name_2` < 40
+      )
+    ) %>%
+    tab_style(
+      style = list(
+        cell_fill(color = "#52c6f4")
+      ),
+      locations = cells_body(
+        columns = c(3),
+        rows = `name_2` >= 40
+      )
+    ) %>%
+    tab_style(
+      style = list(
+        cell_fill(color = "#00ACF0")
+      ),
+      locations = cells_body(
+        columns = c(3),
+        rows = `name_2` > 80
+      )
+    ) %>%
+    # Green
+    tab_style(
+      style = list(
+        cell_fill(color = "#A7E3DE")
+      ),
+      locations = cells_body(
+        columns = c(5),
+        rows = `name_4` < 40
+      )
+    ) %>%
+    tab_style(
+      style = list(
+        cell_fill(color = "#7FD7CF")
+      ),
+      locations = cells_body(
+        columns = c(5),
+        rows = `name_4` >= 40
+      )
+    ) %>%
+    tab_style(
+      style = list(
+        cell_fill(color = "#43C6B9")
+      ),
+      locations = cells_body(
+        columns = c(5),
+        rows = `name_4` > 80
+      )
+    ) %>%
+    # Add black line next to row group
+    tab_style(
+      style = list(
+        cell_borders(
+          sides = c("right"),
+          color = "black",
+          weight = px(3)
+        )
+      ),
+      locations = cells_stub()
+    ) %>%
+    # Add black line next to tab spanner
+    tab_style(
+      style = list(
+        cell_borders(
+          sides = c("right"),
+          color = "black",
+          weight = px(3)
+        )
+      ),
+      locations = cells_body(
+        columns = c(4)
+      )
+    ) %>%
+    # Add thin black line next to improvement column
+    tab_style(
+      style = list(
+        cell_borders(
+          sides = c("left"),
+          color = "black",
+          weight = px(1.5)
+        )
+      ),
+      locations = cells_body(
+        columns = c(4)
+      )
+    ) %>%
+    fmt_missing(
+      columns = c(2),
+      missing_text = glue::glue("{note1}")
+    ) %>%
+    fmt_missing(
+      columns = c(3),
+      rows = c(9),
+      missing_text = glue::glue("{note2}")
+    ) %>%
+    fmt_missing(
+      columns = c(4),
+      rows = c(9),
+      missing_text = glue::glue("{note3}")
+    ) %>%
+    fmt_missing(
+      columns = c(3),
+      rows = c(2),
+      missing_text = "NA*"
+    ) %>%
+    fmt_missing(
+      columns = c(4),
+      rows = c(2),
+      missing_text = "NA*"
+    ) %>%
+    fmt_missing(
+      columns = c(5),
+      missing_text = glue::glue("{note4}")
+    ) %>%
+    tab_source_note(
+      source_note = html("<i>*No educators in the follow-up survey worked with grades K-2 in ELA/Literacy.</i>")
+    ) %>%
+    tab_source_note(
+      source_note = html("<i>**Results not calculated due to small sample size (n < 5) of ELA educators who complated both the diagnostic and follow-up survey.</i>")
+    ) %>%
+    # Final theming
+    gt_theme_tl() %>%
+    tab_options(
+      column_labels.border.lr.style = "solid",
+      column_labels.vlines.style = "solid",
+      heading.border.lr.style = "solid",
+      heading.border.bottom.width = px(3),
+      heading.border.bottom.color = "black",
+      heading.border.lr.width = px(3),
+      heading.border.lr.color = "black"
+    )
+
+  sy1920_report %>%
+    gtsave(glue::glue(here("Images/Legacy Tables/{save_name}.png")))
+}
+
+data2 <- read_sheet("https://docs.google.com/spreadsheets/d/1239RSZgFOatVe0sJcxIEyhX3Kuz4e8RM0r_xdv1A8AA/edit#gid=296696640",
+  sheet = "Table 3", skip = 1, range = "A2:E10"
+) %>%
+  slice(-c(9:11)) %>%
+  dplyr::mutate(dplyr::across(.cols = c(2, 5), ~ unlist(.x))) %>%
+  dplyr::mutate(dplyr::across(.cols = c(2, 3, 5), ~ as.double(.x))) %>%
+  dplyr::mutate(dplyr::across(.cols = c(2, 3, 5), ~ 100 * .x)) %>%
+  rename(rowname = `...1`) %>%
+  mutate(across(c(5), ~ replace_na(.x, "NA**"))) %>%
+  bind_rows(ns1) %>%
+  select(1:5)
+
+table_maker_legacy_3(
+  data = data2, column_names = colnames(data2)[2:5],
+  title = "Educators’ ELA Content and Pedagogical Content Knowledge", 
+  spanner = "Average Scores", 
+  note1 = "n = 24", note2 = "n = 4", note3 = "", note4 = "n = 4",
+  rows_positive = c(1, 4:8),
+  rows_negative = c(3, 9),
+  save_name = "Legacy Table 3"
+)
+```
+
+
+## Table 4
+
+```{r}
+data3 <- read_sheet("https://docs.google.com/spreadsheets/d/1239RSZgFOatVe0sJcxIEyhX3Kuz4e8RM0r_xdv1A8AA/edit#gid=296696640",
+  sheet = "Table 4", skip = 1, range = "A2:E7"
+) %>%
+  dplyr::mutate(dplyr::across(.cols = where(is.list), ~ unlist(.x))) %>%
+  dplyr::mutate(dplyr::across(.cols = c(2, 3, 5), ~ as.double(.x))) %>%
+  dplyr::mutate(dplyr::across(.cols = c(2, 3, 5), ~ 100 * .x)) %>%
+  rename(rowname = `...1`) %>%
+  bind_rows(ns1) %>%
+  select(1:5)
+
+table_maker_legacy(
+  data = data3, column_names = colnames(data3)[2:5],
+  title = "Educators' Math Content and Pedagogical Content Knowledge", 
+  spanner = "Average Scores", 
+  note1 = "n = 17", note2 = "n = 10", note3 = "", note4 = "n = 10",
+  rows_positive = c(1, 3, 4),
+  rows_negative = c(2, 5),
+  save_name = "Legacy Table 4"
+)
+```
+
+## Table 1
+
+```{r}
+data4 <- read_sheet("https://docs.google.com/spreadsheets/d/1239RSZgFOatVe0sJcxIEyhX3Kuz4e8RM0r_xdv1A8AA/edit#gid=296696640",
+  sheet = "Table 1", skip = 1, range = "A2:E7"
+) %>%
+  dplyr::mutate(dplyr::across(.cols = where(is.list), ~ unlist(.x))) %>%
+  dplyr::mutate(dplyr::across(.cols = c(2, 3, 5), ~ as.double(.x))) %>%
+  dplyr::mutate(dplyr::across(.cols = c(2, 3, 5), ~ 100 * .x)) %>%
+  rename(rowname = `...1`) %>%
+  bind_rows(ns1) %>%
+  select(1:5) %>%
+  mutate(across(c(4), ~ as.character(.x)))
+
+table_maker_legacy(
+  data = data4, column_names = colnames(data3)[2:5],
+  title = "Educators' Equitable Mindsets and Beliefs", 
+  spanner = "Average Scores", 
+  note1 = "n = 41", note2 = "n = 14", note3 = "", note4 = "n = 9",
+  rows_positive = c(2, 4),
+  rows_negative = c(1, 3, 5),
+  save_name = "Legacy Table 1"
+)
+```
+
+# SY20-21 Report
+
+## Table 1
+
+```{r}
+
+```
+

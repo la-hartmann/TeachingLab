@@ -1,0 +1,196 @@
+---
+title: "Untitled"
+author: "Duncan Gates"
+date: "10/7/2021"
+output: html_document
+---
+
+```{r setup}
+library(readxl)
+library(tidyverse)
+library(here)
+library(gt)
+library(TeachingLab)
+
+# og_df <- read_excel(here("Data/SY19-20 Fall Spring merged.xlsx"))
+second_df <- read_excel(here("Data-Clean/Data-move/SY19-20/SY19-20 Fall-Spring Merged Dataset Update.xls"))
+```
+
+## Diagnostic Scoring
+
+```{r}
+q_and_a <- tibble(
+  question_pre = c("pre12a", "pre12b", "pre12c", "pre12d", "pre13", "pre14a", "pre14b", "pre14c", "pre14d", "pre15", "pre16", "pre17a", "pre17b", "pre17c", "pre17d", "pre18a", "pre18b", "pre18c", "pre18d", "pre19", "pre20", "pre21", "pre22", "pre23a", "pre23b", "pre23c", "pre23d", "pre24a", "pre24b", "pre24c", "pre24d", "pre25", "pre26a", "pre26b", "pre26c", "pre26d", "pre27", "pre28", "pre29", "pre30a", "pre30b", "pre30c", "pre30d", "pre31a", "pre31b", "pre31c", "pre31d", "pre32", "pre33a", "pre33b", "pre33c", "pre33d"#, 
+                   # "pre35", "pre36", "pre37", "pre38", "pre39", "pre40", "pre41", "pre42", "pre43", "pre44", "pre45a", "pre45b", "pre45c", "pre45d", "pre45e", "pre45f", "pre45g", "pre46a", "pre46b", "pre46c", "pre46d", "pre46e", "pre46f", "pre47", "pre48", "pre49", "pre50", "pre51", "pre52", "pre54", "pre55"
+                   ),
+  answers = list(c("Yes", "Literacy Instructional Shift"), 
+              c("Yes", "Literacy Instructional Shift"), 
+              c("No", "Not a Literacy Instructional Shift"), 
+              c("No", "Not a Literacy Instructional Shift"), 
+              "A complex text that is worthy of reading multiple times.", 
+              "True", 
+              "True", 
+              "False", 
+              "False", 
+              "Students independently read aloud texts at their reading level.", 
+              "Ability to read complex text independently and proficiently.", 
+              c("Yes", "Aligned"), 
+              c("Yes", "Aligned"), 
+              c("No", "Not Aligned"), 
+              c("No", "Not Aligned"), 
+              "True", 
+              "True", 
+              "False", 
+              "False", 
+              "Students pull out evidence from the text to explain their thinking in response to questions.", 
+              "Students with low reading ability and a lot of knowledge about the food chain.", 
+              "Have students read a series of additional texts at a variety of complexity levels on the topic.", 
+              "Provide students with lower reading abilities an audio version of the main text to listen to before reading the main text in class.", 
+              "Yes", 
+              "Yes", 
+              "No", 
+              "No", 
+              "Yes", 
+              "Yes", 
+              "No", 
+              "No", 
+              "Giving students opportunities to develop deep commands of the how, why, and when of mathematical concepts.", 
+              "Yes", 
+              "Yes", 
+              "No", 
+              "No", 
+              "Students’ beliefs about whether or not they are a “math person” influences their performance in math class.", 
+              "Students need to receive on grade-level instruction every year in order to graduate high school ready for college and career.", 
+              "Having the teacher simplify the language and task complexity for students who are English learners.", 
+              "Yes", 
+              "Yes", 
+              "No", 
+              "No", 
+              "Yes", 
+              "Yes", 
+              "No", 
+              "No", 
+              "They describe how students will demonstrate their understanding.", 
+              "True", 
+              "True", 
+              "False", 
+              "False"#, 
+              # c("Strongly agree", "Strongly Agree", "Agree", "Somewhat agree", "Somewhat Agree"), 
+              # c("Strongly agree", "Strongly Agree", "Agree", "Somewhat agree", "Somewhat Agree"), 
+              # c("Strongly agree", "Strongly Agree", "Agree", "Somewhat agree", "Somewhat Agree"), 
+              # c("Strongly agree", "Strongly Agree", "Agree", "Somewhat agree", "Somewhat Agree"), 
+              # "0,1,2,3,4 or more", 
+              # "0,1,2,3,4 or more", 
+              # "0,1,2,3,4 or more", 
+              # "1 strongly disagree - 6 strongly agree", 
+              # "1 strongly disagree - 6 strongly agree", 
+              # "1 strongly disagree - 6 strongly agree", 
+              # "Lead professional learning for teachers", 
+              # "Lead PLC meetings for teachers", 
+              # "Coach teachers", 
+              # "Share information or resources with teachers", "Improve my own instructional practice", "I have Not been able to do anything with this content yet", "Other (open)", "Hold a relational meeting with at least one teacher", "Encourage teachers to participate in TL PD", "Encourage teachers to become LL or Content Leader", "Advocate to the school district leader to change the plan for teacher PD", "None of the above", "Other (open)", "Almost never -- Sometimes -- Often -- Almost always", "Almost never -- Sometimes -- Often -- Almost always", "Almost never -- Sometimes -- Often -- Almost always", "Almost never -- Sometimes -- Often -- Almost always>", 
+              # "Almost never -- Sometimes -- Often -- Almost always>", "Almost never -- Sometimes -- Often -- Almost always>", "0-10", 
+              # "a-No; b- Yes"
+              )
+)
+
+all_pre <- map2_dfr(q_and_a$question_pre, q_and_a$answers, ~ TeachingLab::score_question(data = second_df, 
+                                                                                       question = .x,
+                                                                                       coding = .y,
+                                                                                       na_type = "NA"))
+all_pre %>%
+  mutate(math_ela = if_else(row_number() <= 27, "ela", "math")) %>%
+  group_by(math_ela) %>%
+  summarise(mean = mean(percent),
+            n = mean(n))
+```
+
+## Follow-Up Scoring
+
+```{r}
+q_and_a2 <- tibble(
+  question_post = c("post12a", "post12b", "post12c", "post12d", "post13", "post14a", "post14b", "post14c", "post14d", "post15", "post16", "post17a", "post17b", "post17c", "post17d", "post18a", "post18b", "post18c", "post18d", "post19", "post20", "post21", "post22", "post23a", "post23b", "post23c", "post23d", "post24a", "post24b", "post24c", "post24d", "post25", "post26a", "post26b", "post26c", "post26d", "post27", "post28", "post29", "post30a", "post30b", "post30c", "post30d", "post31a", "post31b", "post31c", "post31d", "post32", "post33a", "post33b", "post33c", "post33d"#, 
+                   # "pre35", "pre36", "pre37", "pre38", "pre39", "pre40", "pre41", "pre42", "pre43", "pre44", "pre45a", "pre45b", "pre45c", "pre45d", "pre45e", "pre45f", "pre45g", "pre46a", "pre46b", "pre46c", "pre46d", "pre46e", "pre46f", "pre47", "pre48", "pre49", "pre50", "pre51", "pre52", "pre54", "pre55"
+                   ),
+  answers = list(c("Yes", "Literacy Instructional Shift"), 
+              c("Yes", "Literacy Instructional Shift"), 
+              c("No", "Not a Literacy Instructional Shift"), 
+              c("No", "Not a Literacy Instructional Shift"), 
+              "A complex text that is worthy of reading multiple times.", 
+              "True", 
+              "True", 
+              "False", 
+              "False", 
+              "Students independently read aloud texts at their reading level.", 
+              "Ability to read complex text independently and proficiently.", 
+              c("Yes", "Aligned"), 
+              c("Yes", "Aligned"), 
+              c("No", "Not Aligned"), 
+              c("No", "Not Aligned"), 
+              "True", 
+              "True", 
+              "False", 
+              "False", 
+              "Students pull out evidence from the text to explain their thinking in response to questions.", 
+              "Students with low reading ability and a lot of knowledge about the food chain.", 
+              "Have students read a series of additional texts at a variety of complexity levels on the topic.", 
+              "Provide students with lower reading abilities an audio version of the main text to listen to before reading the main text in class.", 
+              "Yes", 
+              "Yes", 
+              "No", 
+              "No", 
+              "Yes", 
+              "Yes", 
+              "No", 
+              "No", 
+              "Giving students opportunities to develop deep commands of the how, why, and when of mathematical concepts.", 
+              "Yes", 
+              "Yes", 
+              "No", 
+              "No", 
+              "Students’ beliefs about whether or not they are a “math person” influences their performance in math class.", 
+              "Students need to receive on grade-level instruction every year in order to graduate high school ready for college and career.", 
+              "Having the teacher simplify the language and task complexity for students who are English learners.", 
+              "Yes", 
+              "Yes", 
+              "No", 
+              "No", 
+              "Yes", 
+              "Yes", 
+              "No", 
+              "No", 
+              "They describe how students will demonstrate their understanding.", 
+              "True", 
+              "True", 
+              "False", 
+              "False"#, 
+              # c("Strongly agree", "Strongly Agree", "Agree", "Somewhat agree", "Somewhat Agree"), 
+              # c("Strongly agree", "Strongly Agree", "Agree", "Somewhat agree", "Somewhat Agree"), 
+              # c("Strongly agree", "Strongly Agree", "Agree", "Somewhat agree", "Somewhat Agree"), 
+              # c("Strongly agree", "Strongly Agree", "Agree", "Somewhat agree", "Somewhat Agree"), 
+              # "0,1,2,3,4 or more", 
+              # "0,1,2,3,4 or more", 
+              # "0,1,2,3,4 or more", 
+              # "1 strongly disagree - 6 strongly agree", 
+              # "1 strongly disagree - 6 strongly agree", 
+              # "1 strongly disagree - 6 strongly agree", 
+              # "Lead professional learning for teachers", 
+              # "Lead PLC meetings for teachers", 
+              # "Coach teachers", 
+              # "Share information or resources with teachers", "Improve my own instructional practice", "I have Not been able to do anything with this content yet", "Other (open)", "Hold a relational meeting with at least one teacher", "Encourage teachers to participate in TL PD", "Encourage teachers to become LL or Content Leader", "Advocate to the school district leader to change the plan for teacher PD", "None of the above", "Other (open)", "Almost never -- Sometimes -- Often -- Almost always", "Almost never -- Sometimes -- Often -- Almost always", "Almost never -- Sometimes -- Often -- Almost always", "Almost never -- Sometimes -- Often -- Almost always>", 
+              # "Almost never -- Sometimes -- Often -- Almost always>", "Almost never -- Sometimes -- Often -- Almost always>", "0-10", 
+              # "a-No; b- Yes"
+              )
+)
+
+all_post <- map2_dfr(q_and_a2$question_post, q_and_a2$answers, ~ TeachingLab::score_question(data = second_df, 
+                                                                                       question = .x,
+                                                                                       coding = .y,
+                                                                                       na_type = "NA"))
+all_post %>%
+  mutate(math_ela = if_else(row_number() <= 27, "ela", "math")) %>%
+  group_by(math_ela) %>%
+  summarise(mean = weighted.mean(percent, n),
+            n = mean(n))
+```
+

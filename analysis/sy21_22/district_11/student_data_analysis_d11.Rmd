@@ -1,0 +1,373 @@
+---
+title: "D11 Student Data"
+author: "Duncan Gates"
+date: "5/21/2021"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F)
+
+library(tidyverse)
+library(googlesheets4)
+library(ggtext)
+devtools::load_all()
+library(TeachingLab)
+library(gt)
+```
+
+# Read in Data
+
+```{r}
+student_data <- read_sheet("https://docs.google.com/spreadsheets/d/1_TcCnkVE3Vfnxjc3cAZXxACPO5FPxRKZOYZ3blUQq7k/edit#gid=0",
+           sheet = "Clean Data")
+```
+
+# Clean
+
+```{r}
+schools_vector <- c("11X089", "11X169", "11X355", "11X567", "11X103", "11X121", "11X189", "11X021", "11X041", "11X483", "11X068", "11X87")
+
+true_false_replace <- c("FALSE" = "Non-Teaching Lab Schools", 
+                                         "TRUE" = "Teaching Lab Schools")
+
+student_data_clean <- student_data %>%
+  mutate(`Teaching Lab School` = if_else(School %in% schools_vector, T, F)) %>%
+  filter(Subject == "ELA") %>%
+  rename(Score = 1) %>%
+  rename(tl = 6) %>%
+  mutate(tl = str_replace_all(tl, true_false_replace)) %>%
+  mutate(Score = as.numeric(Score),
+         Grade = factor(Grade, levels = c(3:8))) %>%
+  distinct() %>%
+  mutate(n = case_when(School == "11X089" ~ 715,
+                      School == "11X016" ~ 129,
+                      School == "11X019" ~ 315,
+                      School == "11X021" ~ 150,
+                      School == "11X041" ~ 307,
+                      School == "11X076" ~ 276,
+                      School == "11X078" ~ 286,
+                      School == "11X087" ~ 202,
+                      School == "11X096" ~ 407,
+                      School == "11X097" ~ 233,
+                      School == "11X103" ~ 444,
+                      School == "11X105" ~ 372,
+                      School == "11X106" ~ 427,
+                      School == "11X108" ~ 179,
+                      School == "11X111" ~ 246,
+                      School == "11X112" ~ 154,
+                      School == "11X121" ~ 283,
+                      School == "11X127" ~ 593,
+                      School == "11X144" ~ 273,
+                      School == "11X153" ~ 296,
+                      School == "11X160" ~ 146,
+                      School == "11X169" ~ 186,
+                      School == "11X175" ~ 198,
+                      School == "11X178" ~ 172,
+                      School == "11X181" ~ 527,
+                      School == "11X189" ~ 134,
+                      School == "11X287" ~ 197,
+                      School == "11X326" ~ 293,
+                      School == "11X357" ~ 159,
+                      School == "11X468" ~ 277,
+                      School == "11X483" ~ 116,
+                      School == "11X498" ~ 461,
+                      School == "11X556" ~ 277,
+                      School == "11X566" ~ 374,
+                      School == "11X567" ~ 167,
+                      School == "11X462" ~ 227))
+
+# write_rds(student_data_clean, here::here("Data-Clean/D11StudentDataCleaned.rds"))
+# 
+# write_sheet(student_data_clean, sheet = "https://docs.google.com/spreadsheets/d/1Zp62EA-LnaU9crXkUbb-IBsd9dGnxf4SwDM5WeghcyM/edit#gid=0")
+```
+
+# Analyze
+
+```{r}
+student_data_clean %>%
+  dplyr::group_by(Grade, Season, tl) %>%
+  dplyr::summarise(Score_Group = mean(Score)) %>%
+  ggplot(aes(x = Grade, y = Score_Group, color = Grade, fill = Grade)) +
+  geom_col() +
+  geom_richtext(fill = NA, label.color = NA,
+                aes(x = Grade, y = Score_Group, color = Grade, label = paste0(round(Score_Group), "%")), hjust = -0.1) +
+  coord_flip() +
+  labs(x = "", y = "", title = "Average Percentile by Grade in Teaching Lab vs. Non-Teaching Lab Schools") +
+  facet_wrap(Season ~ tl, 
+              labeller = label_wrap_gen(multi_line = F, width = 40)) +
+  theme_tl() +
+  scale_fill_manual(values = tl_palette(theme = "dark", n = 7)[2:7]) +
+  scale_color_manual(values = tl_palette(theme = "dark", n = 7)[2:7]) +
+  theme(legend.position = "none",
+        strip.text = element_text(hjust = 0.5))
+```
+
+```{r}
+point_graph <- student_data_clean %>%
+  group_by(Season, tl, School) %>%
+  summarise(Score_Group = mean(Score)) %>%
+  arrange(tl, Season) %>%
+  group_by(School) %>%
+  mutate(n_school = n()) %>%
+  filter(n_school > 1)
+  
+mean_line <- student_data_clean %>%
+  group_by(tl, Season) %>%
+  summarise(mean_tl = mean(Score))
+
+tl_detect <- point_graph %>% select(School, tl)
+
+point_segments <- tibble(
+  y = point_graph %>% filter(Season == "Fall") %>% pull(Score_Group),
+  yend = point_graph %>% filter(Season == "Winter") %>% pull(Score_Group),
+  x = point_graph %>% filter(Season == "Fall") %>% pull(School),
+  xend = point_graph %>% filter(Season == "Winter") %>% pull(School)
+) %>%
+  left_join(tl_detect, by = c("x" = "School"))
+
+
+labels <- tibble(
+  x = c("11X189", "11X556"),
+  y = c(73, 78),
+  tl = c("Teaching Lab Schools", "Non-Teaching Lab Schools"),
+  label = str_replace_all(str_wrap(c("The percent of students above the 50th percentile of students decreased by 8 percent on average, from <span style='color:#43C6B9'>44%</span> to 36%",
+            "The percent of students above the 50th percentile of students decreased by 8 percent on average, from <span style='color:#43C6B9'>50%</span> to 42%"), 50), "\n", "<br>")
+)
+
+arrows <- tibble(
+  x1 = c(6.7, 6.7),
+  x2 = c(6.3, 6.5),
+  y1 = c(72, 79),
+  y2 = c(44.3, 36),
+  tl = c("Teaching Lab Schools", "Teaching Lab Schools"),
+  Season = c("Winter", "Fall")
+)
+
+
+ggplot() +
+  geom_point(data = point_graph, aes(x = School, y = Score_Group, color = Season), alpha = 0.75, size = 2) +
+  geom_segment(data = point_segments, aes(x = x, xend = xend, y = y, yend = yend), color = "black", alpha = 0.75) +
+  geom_hline(data = mean_line, aes(yintercept = mean_tl, color = Season), linetype = "dashed", show.legend = F) +
+  geom_richtext(data = labels,
+                fill = NA, label.color = NA,
+                aes(x = x, y = y, label = label)) +
+  geom_curve(
+    data = arrows, aes(x = x1, y = y1, xend = x2, yend = y2, colour = Season),
+    arrow = arrow(length = unit(0.08, "inch")), size = 0.5,
+    color = "gray20", curvature = -0.25
+  ) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1), breaks = scales::pretty_breaks(n = 5),
+                     limits = c(0, 100)) +
+  guides(colour = guide_legend(override.aes = list(size=10))) +
+  coord_flip() +
+  facet_wrap( ~ tl, scales = "free_y") +
+  labs(x = "", y = "", title = "Per School Percentile Difference from Fall to <span style='color:#43C6B9'>Winter</span>") +
+  scale_color_manual(values = tl_palette(n = 2, color = "green", theme = "dark"),
+                     labels = c(Winter = "<span style='color:#43C6B9'>Winter</span>",
+                                Fall = "Fall")) +
+  theme_tl() +
+  theme(legend.position = c(0.95, 1),
+        strip.text = element_text(hjust = 0.5),
+        plot.title = element_markdown(family = "Calibri"),
+        legend.title = element_blank(),
+        legend.text = element_markdown(size = 12)) +
+  ggsave(here("Images/D11/StudentAnalysis1.png"), width = 18, height = 9)
+```
+
+- Weighted averages of improvement
+- Specific schools
+
+
+
+# Bennington Analysis
+
+```{r}
+rankings <- student_data_clean %>%
+  group_by(School, Season, tl) %>%
+  summarise(Score = round(mean(Score))) %>%
+  arrange(desc(Score)) %>%
+  group_by(Season) %>%
+  mutate(Rank = row_number()) %>%
+  relocate(Rank, .before = 1) %>% 
+  mutate(tl = str_replace_all(tl, c("Non-Teaching Lab Schools" = "Non-TL",
+                                    "Teaching Lab Schools" = "TL"))) %>%
+  mutate(School = str_replace_all(School, "11X089", "Bennington"))
+
+rankings %>% 
+  group_by(tl, Season) %>%
+  summarise(mean(Rank)) %>% 
+  gt() %>%
+  cols_label(`mean(Rank)` = md("Average Rank")) %>%
+  gtsave(here("Images/D11/StudentAverageRank.png"))
+
+real_schools <- c("11X121" = "Throop",
+                  "11X169" = "Baychester Academy",
+                  "11X483" = "The Matilda Avenue School",
+                  "11X021" = "Philip H. Sheridan",
+                  "11X189" = "Cornerstone Academy for Social Action",
+                  "11X041" = "Gun Hill Road",
+                  "11X103" = "Hector Fontanez",
+                  "11X567" = "Linden Tree Elementary School")
+
+rankings %>%
+  select(-Score) %>%
+  pivot_wider(names_from = "Season", values_from = "Rank") %>%
+  mutate(Improve = case_when(Winter < Fall ~ "Improved",
+                             Winter == Fall ~ "Maintained",
+                             Winter > Fall ~ "Did not Improve")) %>%
+  mutate(School = str_replace_all(School, real_schools)) %>%
+  filter(tl == "TL") %>%
+  select(-tl) %>%
+  arrange(Winter) %>%
+  gt::gt() %>%
+  tab_header(title = "School Percentile Rankings in Fall and Winter",
+             subtitle = "Ranks show the position of the school as compared to other D11 Schools in measuring the percent of students performing above the 50th percentile") %>%
+  cols_label(Fall = md("**Fall Rank**"),
+             Winter = md("**Winter Rank**"),
+             School = md("**School**"),
+             Improve = md("**Change in Ranking**")) %>%
+  tab_style(
+    style = list(
+      cell_fill(color = "#04ABEB"),
+      cell_text(color = "white")
+      ),
+    locations = cells_body(
+      rows = Winter <= Fall)
+  ) %>%
+  gtsave(here("Images/D11/StudentScoreRankings.png"))
+
+rankings %>%
+  select(-Score) %>%
+  pivot_wider(names_from = "Season", values_from = "Rank") %>%
+  mutate(Improve = case_when(Winter < Fall ~ "Improved",
+                             Winter == Fall ~ "Maintained",
+                             Winter > Fall ~ "Did not Improve")) %>%
+  mutate(School = str_replace_all(School, real_schools)) %>%
+  filter(tl == "TL") %>%
+  select(-tl) %>%
+  arrange(Winter) %>%
+  gt::gt() %>%
+  tab_header(title = "School Percentile Rankings in Fall and Winter",
+             subtitle = "Ranks show the position of the school as compared to other D11 Schools in measuring the percent of students performing above the 50th percentile") %>%
+  cols_label(Fall = md("**Fall Rank**"),
+             Winter = md("**Winter Rank**"),
+             School = md("**School**"),
+             Improve = md("**Change in Ranking**")) %>%
+  tab_style(
+    style = list(
+      cell_fill(color = "#04ABEB"),
+      cell_text(color = "white", weight = "bold")
+      ),
+    locations = cells_body(
+      rows = School == "Bennington")
+  ) %>%
+  gt_theme_tl() %>%
+  tab_options(
+    column_labels.border.lr.style = "solid",
+    column_labels.vlines.style = "solid",
+    # heading.border.lr.style = "solid",
+    heading.border.bottom.width = px(3),
+    heading.border.bottom.color = "black",
+    heading.align = "center"
+    # heading.border.lr.width = px(3),
+    # heading.border.lr.color = "black"
+  ) %>%
+  gtsave(here("Images/D11/StudentScoreBenningtonRankings.png"))
+```
+
+```{r}
+rankings <- student_data_clean %>%
+  group_by(School, Season, tl) %>%
+  summarise(Score = round(mean(Score))) %>%
+  arrange(desc(Score)) %>%
+  group_by(Season) %>%
+  mutate(Rank = row_number()) %>%
+  relocate(Rank, .before = 1) %>% 
+  mutate(tl = str_replace_all(tl, c("Non-Teaching Lab Schools" = "Non-TL",
+                                    "Teaching Lab Schools" = "TL"))) %>%
+  mutate(School = str_replace_all(School, "11X089", "Bennington")) %>%
+    group_by(School) %>%
+  mutate(n_school = n()) %>%
+  filter(n_school > 1)
+
+mean_line <- student_data_clean %>%
+  group_by(School, Season, tl) %>%
+  summarise(Score = round(mean(Score))) %>%
+  arrange(desc(Score)) %>%
+  group_by(Season) %>%
+  mutate(Rank = row_number()) %>%
+  ungroup() %>%
+  group_by(Season, tl) %>%
+  summarise(mean_tl = mean(Rank))
+
+tl_detect <- rankings %>% select(School, tl)
+
+ranking_segments <- tibble(
+  y = rankings %>% filter(Season == "Fall") %>% pull(Rank),
+  yend = rankings %>% filter(Season == "Winter") %>% pull(Rank),
+  x = rankings %>% filter(Season == "Fall") %>% pull(School),
+  xend = rankings %>% filter(Season == "Winter") %>% pull(School)
+) %>%
+  left_join(tl_detect, by = c("x" = "School"))
+
+
+# labels <- tibble(
+#   x = c("11X189", "11X556"),
+#   y = c(73, 78),
+#   tl = c("Teaching Lab Schools", "Non-Teaching Lab Schools"),
+#   label = str_replace_all(str_wrap(c("The percent of students above the 50th percentile of students decreased by 8 percent on average, from <span style='color:#43C6B9'>44%</span> to 36%",
+#             "The percent of students above the 50th percentile of students decreased by 8 percent on average, from <span style='color:#43C6B9'>50%</span> to 42%"), 50), "\n", "<br>")
+# )
+# 
+# arrows <- tibble(
+#   x1 = c(6.7, 6.7),
+#   x2 = c(6.3, 6.5),
+#   y1 = c(72, 79),
+#   y2 = c(44.3, 36),
+#   tl = c("Teaching Lab Schools", "Teaching Lab Schools"),
+#   Season = c("Winter", "Fall")
+# )
+
+
+ggplot() +
+  geom_point(data = rankings, aes(x = School, y = as.numeric(Rank), color = Season), alpha = 0.75, size = 2) +
+  geom_segment(data = ranking_segments, aes(x = x, xend = xend, y = y, yend = yend), color = "black", alpha = 0.75) +
+  # geom_hline(data = mean_line, aes(yintercept = mean_tl, color = Season), linetype = "dashed", show.legend = F) +
+  # geom_richtext(data = labels,
+  #               fill = NA, label.color = NA,
+  #               aes(x = x, y = y, label = label)) +
+  # geom_curve(
+  #   data = arrows, aes(x = x1, y = y1, xend = x2, yend = y2, colour = Season),
+  #   arrow = arrow(length = unit(0.08, "inch")), size = 0.5,
+  #   color = "gray20", curvature = -0.25
+  # ) +
+  scale_y_continuous(breaks = c(1:35)) +
+  guides(colour = guide_legend(override.aes = list(size=10))) +
+  coord_flip() +
+  facet_wrap( ~ tl, scales = "free_y") +
+  labs(x = "", y = "", title = "Per School Ranking Difference from Fall to <span style='color:#43C6B9'>Winter</span>") +
+  scale_color_manual(values = tl_palette(n = 2, color = "green", theme = "dark"),
+                     labels = c(Winter = "<span style='color:#43C6B9'>Winter</span>",
+                                Fall = "Fall")) +
+  theme_tl() +
+  theme(legend.position = c(0.95, 1),
+        strip.text = element_text(hjust = 0.5),
+        plot.title = element_markdown(family = "Calibri"),
+        legend.title = element_blank(),
+        legend.text = element_markdown(size = 12)) +
+  ggsave(here("Images/D11/StudentAnalysis2.png"), width = 18, height = 9)
+```
+
+# Weighted Mean
+
+```{r}
+student_data_clean %>%
+  group_by(tl, Season) %>%
+  summarise(weighted_mean = weighted.mean(Score, n))
+```
+
+
+

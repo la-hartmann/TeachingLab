@@ -1,0 +1,54 @@
+---
+title: "Facilitator Lists"
+author: "Duncan Gates"
+date: "7/20/2021"
+output:
+  html_document:
+  theme: paper
+highlight: kate
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(googlesheets4)
+library(clipr)
+data <- read_sheet("https://docs.google.com/spreadsheets/d/1nqtFK9_HBMBU6XQwCmmPYkhwBXZUj8wmevF2WGYUlaM/edit#gid=1933413518", sheet = "Facilitators")
+```
+
+# ELA
+
+```{r}
+ela_names <- data %>%
+  filter(EL == T | Guidebooks == T) %>%
+  filter(Completed != "No" & Completed != "Not Started" & Completed != "") %>%
+  select(Name)
+
+write_clip(ela_names)
+```
+
+
+# Math
+
+```{r}
+math_names <- data %>%
+  filter(IM == T | `Engage/Eureka` == T | Zearn == T) %>%
+  filter(Completed != "No" & Completed != "Not Started" & Completed != "") %>%
+  select(Name)
+
+write_clip(math_names)
+```
+
+# State-Level
+
+```{r}
+state_names <- data %>%
+  filter(`State Level` == T) %>%
+  filter(Completed != "No" & Completed != "Not Started" & Completed != "") %>%
+  select(Name)
+
+write_clip(state_names)
+```

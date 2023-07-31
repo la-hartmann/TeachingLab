@@ -1,0 +1,1429 @@
+---
+params:
+  teacher: "Alicia Smith"
+title: "Mississippi Department of Education\nMathematics Instructional Coaching Services"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  TeachingLab::TLDefault:
+    css: styles.css
+    fontawesome: false
+    self_contained: true
+    thumbnails: false
+    lightbox: true
+    gallery: false
+    highlight: kate # Also can do tango
+    number_sections: false
+    includes:
+      in_header: header.html
+      after_body: footer.html
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+library(rmdformats)
+library(glue)
+devtools::load_all()
+library(TeachingLab)
+library(tidyverse)
+library(ggtext)
+library(here)
+library(scales)
+library(lubridate)
+library(gt)
+library(glue)
+
+mississippi_participants <- readr::read_rds(here::here("data/misssissippi_participants.rds"))
+
+ipg_forms <- readr::read_rds(here::here("data/ipg_forms.rds")) %>%
+  filter(str_detect(`Name of Site (Parish, District, Network)`, ", MS")) %>%
+  if (params$teacher != "All") filter(., `Name of teacher observed (for Mississippi Coaching Project - alphabetized by first name)` == params$teacher) else .
+
+student_survey <- readr::read_rds(here::here("data/student_survey.rds")) %>%
+  if (params$teacher != "All") filter(., teacher == params$teacher) else .
+
+family_survey <- readr::read_rds(here::here("data/family_survey.rds")) %>%
+  if (params$teacher != "All") filter(., teacher == params$teacher) else .
+
+if (params$teacher != "All") {
+  mississippi_teacher <- mississippi_participants %>%
+    filter(Name == params$teacher)
+  teacher_school <- mississippi_teacher %>%
+    pull(School)
+  teacher_district <- mississippi_teacher %>%
+    pull(District)
+  teacher_code <- mississippi_teacher %>%
+    pull(`Teacher code`)
+}
+
+diagnostic <- readr::read_rds(here::here("data/diagnostic.rds")) %>%
+  mutate(code = toupper(paste0(
+    substr(
+      please_write_in_your_3_initials_if_you_do_not_have_a_middle_initial_please_write_x_br_this_is_used_to_link_the_diagnostic_and_follow_up_surveys_but_is_kept_confidential_br_br,
+      1,
+      1
+    ),
+    substr(
+      please_write_in_your_3_initials_if_you_do_not_have_a_middle_initial_please_write_x_br_this_is_used_to_link_the_diagnostic_and_follow_up_surveys_but_is_kept_confidential_br_br,
+      3,
+      3
+    )
+  ))) %>%
+  filter(str_detect(your_site_district_parish_network_or_school_br_br, ", MS")) %>%
+  if (params$teacher != "All") filter(., code == teacher_code) else .
+
+diagnostic_count <- diagnostic %>%
+  filter(response_status == "completed") %>%
+  nrow()
+
+equitable_questions <- c(
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_am_color_blind_when_it_comes_to_my_teaching_i_don_t_think_of_my_students_in_terms_of_their_race_or_ethnicity",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_the_gap_in_the_achievement_among_students_of_different_races_is_about_poverty_not_race",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_think_about_my_own_background_and_experiences_and_how_those_affect_my_instruction"
+)
+
+high_expectations_questions <- c(
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_try_to_keep_in_mind_the_limits_of_my_students_ability_and_give_them_assignments_that_i_know_they_can_do_so_that_they_do_not_become_discouraged",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_before_students_are_asked_to_engage_in_complex_learning_tasks_they_need_to_have_a_solid_grasp_of_basic_skills",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_it_is_not_fair_to_ask_students_who_are_struggling_with_english_to_take_on_challenging_academic_assignments",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_teachers_should_provide_all_students_the_opportunity_to_work_with_grade_level_texts_and_tasks"
+)
+
+crse_questions <- c(
+  "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_adapt_instruction_to_meet_the_needs_of_my_students",
+  "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_identify_ways_that_the_school_culture_e_g_values_norms_and_practices_is_different_from_my_students_home_culture",
+  "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_use_my_students_prior_knowledge_to_help_them_make_sense_of_new_information",
+  "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_revise_instructional_material_to_include_a_better_representation_of_cultural_groups",
+  "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_teach_the_curriculum_to_students_with_unfinished_learning",
+  "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_teach_the_curriculum_to_students_who_are_from_historically_marginalized_groups"
+)
+
+
+knowledge_assessments_read <- readr::read_rds(here::here("data/mississippi_reports/knowledge_assessments.rds"))
+
+
+
+if (params$teacher != "All") {
+  knowledge_assessments_read <- knowledge_assessments_read %>%
+    filter(code == teacher_code)
+}
+
+knowledge_assessments <- knowledge_assessments_read %>%
+  select(all_of(c(
+    "which_of_the_following_actions_best_describes_equitable_instructional_strategies_for_supporting_students_with_unfinished_learning_in_math",
+    "ms_clark_is_preparing_to_teach_a_new_unit_and_the_first_lesson_builds_off_of_work_from_the_previous_grade_level_she_has_identified_6_students_who_have_unfinished_learning_around_this_topic_in_her_class_of_25_and_she_determines_that_students_need_to_have_a_conceptual_understanding_of_the_topic_but_not_necessarily_procedural_skill_to_fully_engage_in_the_lesson_select_all_strategies_that_will_best_support_her_students_pull_the_6_students_for_a_small_group_to_discuss_the_connections_between_different_strategies_they_ve_used_in_previous_grades",
+    "ms_clark_is_preparing_to_teach_a_new_unit_and_the_first_lesson_builds_off_of_work_from_the_previous_grade_level_she_has_identified_6_students_who_have_unfinished_learning_around_this_topic_in_her_class_of_25_and_she_determines_that_students_need_to_have_a_conceptual_understanding_of_the_topic_but_not_necessarily_procedural_skill_to_fully_engage_in_the_lesson_select_all_strategies_that_will_best_support_her_students_plan_an_activity_with_multiple_entry_points_to_engage_the_whole_class_in",
+    "ms_clark_is_preparing_to_teach_a_new_unit_and_the_first_lesson_builds_off_of_work_from_the_previous_grade_level_she_has_identified_6_students_who_have_unfinished_learning_around_this_topic_in_her_class_of_25_and_she_determines_that_students_need_to_have_a_conceptual_understanding_of_the_topic_but_not_necessarily_procedural_skill_to_fully_engage_in_the_lesson_select_all_strategies_that_will_best_support_her_students_pull_the_6_students_for_a_small_group_to_review_a_step_by_step_process_for_solving_problems_from_the_previous_grade_which_are_related_to_the_topic",
+    "ms_clark_is_preparing_to_teach_a_new_unit_and_the_first_lesson_builds_off_of_work_from_the_previous_grade_level_she_has_identified_6_students_who_have_unfinished_learning_around_this_topic_in_her_class_of_25_and_she_determines_that_students_need_to_have_a_conceptual_understanding_of_the_topic_but_not_necessarily_procedural_skill_to_fully_engage_in_the_lesson_select_all_strategies_that_will_best_support_her_students_review_the_step_by_step_procedure_with_the_whole_class_as_a_warm_up_before_the_lesson",
+    "ms_clark_is_preparing_to_teach_a_new_unit_and_the_first_lesson_builds_off_of_work_from_the_previous_grade_level_she_has_identified_6_students_who_have_unfinished_learning_around_this_topic_in_her_class_of_25_and_she_determines_that_students_need_to_have_a_conceptual_understanding_of_the_topic_but_not_necessarily_procedural_skill_to_fully_engage_in_the_lesson_select_all_strategies_that_will_best_support_her_students_im_not_sure",
+    "when_supporting_students_with_unfinished_learning_which_of_the_following_are_missteps_when_it_comes_to_maintaining_focus_and_coherence_select_all_that_apply_trying_to_address_every_gap_a_student_has",
+    "when_supporting_students_with_unfinished_learning_which_of_the_following_are_missteps_when_it_comes_to_maintaining_focus_and_coherence_select_all_that_apply_focus_on_major_work_clusters_from_current_or_previous_grades_as_it_relates_to_upcoming_content",
+    "when_supporting_students_with_unfinished_learning_which_of_the_following_are_missteps_when_it_comes_to_maintaining_focus_and_coherence_select_all_that_apply_use_formative_data_to_gauge_student_understanding_and_inform_pacing",
+    "when_supporting_students_with_unfinished_learning_which_of_the_following_are_missteps_when_it_comes_to_maintaining_focus_and_coherence_select_all_that_apply_choosing_content_for_intervention_based_solely_on_students_weakest_area",
+    "when_supporting_students_with_unfinished_learning_which_of_the_following_are_missteps_when_it_comes_to_maintaining_focus_and_coherence_select_all_that_apply_i_m_not_sure",
+    "which_of_the_following_is_the_most_effective_at_addressing_unfinished_learning",
+    "which_of_the_following_statements_describe_math_instructional_shifts_associated_with_college_and_career_readiness_standards_select_all_that_apply_going_deeper_into_fewer_math_topics",
+    "which_of_the_following_statements_describe_math_instructional_shifts_associated_with_college_and_career_readiness_standards_select_all_that_apply_making_connections_between_math_topics_across_grades",
+    "which_of_the_following_statements_describe_math_instructional_shifts_associated_with_college_and_career_readiness_standards_select_all_that_apply_prioritizing_conceptual_understanding_over_procedural_skills",
+    "which_of_the_following_statements_describe_math_instructional_shifts_associated_with_college_and_career_readiness_standards_select_all_that_apply_creating_opportunities_for_students_to_work_on_math_skills_above_their_grade_level",
+    "which_of_the_following_statements_describe_math_instructional_shifts_associated_with_college_and_career_readiness_standards_select_all_that_apply_im_not_sure",
+    "which_of_the_following_statements_are_true_about_the_research_into_types_of_math_instruction_select_all_that_apply_unguided_problem_solving_lessons_are_the_least_effective_type_of_math_lesson",
+    "which_of_the_following_statements_are_true_about_the_research_into_types_of_math_instruction_select_all_that_apply_building_deep_understanding_with_fewer_math_topics_is_more_effective_than_covering_a_broader_range_of_math_topics",
+    "which_of_the_following_statements_are_true_about_the_research_into_types_of_math_instruction_select_all_that_apply_math_instruction_that_covers_more_math_topics_leads_to_better_student_performance_on_assessments",
+    "which_of_the_following_statements_are_true_about_the_research_into_types_of_math_instruction_select_all_that_apply_direct_instruction_i_do_we_do_you_do_is_the_most_effective_type_of_math_instruction",
+    "which_of_the_following_statements_are_true_about_the_research_into_types_of_math_instruction_select_all_that_apply_im_not_sure",
+    "equitable_instruction_in_math_includes_which_of_the_following",
+    "which_of_the_following_statements_are_true_about_the_principles_behind_the_mathematical_language_routines_select_all_that_apply_students_do_not_need_to_understand_english_completely_before_they_can_start_making_sense_of_math_instruction_in_english",
+    "which_of_the_following_statements_are_true_about_the_principles_behind_the_mathematical_language_routines_select_all_that_apply_an_appropriate_scaffold_for_language_development_is_to_allow_students_to_make_charts_diagrams_and_other_visual_representations_of_their_understanding",
+    "which_of_the_following_statements_are_true_about_the_principles_behind_the_mathematical_language_routines_select_all_that_apply_students_who_are_not_proficient_in_academic_english_should_work_with_simplified_math_tasks_until_they_develop_stronger_language_skills",
+    "which_of_the_following_statements_are_true_about_the_principles_behind_the_mathematical_language_routines_select_all_that_apply_to_demonstrate_their_mathematical_knowledge_students_must_be_able_to_use_formal_definitions_and_vocabulary_accurately",
+    "which_of_the_following_statements_are_true_about_the_principles_behind_the_mathematical_language_routines_select_all_that_apply_im_not_sure"
+  ))) %>%
+  janitor::remove_empty("rows")
+
+answers <- c(
+  "Identifying unfinished learning leading up to the current topic and teach 1-2 lessons targeting those prerequisites at the beginning of the topic.",
+  "Pull the 6 students for a small group to discuss the connections between different strategies they’ve used in previous grades.",
+  "Plan an activity with multiple entry points to engage the whole class in.",
+  # "Pull the 6 students for a small group to review a step-by-step process for solving problems from the previous grade which are related to the topic.",
+  # "Review the step-by-step procedure with the whole class as a warm-up before the lesson.",
+  # "I'm not sure",
+  rep("Wrong answer", 3),
+  "Trying to address every gap a student has",
+  # "Focus on Major Work clusters from current or previous grades as it relates to upcoming content",
+  # "Use formative data to gauge student understanding and inform pacing",
+  rep("Wrong answer", 2),
+  "Choosing content for intervention based solely on students’ weakest area",
+  # "I'm not sure",
+  "Wrong Answer",
+  "Stick to grade-level content and instructional rigor",
+  "Going deeper into fewer math topics",
+  "Making connections between math topics across grades",
+  # "Prioritizing conceptual understanding over procedural skills",
+  # "Creating opportunities for students to work on math skills above their grade-level",
+  # "I'm not sure.",
+  rep("Wrong answer", 3),
+  "Unguided problem solving lessons are the least effective type of math lesson.",
+  "Building deep understanding with fewer math topics is more effective than covering a broader range of math topics.",
+  # "Math instruction that covers more math topics leads to better student performance on assessments.",
+  # "Direct instruction (I do, We do, You do) is the most effective type of math instruction.",
+  # "I'm not sure",
+  rep("Wrong answer", 3),
+  "Creating opportunities for students to practice saying out loud how they solved a problem.",
+  "Students do not need to understand English completely before they can start making sense of math instruction in English.",
+  "An appropriate scaffold for language development is to allow students to make charts, diagrams, and other visual representations of their understanding.",
+  # "Students who are not proficient in academic English should work with simplified math tasks until they develop stronger language skills.",
+  # "To demonstrate their mathematical knowledge, students must be able to use formal definitions and vocabulary accurately.",
+  # "I'm not sure"
+  rep("Wrong answer", 3)
+)
+
+knowledge_assessments_percents <- map2_df(knowledge_assessments, answers, ~
+TeachingLab::tl_score(data = .x, answer = .y)) %>%
+  mutate(
+    answer = answers,
+    question = colnames(knowledge_assessments),
+    question_groups = c(
+      "1",
+      "2", "2", "2", "2", "2",
+      "3", "3", "3", "3", "3",
+      "4",
+      "5", "5", "5", "5", "5",
+      "6", "6", "6", "6", "6",
+      "7",
+      "8", "8", "8", "8", "8"
+    ),
+    correct = c(
+      T,
+      T, T, F, F, F,
+      T, F, F, T, F,
+      T,
+      T, T, F, F, F,
+      T, T, F, F, F,
+      T,
+      T, T, F, F, F
+    )
+  ) %>%
+  group_by(question_groups) %>%
+  summarise(final_percent = round(100 * sum(n_correct) / sum(n_selected), 2)) %>%
+  select(final_percent) %>%
+  bind_cols(question = c(
+    "Which of the following actions BEST describes equitable instructional strategies for supporting students with unfinished learning in math?",
+    "Ms. Clark is preparing to teach a new unit and the first lesson builds off of work from the previous grade level. She has identified 6 students who have unfinished learning around this topic in her class of 25 and she determines that students need to have a conceptual understanding of the topic, but not necessarily procedural skill to fully engage in the lesson. Select all strategies that will best support her students.",
+    "When supporting students with unfinished learning, which of the following are MISSTEPS when it comes to maintaining focus and coherence? Select all that apply.",
+    "Which of the following is the most effective at addressing unfinished learning?",
+    "Which of the following statements describe math instructional shifts associated with college-and-career readiness standards?",
+    " Which of the following statements are true about the research into types of math instruction?",
+    "Equitable instruction in math includes which of the following?",
+    "Which of the following statements are true about the principles behind the Mathematical Language Routines?"
+  ))
+
+student_math <- TeachingLab::get_student_scores_mississippi() %>%
+  {
+    if (params$teacher != "All") filter(., teachers_name == params$teacher) else .
+  }
+
+tl_score_numeric <- function(x) {
+  x2 <- x |>
+    readr::parse_number() |>
+    mean(na.rm = T)
+  x3 <- round(100 * (x2 / 5), 2)
+  x3
+}
+
+selection_sum <- function(data, select) {
+  data %>%
+    select(all_of(select)) %>%
+    janitor::remove_empty("rows") %>%
+    summarise(across(everything(), ~ tl_score_numeric(as.character(.x)))) %>%
+    pivot_longer(everything())
+}
+
+## Global options
+options(max.print = "75", width = 1000)
+opts_chunk$set(
+  echo = FALSE,
+  cache = F,
+  prompt = FALSE,
+  tidy = TRUE,
+  comment = NA,
+  message = FALSE,
+  warning = FALSE
+)
+```
+
+```{=html}
+<script src="js/hideOutput.js"></script>
+```
+
+
+#### Assets & Needs Assessment
+
+#### April 2022
+
+`r if(params$teacher == "All") {"<!--"}` 
+##### Teacher Level Report
+##### `r if(params$teacher != "All") TeachingLab::colorize(params$teacher, "#04abeb")`
+##### `r if(params$teacher != "All") TeachingLab::colorize(teacher_school, "#ff7b43")`
+##### `r if(params$teacher != "All") TeachingLab::colorize(teacher_district, "#ea9999")`
+`r if(params$teacher == "All") {"-->"}`
+
+As part of the first Assets & Needs Assessment, Teaching Lab conducted a
+variety of data collection activities, including a teacher survey and
+classroom observations, a student survey and analysis of student work
+samples, and a family survey.
+
+#### Summary of Results
+
+-   **There are opportunities for participants to improve equitable
+    mindsets**, particularly surrounding the importance of recognizing
+    students' race and culture and holding high expectations for all
+    students, even those with unfinished learning.
+
+-   On average, **participants are somewhat confident in implementing
+    culturally responsive teaching practices.** Teachers' responses
+    indicate that they feel most confident using students' prior
+    knowledge to help them make sense of new information. They rated
+    themselves as less confident in other culturally responsive teaching
+    practices, such as revising instructional material to better
+    represent cultural groups and identifying ways that school culture
+    is different from students' home cultures, among others.
+
+-   **Teachers have potential for growth related to content and
+    pedagogical content knowledge, as the average score on the
+    assessmen**t that focused on equitable instruction in general and
+    effective instructional practices specifically for students with
+    unfinished learning was 45%. . 
+
+-   Regarding **instructional practices, participants demonstrated the
+    most positive ratings on the IPG for Core Action 1** (75% on
+    average), which observes whether and to what extent the work of the
+    enacted lesson reflects the Focus, Coherence, and Rigor required by
+    college- and career-ready standards in mathematics. However,
+    **positive ratings for Core Action 2**, focused on the extent to
+    which instructional practices allow all students to learn the
+    content of the lesson, **and Core Action 3,** providing all students
+    with opportunities to exhibit mathematical practices while engaging
+    with the content of the lesson, **were significantly lower** (29%
+    and 24%, respectively). 
+
+-   **Students' responses related to their learning experiences were
+    positive overall,** especially for self-efficacy, teacher-student
+    relationships, and being challenged. Lower average scores were
+    observed for culturally responsive and sustaining education
+    practices and happiness and sense of belonging.
+
+-   The analysis of student work samples suggested that **assigning
+    grade-level tasks and students' proficiency on tasks can improve.**
+    Of the student work samples collected, only 65% of the tasks were
+    determined to be on grade-level. Moreover, only 31% of students
+    demonstrated proficiency on grade-level student work tasks that were
+    scored. 
+
+-   The family survey results suggest that **students' families have
+    somewhat positive perceptions about teacher-family relationships and
+    support and teacher-student relationships.** Additionally, **family
+    perceptions of student learning were very positive,** with 85% of
+    caregivers reporting that their children complete most or all of
+    their assignments and 92% reporting that their children have learned
+    some or a lot this year.
+
+# Section 1: Mindsets
+
+## Equitable Mindsets Summary
+
+Teachers responded to seven items about mindsets, including three items
+related to recognizing race and culture and four items related to
+holding high expectations for all students on a 5-point Likert scale.
+Composite measures were created for each construct by reverse coding
+some items and then averaging responses across items. In this way,
+higher scores correspond to holding equitable mindsets.
+
+<center>
+
+```{r mindsets-overall, fig.dim = c(6.5, 4.5)}
+if (nrow(diagnostic) >= 1) {
+  mindsets_data <- diagnostic %>%
+    select(all_of(c(equitable_questions, high_expectations_questions)))
+
+  if (params$teacher == "All") {
+    mindsets_count <- mindsets_data %>%
+      summarise(across(everything(), ~ sum(!is.na(.x)))) %>%
+      pivot_longer(everything())
+    mindsets_n <- mean(mindsets_count$value)
+  } else {
+    mindsets_n <- NULL
+  }
+
+  mindsets_data %>%
+    TeachingLab::tl_summary_table(
+      data = .,
+      summarise = T,
+      grouping = "summarise",
+      save = T,
+      n_size_single = mindsets_n
+    )
+} else {
+  tibble::tibble(`nothing` = "No data to display here") %>%
+    ggplot() +
+    geom_text(aes(x = 0, y = 0, label = nothing),
+      family = "Calibri Bold",
+      fontface = "bold", size = 10
+    ) +
+    theme_void()
+}
+```
+
+</center>
+
+## Recognizing Race and Culture Items
+
+
+<center>
+
+```{r equitable-mindsets-items}
+if (nrow(diagnostic) >= 1) {
+  if (params$teacher == "All") {
+    equitable_count <- mindsets_data %>%
+      select(all_of(equitable_questions)) %>%
+      summarise(across(everything(), ~ sum(!is.na(.x)))) %>%
+      pivot_longer(everything())
+    equitable_n <- max(equitable_count$value)
+  } else {
+    equitable_n <- NULL
+  }
+
+  TeachingLab::tl_summary_table(
+    data = mindsets_data,
+    grouping = "equitable",
+    summarise = F,
+    save = T,
+    n_size_single = equitable_n,
+    explain = ifelse(params$teacher == "All", F, T)
+  )
+} else {
+  tibble::tibble(`nothing` = "No data to display here") %>%
+    ggplot() +
+    geom_text(aes(x = 0, y = 0, label = nothing),
+      family = "Calibri Bold",
+      fontface = "bold", size = 10
+    ) +
+    theme_void()
+}
+```
+
+</center>
+
+
+## High Expectations items
+
+
+<center>
+
+```{r high-expectations-items}
+if (nrow(diagnostic) >= 1) {
+  if (params$teacher == "All") {
+    high_expectations_count <- mindsets_data %>%
+      select(all_of(high_expectations_questions)) %>%
+      summarise(across(everything(), ~ sum(!is.na(.x)))) %>%
+      pivot_longer(everything())
+    high_expectations_n <- max(high_expectations_count$value)
+  } else {
+    high_expectations_n <- NULL
+  }
+
+  TeachingLab::tl_summary_table(
+    data = mindsets_data,
+    grouping = "high_expectations",
+    summarise = F,
+    save = T,
+    n_size_single = high_expectations_n,
+    explain = ifelse(params$teacher == "All", F, T)
+  )
+} else {
+  tibble::tibble(`nothing` = "No data to display here") %>%
+    ggplot() +
+    geom_text(aes(x = 0, y = 0, label = nothing),
+      family = "Calibri Bold",
+      fontface = "bold", size = 10
+    ) +
+    theme_void()
+}
+```
+
+</center>
+
+
+Teachers also responded to six items about self-confidence in their
+ability to engage in culturally responsive and sustaining education
+(CRSE) practices on a scale from 0 (not at all confident) to 10
+(extremely confident). Responses were averaged across items. Higher
+scores correspond to higher self confidence.
+
+## Culturally Responsive and Sustaining Education Self-Efficacy Summary and Items
+
+
+<center>
+
+```{r crse-items}
+if (nrow(diagnostic) >= 1) {
+  crse_data <- diagnostic %>%
+    select(all_of(crse_questions))
+
+  if (params$teacher == "All") {
+    crse_count <- crse_data %>%
+      summarise(across(everything(), ~ sum(!is.na(.x)))) %>%
+      pivot_longer(everything())
+    crse_n <- max(crse_count$value)
+  } else {
+    crse_n <- NULL
+  }
+
+  TeachingLab::tl_summary_table(
+    data = crse_data,
+    grouping = "crse",
+    summarise = T,
+    save = T,
+    n_size_single = crse_n,
+    explain = ifelse(params$teacher == "All", F, T)
+  )
+} else {
+  tibble::tibble(`nothing` = "No data to display here") %>%
+    ggplot() +
+    geom_text(aes(x = 0, y = 0, label = nothing),
+      family = "Calibri Bold",
+      fontface = "bold", size = 10
+    ) +
+    theme_void()
+}
+```
+
+</center>
+
+
+# Section 2: Content and Pedagogical Content Knowledge
+
+Teachers answered eight questions related to content and pedagogical
+content knowledge, including strategies for students with unfinished
+learning and equitable instruction. The score below is the overall
+percent correct (note: some questions had multiple correct answers and
+were worth more than one point).
+
+<center>
+
+```{r knowledge-overall, fig.dim = c(6.5, 4.5)}
+if (nrow(knowledge_assessments) >= 1) {
+  knowledge_overall <- mean(knowledge_assessments_percents$final_percent, na.rm = T)
+
+  knowledge_assessments_n <- round(nrow(knowledge_assessments) / 2)
+
+  actual_answers <- answers[c(1, 2, 3, 7, 10, 12, 13, 14, 18, 19, 23, 24, 25)]
+
+  answer1 <- actual_answers[1]
+  answer2 <- paste(actual_answers[c(2, 3)], collapse = "<br>")
+  answer3 <- paste(actual_answers[c(4, 5)], collapse = "<br>")
+  answer4 <- actual_answers[6]
+  answer5 <- paste(actual_answers[c(7, 8)], collapse = "<br>")
+  answer6 <- paste(actual_answers[c(9, 10)], collapse = "<br>")
+  answer7 <- actual_answers[11]
+  answer8 <- paste(actual_answers[c(12, 13)], collapse = "<br>")
+
+  knowledge_assessments_gt <- tibble::tibble(
+    ` ` = c(
+      "<b>Overall % Correct</b>",
+      knowledge_assessments_percents$question
+    ),
+    `Percent Correct` = c(
+      knowledge_overall,
+      knowledge_assessments_percents$final_percent
+    )
+  ) %>%
+    bind_cols(Answer = c(
+      " ",
+      answer1, answer2, answer3, answer4,
+      answer5, answer6, answer7, answer8
+    )) %>%
+    gt::gt() %>%
+    gt::fmt_markdown(columns = c(` `, `Answer`)) %>%
+    gt::fmt_percent("Percent Correct",
+      scale_values = F,
+      decimals = 0
+    ) %>%
+    gt::data_color(
+      columns = "Percent Correct",
+      colors = scales::col_bin(
+        palette = paletteer::paletteer_d(
+          palette = "ggsci::blue_material"
+        ) %>% as.character(),
+        domain = NULL
+      )
+    ) %>%
+    gt::tab_source_note(
+      data = .,
+      source_note = paste0("n = ", knowledge_assessments_n)
+    ) %>%
+    TeachingLab::gt_theme_tl()
+
+  knowledge_assessments_img <- gt::gtsave(
+    data = knowledge_assessments_gt,
+    path = here::here("images/report_images"),
+    filename = tempfile(fileext = ".png")
+  )
+
+  knitr::include_graphics(knowledge_assessments_img)
+} else {
+  tibble::tibble(`nothing` = "No data to display here") %>%
+    ggplot() +
+    geom_text(aes(x = 0, y = 0, label = nothing),
+      family = "Calibri Bold",
+      fontface = "bold", size = 10
+    ) +
+    theme_void()
+}
+```
+
+</center>
+
+# Section 3: Instructional Practices
+
+Teaching Lab staff observed teachers using the IPG rubric. Ratings of 3
+and 4 on 4-point Likert scales and Yes on a Yes/No items were considered
+positive.
+
+## IPG Ratings
+
+<center>
+
+```{r practices-overall, fig.dim = c(6.5, 4.5)}
+if (nrow(ipg_forms) >= 1) {
+  different_actions <- ipg_forms %>%
+    colnames() %>%
+    as_tibble() %>%
+    filter(str_detect(value, "CA")) %>%
+    mutate(
+      core_action = case_when(
+        str_detect(value, "CA1|CA\\.1") ~ "ca1",
+        str_detect(value, "CA2|CA\\.2") ~ "ca2",
+        str_detect(value, "CA3|CA\\.3") ~ "ca3"
+      ),
+      value = as.character(value)
+    )
+
+  ca1 <- different_actions %>%
+    filter(core_action == "ca1") %>%
+    pull(value)
+
+  ca2 <- different_actions %>%
+    filter(core_action == "ca2") %>%
+    pull(value)
+
+  ca3 <- different_actions %>%
+    filter(core_action == "ca3") %>%
+    pull(value)
+
+  ca1_percent <- ipg_forms %>%
+    select(all_of(ca1)) %>%
+    summarise(across(everything(), ~ grade_ipg(.x))) %>%
+    pivot_longer(everything()) %>%
+    summarise(percent = mean(value, na.rm = T)) %>%
+    pull(percent) %>%
+    round(., 2)
+
+  ca2_percent <- ipg_forms %>%
+    select(all_of(ca2)) %>%
+    summarise(across(everything(), ~ grade_ipg(.x, type = "numeric"))) %>%
+    pivot_longer(everything()) %>%
+    summarise(percent = mean(value, na.rm = T)) %>%
+    pull(percent) %>%
+    round(., 2)
+
+  ca3_percent <- ipg_forms %>%
+    select(all_of(ca3)) %>%
+    summarise(across(everything(), ~ grade_ipg(.x, type = "numeric"))) %>%
+    pivot_longer(everything()) %>%
+    summarise(percent = mean(value, na.rm = T)) %>%
+    pull(percent) %>%
+    round(., 2)
+  
+  check_exist_ca1_grades <- ipg_forms %>%
+    select(all_of(ca1)) %>%
+    summarise(across(everything(), ~ grade_ipg(.x))) %>%
+    janitor::remove_empty("cols") %>%
+    length()
+  
+  check_exist_ca2_grades <- ipg_forms %>%
+    select(all_of(ca2)) %>%
+    summarise(across(everything(), ~ grade_ipg(.x, type = "numeric"))) %>%
+    janitor::remove_empty("cols") %>%
+    length()
+  
+  check_exist_ca3_grades <- ipg_forms %>%
+    select(all_of(ca3)) %>%
+    summarise(across(everything(), ~ grade_ipg(.x, type = "numeric"))) %>%
+    janitor::remove_empty("cols") %>%
+    length()
+  
+  if (check_exist_ca1_grades > 0) {
+    ca1_grades <- ipg_forms %>%
+    select(all_of(ca1)) %>%
+    summarise(across(everything(), ~ grade_ipg(.x))) %>%
+    janitor::remove_empty("cols") %>%
+    pivot_longer(everything()) %>%
+    mutate(name = str_remove_all(name, "\\.\\.\\.")) %>%
+    mutate(name = str_remove_all(name, "\\d+$")) %>%
+    group_by(name) %>%
+    summarise(value = round(mean(value, na.rm = T), 2))
+  }
+  
+  if (check_exist_ca2_grades > 0) {
+    ca2_grades <- ipg_forms %>%
+    select(all_of(ca2)) %>%
+    summarise(across(everything(), ~ grade_ipg(.x, type = "numeric"))) %>%
+    janitor::remove_empty("cols") %>%
+    pivot_longer(everything()) %>%
+    mutate(name = str_remove_all(name, "\\.\\.\\.")) %>%
+    mutate(name = str_remove_all(name, "\\d+$")) %>%
+    group_by(name) %>%
+    summarise(value = round(mean(value, na.rm = T), 2))
+  }
+  
+  if (check_exist_ca3_grades > 0) {
+    ca3_grades <- ipg_forms %>%
+    select(all_of(ca3)) %>%
+    summarise(across(everything(), ~ grade_ipg(.x, type = "numeric"))) %>%
+    janitor::remove_empty("cols") %>%
+    pivot_longer(everything()) %>%
+    mutate(name = str_remove_all(name, "\\.\\.\\.")) %>%
+    mutate(name = str_remove_all(name, "\\d+$")) %>%
+    group_by(name) %>%
+    summarise(value = round(mean(value, na.rm = T), 2))
+  }
+
+  if (params$teacher == "All") {
+    practices_count <- ipg_forms %>%
+      select(all_of(c(ca1, ca2, ca3))) %>%
+      summarise(across(everything(), ~ sum(!is.na(.x)))) %>%
+      pivot_longer(everything())
+    practices_n1 <- min(practices_count$value[practices_count$value > 10])
+    practices_n2 <- max(practices_count$value)
+    practices_n <- c(practices_n1, practices_n2)
+  } else {
+    practices_n <- NULL
+  }
+
+  practices_gt <- tibble::tibble(
+    name = c(
+      "Overall % positive IPG ratings",
+      "% positive ratings Core Action 1",
+      "% positive ratings Core Action 2",
+      "% positive ratings Core Action 3"
+    ),
+    Percent = c(
+      mean(c(ca1_percent, ca2_percent, ca3_percent), na.rm = T),
+      ca1_percent,
+      ca2_percent,
+      ca3_percent
+    )
+  ) %>%
+    gt::gt(rowname_col = "name") %>%
+    gt::fmt_percent("Percent",
+      scale_values = F,
+      decimals = 0
+    ) %>%
+    gt::data_color(
+      columns = "Percent",
+      colors = scales::col_bin(
+        palette = paletteer::paletteer_d(
+          palette = "ggsci::blue_material"
+        ) %>% as.character(),
+        domain = NULL
+      )
+    ) %>%
+    {
+      if (!is.null(practices_n)) {
+        gt::tab_source_note(
+          data = .,
+          source_note = paste0(
+            "n ranges from ",
+            practices_n[1],
+            " to ",
+            practices_n[2]
+          )
+        )
+      } else {
+        .
+      }
+    } %>%
+    TeachingLab::gt_theme_tl()
+
+  practices_img <- gt::gtsave(
+    data = practices_gt,
+    path = here::here("images/report_images"),
+    filename = tempfile(fileext = ".png")
+  )
+  knitr::include_graphics(practices_img)
+} else {
+  tibble::tibble(`nothing` = "No data to display here") %>%
+    ggplot() +
+    geom_text(aes(x = 0, y = 0, label = nothing),
+      family = "Calibri Bold",
+      fontface = "bold", size = 10
+    ) +
+    theme_void()
+}
+```
+
+</center>
+
+## Core Action 1
+
+
+<center>
+
+```{r core-action-1-items, fig.dim = c(8, 8)}
+if (exists("ca1_grades")) {
+
+  overall_ca1 <- round(mean(ca1_grades$value), 2)
+
+  if (params$teacher == "All") {
+    ca1_count <- ipg_forms %>%
+      select(all_of(c(ca1))) %>%
+      summarise(across(everything(), ~ sum(!is.na(.x)))) %>%
+      pivot_longer(everything())
+    ca1_n1 <- min(ca1_count$value[ca1_count$value > 10])
+    ca1_n2 <- max(ca1_count$value)
+    ca1_n <- c(ca1_n1, ca1_n2)
+  } else {
+    ca1_n <- NULL
+  }
+
+  core_action_1_gt <- tibble::tibble(
+    ` ` = c(
+      "<b>Overall % positive IPG ratings</b>",
+      ca1_grades$name
+    ),
+    `Percent Positive` = c(
+      overall_ca1,
+      ca1_grades$value
+    )
+  ) %>%
+    gt::gt() %>%
+    gt::fmt_markdown(columns = ` `) %>%
+    gt::fmt_percent("Percent Positive",
+      scale_values = F,
+      decimals = 0
+    ) %>%
+    gt::data_color(
+      columns = "Percent Positive",
+      colors = scales::col_bin(
+        palette = paletteer::paletteer_d(
+          palette = "ggsci::blue_material"
+        ) %>% as.character(),
+        domain = NULL
+      )
+    ) %>%
+    {
+      if (!is.null(ca1_n)) {
+        gt::tab_source_note(
+          data = .,
+          source_note = paste0(
+            "n ranges from ",
+            ca1_n[1],
+            " to ",
+            ca1_n[2]
+          )
+        )
+      } else {
+        .
+      }
+    } %>%
+    TeachingLab::gt_theme_tl()
+
+  core_action_1_img <- gt::gtsave(
+    data = core_action_1_gt,
+    path = here::here("images/report_images"),
+    filename = tempfile(fileext = ".png")
+  )
+  knitr::include_graphics(core_action_1_img)
+  
+} else {
+  tibble::tibble(`nothing` = "No data to display here") %>%
+    ggplot() +
+    geom_text(aes(x = 0, y = 0, label = nothing),
+      family = "Calibri Bold",
+      fontface = "bold", size = 10
+    ) +
+    theme_void()
+}
+```
+
+</center>
+
+
+## Core Action 2
+
+
+<center>
+
+```{r core-action-2-items, fig.dim = c(8, 8)}
+if (exists("ca2_grades")) {
+  
+    overall_ca2 <- round(mean(ca2_grades$value), 2)
+
+  if (params$teacher == "All") {
+    ca2_count <- ipg_forms %>%
+      select(all_of(c(ca2))) %>%
+      summarise(across(everything(), ~ sum(!is.na(.x)))) %>%
+      pivot_longer(everything())
+    ca2_n1 <- min(ca2_count$value[ca2_count$value > 10])
+    ca2_n2 <- max(ca2_count$value)
+    ca2_n <- c(ca2_n1, ca2_n2)
+  } else {
+    ca2_n <- NULL
+  }
+
+  core_action_2_gt <- tibble::tibble(
+    ` ` = c(
+      "<b>Overall % positive IPG ratings</b>",
+      ca2_grades$name
+    ),
+    `Percent Positive` = c(
+      overall_ca2,
+      ca2_grades$value
+    )
+  ) %>%
+    gt::gt() %>%
+    gt::fmt_percent("Percent Positive",
+      scale_values = F,
+      decimals = 0
+    ) %>%
+    gt::fmt_markdown(columns = ` `) %>%
+    gt::data_color(
+      columns = "Percent Positive",
+      colors = scales::col_bin(
+        palette = paletteer::paletteer_d(
+          palette = "ggsci::blue_material"
+        ) %>% as.character(),
+        domain = NULL
+      )
+    ) %>%
+    {
+      if (!is.null(ca2_n)) {
+        gt::tab_source_note(
+          data = .,
+          source_note = paste0(
+            "n ranges from ",
+            ca2_n[1],
+            " to ",
+            ca2_n[2]
+          )
+        )
+      } else {
+        .
+      }
+    } %>%
+    TeachingLab::gt_theme_tl()
+
+  core_action_2_img <- gt::gtsave(
+    data = core_action_2_gt,
+    path = here::here("images/report_images"),
+    filename = tempfile(fileext = ".png")
+  )
+  knitr::include_graphics(core_action_2_img)
+
+} else {
+  tibble::tibble(`nothing` = "No data to display here") %>%
+    ggplot() +
+    geom_text(aes(x = 0, y = 0, label = nothing),
+      family = "Calibri Bold",
+      fontface = "bold", size = 10
+    ) +
+    theme_void()
+}
+```
+
+</center>
+
+
+## Core Action 3
+
+
+<center>
+
+```{r core-action-3-items, fig.dim = c(8, 8)}
+if (exists("ca3_grades")) {
+
+  overall_ca3 <- round(mean(ca3_grades$value), 2)
+
+  if (params$teacher == "All") {
+    ca3_count <- ipg_forms %>%
+      select(all_of(c(ca3))) %>%
+      summarise(across(everything(), ~ sum(!is.na(.x)))) %>%
+      pivot_longer(everything())
+    ca3_n1 <- min(ca3_count$value[ca3_count$value > 10])
+    ca3_n2 <- max(ca3_count$value)
+    ca3_n <- c(ca3_n1, ca3_n2)
+  } else {
+    ca3_n <- NULL
+  }
+  
+    core_action_3_gt <- tibble::tibble(
+    ` ` = c(
+      "<b>Overall % positive IPG ratings</b>",
+      ca3_grades$name
+    ),
+    `Percent Positive` = c(
+      overall_ca3,
+      ca3_grades$value
+    )
+  ) %>%
+    gt::gt() %>%
+    gt::fmt_markdown(columns = ` `) %>%
+    gt::fmt_percent("Percent Positive",
+      scale_values = F,
+      decimals = 0
+    ) %>%
+    gt::data_color(
+      columns = "Percent Positive",
+      colors = scales::col_bin(
+        palette = paletteer::paletteer_d(
+          palette = "ggsci::blue_material"
+        ) %>% as.character(),
+        domain = NULL
+      )
+    ) %>%
+    {
+      if (!is.null(ca3_n)) {
+        gt::tab_source_note(
+          data = .,
+          source_note = paste0(
+            "n ranges from ",
+            ca3_n[1],
+            " to ",
+            ca3_n[2]
+          )
+        )
+      } else {
+        .
+      }
+    } %>%
+    TeachingLab::gt_theme_tl()
+
+  core_action_3_img <- gt::gtsave(
+    data = core_action_3_gt,
+    path = here::here("images/report_images"),
+    filename = tempfile(fileext = ".png")
+  )
+  knitr::include_graphics(core_action_3_img)
+
+} else {
+  tibble::tibble(`nothing` = "No data to display here") %>%
+    ggplot() +
+    geom_text(aes(x = 0, y = 0, label = nothing),
+      family = "Calibri Bold",
+      fontface = "bold", size = 10
+    ) +
+    theme_void()
+}
+```
+
+</center>
+
+
+# Section 4: Student Learning Experiences
+
+Teachers administered a student survey to at least one of their groups.
+Using 5-point Likert-type scales, students responded to eight items
+related to their teachers' engagement in CRSE practices, three items
+related to teacher-student relationships, five items about
+self-efficacy, six items about happiness and sense of belonging, and
+five items about being challenged. Responses were averaged across items.
+Higher scores correspond to more positive experiences.
+
+<center>
+
+```{r student-learn-exper-overall}
+if (nrow(student_survey) >= 1) {
+  crse <- student_survey %>%
+    selection_sum(23:30)
+  crse_overall <- round(mean(crse$value), 2)
+
+  teacher_student_rel <- student_survey %>%
+    selection_sum(37:39)
+  teacher_student_rel_overall <- round(mean(teacher_student_rel$value), 2)
+
+  self_efficacy <- student_survey %>%
+    selection_sum(40:44)
+  self_efficacy_overall <- round(mean(self_efficacy$value), 2)
+
+  happiness_belonging <- student_survey %>%
+    selection_sum(31:36)
+  happiness_belonging_overall <- round(mean(happiness_belonging$value), 2)
+
+  being_challenged <- student_survey %>%
+    selection_sum(45:48)
+  being_challenged_overall <- round(mean(being_challenged$value), 2)
+
+  student_learn_overall <- mean(c(
+    crse_overall,
+    teacher_student_rel_overall,
+    self_efficacy_overall,
+    happiness_belonging_overall,
+    being_challenged_overall
+  ), na.rm = T)
+
+  if (params$teacher == "All") {
+    student_learn_count <- student_survey %>%
+      select(23:49) %>%
+      summarise(across(everything(), ~ sum(!is.na(.x)))) %>%
+      pivot_longer(everything())
+    student_learn_n1 <- min(student_learn_count$value[student_learn_count$value > 10])
+    student_learn_n2 <- max(student_learn_count$value)
+    student_learn_n <- c(student_learn_n1, student_learn_n2)
+  } else {
+    student_learn_n <- NULL
+  }
+
+  student_learn_gt <- tibble::tibble(
+    ` ` = c(
+      "<b>Overall Positive Student Learning Environment Score</b>",
+      "Culturally Responsive & Sustaining Education",
+      "Teacher-Student Relationships",
+      "Self-Efficacy",
+      "Happiness & Sense of Belonging",
+      "Being challenged"
+    ),
+    Percent = c(
+      student_learn_overall,
+      crse_overall,
+      teacher_student_rel_overall,
+      self_efficacy_overall,
+      happiness_belonging_overall,
+      being_challenged_overall
+    )
+  ) %>%
+    gt::gt() %>%
+    gt::fmt_percent("Percent",
+      scale_values = F,
+      decimals = 0
+    ) %>%
+    gt::fmt_markdown(columns = ` `) %>%
+    gt::data_color(
+      columns = "Percent",
+      colors = scales::col_bin(
+        palette = paletteer::paletteer_d(
+          palette = "ggsci::blue_material"
+        ) %>% as.character(),
+        domain = NULL
+      )
+    ) %>%
+    {
+      if (!is.null(student_learn_n)) {
+        gt::tab_source_note(
+          data = .,
+          source_note = paste0(
+            "n ranges from ",
+            student_learn_n[1],
+            " to ",
+            student_learn_n[2]
+          )
+        )
+      } else {
+        .
+      }
+    } %>%
+    TeachingLab::gt_theme_tl()
+
+  student_learn_gt
+  # student_learn_img <- gt::gtsave(
+  #   data = student_learn_gt,
+  #   path = here::here("images/report_images"),
+  #   filename = tempfile(fileext = ".png")
+  # )
+  # knitr::include_graphics(student_learn_img)
+} else {
+  tibble::tibble(`nothing` = "No data to display here") %>%
+    ggplot() +
+    geom_text(aes(x = 0, y = 0, label = nothing),
+      family = "Calibri Bold",
+      fontface = "bold", size = 10
+    ) +
+    theme_void()
+}
+```
+
+</center>
+
+# Section 5: Student Math Proficiency
+
+Teachers collected student work samples of a task that involved
+explaining mathematical thinking or reasoning from all students in at
+least one of their groups. Teaching Lab coaches first determined whether
+the task was on grade-level and whether it met the criteria of
+explaining mathematical thinking or reasoning. If so, then the work
+samples were scored using a 2-point rubric. Students who scored 2 on the
+rubric were considered to demonstrate proficiency on the grade-level
+task.
+
+<center>
+
+```{r student-math-prof-overall, fig.dim = c(6.5, 4.5)}
+student_math_count <- student_math %>%
+  group_by(grade_level_task_y_n) %>%
+  count(sort = T) %>%
+  drop_na(grade_level_task_y_n)
+
+if (length(student_math_count$grade_level_task_y_n) != 0) {
+  student_percent_on_grade <- round(100 * student_math_count$n[student_math_count$grade_level_task_y_n == "Y"] /
+    sum(student_math_count$n), 2)
+
+  student_math_percent_count <- student_math %>%
+    filter(grade_level_task_y_n == "Y" & !is.na(score_0_2)) %>%
+    group_by(score_0_2) %>%
+    count(sort = T)
+
+  student_math_n_sizes <- tibble::tibble(n = c(
+    sum(student_math_count$n),
+    sum(student_math_percent_count$n)
+  ))
+
+  student_percent_proficient <- round(100 * student_math_percent_count$n[student_math_percent_count$score_0_2 == 2] /
+    sum(student_math_percent_count$n), 2)
+
+  if (length(student_percent_on_grade) == 0) {
+    student_percent_on_grade <- 0
+  }
+  if (length(student_percent_proficient) == 0) {
+    student_percent_proficient <- 0
+  }
+
+  student_math_gt <- tibble::tibble(
+    name = c(
+      "Student tasks on grade-level.",
+      "Students who demonstrated proficiency on a grade-level task"
+    ),
+    Percent = c(student_percent_on_grade, student_percent_proficient)
+  ) %>%
+    dplyr::bind_cols(student_math_n_sizes) %>%
+    gt::gt(rowname_col = "name") %>%
+    gt::fmt_percent("Percent",
+      scale_values = F,
+      decimals = 0
+    ) %>%
+    gt::data_color(
+      columns = "Percent",
+      colors = scales::col_bin(
+        palette = paletteer::paletteer_d(
+          palette = "ggsci::blue_material"
+        ) %>% as.character(),
+        domain = 20:70
+      )
+    ) %>%
+    TeachingLab::gt_theme_tl()
+
+  student_math_gt
+} else {
+  tibble::tibble(`nothing` = "No data to display here") %>%
+    ggplot() +
+    geom_text(aes(x = 0, y = 0, label = nothing),
+      family = "Calibri Bold",
+      fontface = "bold", size = 10
+    ) +
+    theme_void()
+}
+
+# student_math_img <- gt::gtsave(
+#   data = student_math_gt,
+#   path = here::here("images/report_images"),
+#   filename = tempfile(fileext = ".png")
+# )
+# knitr::include_graphics(student_math_img)
+```
+
+</center>
+
+# Section 6: Family Experiences & Perceptions
+
+Schools and teachers assisted in sending home a voluntary survey to
+their students' families. Using Likert-type scales, caregivers responded
+to seven items related to teacher-family relationships and support, five
+items related to teacher-student relationships, and two items related to
+their child's learning. Responses were averaged across items. Higher
+scores correspond to more positive family perceptions and experiences.
+
+<center>
+
+```{r family-exper-percep-overall}
+if (nrow(family_survey) >= 1) {
+  teacher_family <- family_survey %>%
+    selection_sum(23:29)
+  teacher_family_overall <- round(mean(teacher_family$value), 2)
+
+  teacher_student <- family_survey %>%
+    selection_sum(30:34)
+  teacher_student_overall <- round(mean(teacher_student$value, na.rm = T), 2)
+
+  family_exper_overall <- mean(c(teacher_family_overall, teacher_student_overall))
+
+  family_exper_count <- family_survey %>%
+    select(23:34) %>%
+    summarise(across(everything(), ~ sum(!is.na(.x)))) %>%
+    pivot_longer(everything())
+  family_exper_n <- max(family_exper_count$value)
+
+  family_exper_gt <- tibble::tibble(
+    ` ` = c(
+      "<b>Overall Positive Family Experiences & Perceptions Score: %</b>",
+      "Teacher-Family Relationships and Support",
+      "Teacher-Student Relationships"
+    ),
+    Percent = c(family_exper_overall, teacher_family_overall, teacher_student_overall)
+  ) %>%
+    gt::gt() %>%
+    gt::fmt_markdown(columns = ` `) %>%
+    gt::fmt_percent("Percent",
+      scale_values = F,
+      decimals = 0
+    ) %>%
+    gt::data_color(
+      columns = "Percent",
+      colors = scales::col_bin(
+        palette = paletteer::paletteer_d(
+          palette = "ggsci::blue_material"
+        ) %>% as.character(),
+        domain = NULL
+      )
+    ) %>%
+    gt::tab_source_note(source_note = paste0("n = ", family_exper_n)) %>%
+    TeachingLab::gt_theme_tl()
+
+  family_exper_gt
+  # family_exper_img <- gt::gtsave(
+  #   data = family_exper_gt,
+  #   path = here::here("images/report_images"),
+  #   filename = tempfile(fileext = ".png")
+  # )
+  # knitr::include_graphics(family_exper_img)
+} else {
+  tibble::tibble(`nothing` = "No data to display here") %>%
+    ggplot() +
+    geom_text(aes(x = 0, y = 0, label = nothing),
+      family = "Calibri Bold",
+      fontface = "bold", size = 10
+    ) +
+    theme_void()
+}
+```
+
+</center>
+
+## Caregiver Perceptions of Student Learning
+
+### How many assignments does your child complete?
+
+<center>
+
+```{r childs-assignments-completed}
+if (nrow(family_survey) >= 1) {
+  childs_assignments_n <- sum(!is.na(family_survey$`How many assignments does your child complete?`))
+
+  childs_assignments_gt <- family_survey %>%
+    drop_na(`How many assignments does your child complete?`) %>%
+    group_by(`How many assignments does your child complete?`) %>%
+    count(sort = T, .drop = T) %>%
+    ungroup() %>%
+    mutate(`Percent Selected` = round(100 * n / sum(n), 2)) %>%
+    mutate(name = `How many assignments does your child complete?`) %>%
+    select(name, `Percent Selected`) %>%
+    gt::gt(rowname_col = "name") %>%
+    gt::fmt_percent("Percent Selected",
+      scale_values = F,
+      decimals = 0
+    ) %>%
+    gt::data_color(
+      columns = "Percent Selected",
+      colors = scales::col_bin(
+        palette = paletteer::paletteer_d(
+          palette = "ggsci::blue_material"
+        ) %>% as.character(),
+        domain = NULL
+      )
+    ) %>%
+    gt::tab_source_note(source_note = paste0("n = ", childs_assignments_n)) %>%
+    TeachingLab::gt_theme_tl()
+
+  childs_assignments_gt
+  # childs_assignments_img <- gt::gtsave(
+  #   data = childs_assignments_gt,
+  #   path = here::here("images/report_images"),
+  #   filename = tempfile(fileext = ".png")
+  # )
+  # knitr::include_graphics(childs_assignments_img)
+} else {
+  tibble::tibble(`nothing` = "No data to display here") %>%
+    ggplot() +
+    geom_text(aes(x = 0, y = 0, label = nothing),
+      family = "Calibri Bold",
+      fontface = "bold", size = 10
+    ) +
+    theme_void()
+}
+```
+
+</center>
+
+### Which best matches your belief about your child's experience so far this year?
+
+<center>
+
+```{r childs-experience}
+if (nrow(family_survey) >= 1) {
+  child_exper_n <- sum(!is.na(family_survey$`Which best matches your belief about your child’s experience so far this year?`))
+
+  child_exper_gt <- family_survey %>%
+    drop_na(`Which best matches your belief about your child’s experience so far this year?`) %>%
+    group_by(`Which best matches your belief about your child’s experience so far this year?`) %>%
+    count(sort = T, .drop = T) %>%
+    ungroup() %>%
+    mutate(`Percent True` = round(100 * n / sum(n), 2)) %>%
+    mutate(name = `Which best matches your belief about your child’s experience so far this year?`) %>%
+    select(name, `Percent True`) %>%
+    gt::gt(rowname_col = "name") %>%
+    gt::fmt_percent("Percent True",
+      scale_values = F,
+      decimals = 0
+    ) %>%
+    gt::data_color(
+      columns = "Percent True",
+      colors = scales::col_bin(
+        palette = paletteer::paletteer_d(
+          palette = "ggsci::blue_material"
+        ) %>% as.character(),
+        domain = NULL
+      )
+    ) %>%
+    gt::tab_source_note(source_note = paste0("n = ", child_exper_n)) %>%
+    TeachingLab::gt_theme_tl()
+
+  child_exper_gt
+  # child_exper_img <- gt::gtsave(
+  #   data = child_exper_gt,
+  #   path = here::here("images/report_images"),
+  #   filename = tempfile(fileext = ".png")
+  # )
+  #
+  # knitr::include_graphics(child_exper_img)
+} else {
+  tibble::tibble(`nothing` = "No data to display here") %>%
+    ggplot() +
+    geom_text(aes(x = 0, y = 0, label = nothing),
+      family = "Calibri Bold",
+      fontface = "bold", size = 10
+    ) +
+    theme_void()
+}
+```
+
+</center>

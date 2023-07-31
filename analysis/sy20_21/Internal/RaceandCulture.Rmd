@@ -1,0 +1,609 @@
+---
+title: "Race and Culture Survey Analysis"
+author: "Duncan Gates"
+date: "7/13/2021"
+output:
+  html_document:
+  theme: paper
+highlight: kate
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, message = F, warning = F)
+library(tidyverse)
+library(here)
+library(ggtext)
+library(systemfonts)
+devtools::load_all()
+library(TeachingLab)
+library(googlesheets4)
+library(janitor)
+```
+
+# Read in Data
+
+```{r}
+march2019 <- read_sheet("https://docs.google.com/spreadsheets/d/1q9jlAVS_iKUdgLWT9TAhDZ5b2RUhyei0XxwNjDHwPkM/edit#gid=160629191", sheet = "Form Responses 1", skip = 1) %>%
+  mutate(time = "March 2019") %>%
+  select(-Timestamp) %>%
+  mutate(across(everything(), ~ as.character(unlist(.x))))
+july2019 <- read_sheet("https://docs.google.com/spreadsheets/d/1GaGYf0RtPNmzOGFM1XB27H5eyP4T9lMCMH3MTjAUupI/edit#gid=674715077", sheet = "Form Responses 1", skip = 1) %>%
+  select(-c(47:49)) %>%
+  mutate(time = "July 2019") %>%
+  select(-Timestamp) %>%
+  mutate(across(everything(), ~ as.character(unlist(.x))))
+february2020 <- read_sheet("https://docs.google.com/spreadsheets/d/19jbdok4Lh7iOf-UlJFA_sXC80a8fmQ_lIgxiEJhhjxs/edit#gid=394003930", sheet = "Form Responses 1", skip = 1) %>%
+  mutate(time = "February 2020") %>%
+  select(-Timestamp) %>%
+  mutate(across(everything(), ~ as.character(.x))) %>%
+  select(-c(49:50)) %>%
+  select(-33) # Remove duplicate what is your role?
+november2020 <- read_sheet("https://docs.google.com/spreadsheets/d/1zLUuycxMKxMPZ-VoFzwCLgpY2qfKcgyimUdrww2ehAQ/edit#gid=1438011169", sheet = "Form Responses 1", skip = 1) %>%
+  mutate(time = "November 2020") %>%
+  select(-Timestamp) %>%
+  mutate(across(everything(), ~ as.character(.x)))
+```
+
+# Compare columns
+
+```{r}
+compare_cols <- janitor::compare_df_cols(march2019, july2019, february2020, november2020)
+```
+
+# Rename data for join
+
+```{r}
+column_rename <- function(data) {
+  rename <- c(
+    "What is your role?" = "What is your role?",
+    "What is your role...2" = "What is your role?",
+    "Are you a full-time team member or Fellow at Teaching Lab?...2" = "What is your role?",
+    "Are you a full-time team member or Fellow at Teaching Lab?...34" = "What is your role?",
+    "Are you a people manager at Teaching Lab?" = "Are you part of the Leadership Team at Teaching Lab?",
+    "Are you currently a Chief or Director at Teaching Lab...4" = "Are you part of the Leadership Team at Teaching Lab?",
+    "Are you currently a Director, Managing Director, or Chief at Teaching Lab...5" = "Are you part of the Leadership Team at Teaching Lab?",
+    "Are you currently a Director, Managing Director, or Chief at Teaching Lab?...51" = "Are you part of the Leadership Team at Teaching Lab?",
+    "Are you part of the Leadership Team at Teaching Lab?" = "Are you part of the Leadership Team at Teaching Lab?",
+    "Do you know any candidates who would be great for roles at Teaching Lab? If so, please share names, contact information, and how you think they could contribute." = "Do you know any candidates who would be great for roles at Teaching Lab? If so, please share names, contact information, and how you think they could contribute.",
+    "Do you know any prospects who would be great for roles at Teaching Lab? If so, please share names, contact information, and areas of professional interest." = "Do you know any candidates who would be great for roles at Teaching Lab? If so, please share names, contact information, and how you think they could contribute.",
+    "How do you identify racially or ethnically?" = "How do you identify racially or ethnically?",
+    "How do you identify racially or ethnically...3" = "How do you identify racially or ethnically?",
+    "How do you identify racially or ethnically?...50" = "How do you identify racially or ethnically?",
+    "If you have comments or feedback about the statements above, please share with us....35" = "feedback1",
+    "If you have comments or feedback about the statements above, please share with us....43" = "feedback2",
+    "We’d appreciate any comments, questions, or feedback you want to share about this survey or about your work at Teaching Lab." = "feedback3",
+    "We’d appreciate any comments, questions, or feedback you want to share about this survey or about your work here at Teaching Lab." = "feedback3",
+    "Over the past three months, how happy have you been working for Teaching Lab?" = "Over the past three months, how happy have you been working for Teaching Lab?",
+    "Over the past three months, how would you rate your morale (defined as your sense of well being) at work at Teaching Lab?" = "Over the past three months, how happy have you been working for Teaching Lab?"
+  )
+
+  rename2 <- c(
+    "I am satisfied with the logistics of working for Teaching Lab (contracting, invoices, reimbursements, payment, etc.)." = "I am satisfied with the logistics of working for Teaching Lab (contracting, invoices, reimbursements, payment, etc.).",
+    "I am satisfied with the logistics of working for Teaching Lab (contracting, invoices, reimbursements, payment, etc.)" = "I am satisfied with the logistics of working for Teaching Lab (contracting, invoices, reimbursements, payment, etc.).",
+    "I can bring my \"whole self\" to work." = "I can bring my \"whole self\" to work.",
+    "I expect to be working at Teaching Lab organization three years from now." = "I expect to be working at Teaching Lab organization three years from now.",
+    "I expect to be working at Teaching Lab three years from now." = "I expect to be working at Teaching Lab organization three years from now.",
+    "I feel the work I am doing at Teaching Lab will lead to impact on students." = "I feel the work I am doing at Teaching Lab will lead to positive impact on students.",
+    "I feel the work I am doing at Teaching Lab will lead to positive impact on students." = "I feel the work I am doing at Teaching Lab will lead to positive impact on students.",
+    "My associates (fellow employees) are committed to doing quality work." = "My associates (fellow employees) are committed to doing quality work.",
+    "My associates (fellow team members) are committed to doing quality work." = "My associates (fellow employees) are committed to doing quality work.",
+    "My manager is clear about where the organization is going." = "My manager(s) are clear about where the organization is going.",
+    "My manager(s) are clear about where the organization is going." = "My manager(s) are clear about where the organization is going.",
+    "Our Executive Team (CEO Sarah Johnson, COO Chris Daniels, MD - Content Design Vaishali Joshi, MD - Partnerships Sheena Lights, MD - Learning and Research HaMy Vu) communicates well with the organization." = "Our leadership team communicates well with the organization.",
+    "Our Executive Team (CEO Sarah Johnson, MD - Content Design Vaishali Joshi, MD - Partnerships Sheena Lights, MD - Learning and Research HaMy Vu) communicates well with the organization." = "Our leadership team communicates well with the organization.",
+    "Our leadership team communicates well with the organization." = "Our leadership team communicates well with the organization.",
+    "Our leadership team communicates well with the organization" = "Our leadership team communicates well with the organization.",
+    "Our organization has an explicit commitment to racial equity." = "Our organization has an explicit commitment to racial equity.",
+    "Our organization has an explicit commitment to equity" = "Our organization has an explicit commitment to racial equity.",
+    "Our organization has an explicit commitment to inclusion" = "Our organization has an explicit commitment to inclusiveness.",
+    "Our organization has an explicit commitment to inclusiveness." = "Our organization has an explicit commitment to inclusiveness.",
+    "We have free and open expression of ideas, opinions and beliefs." = "We have free and open expression of ideas, opinions and beliefs.",
+    "We have free and open expression of ideas, opinions and beliefs" = "We have free and open expression of ideas, opinions and beliefs.",
+    "We have frequent conversations about how power and privilege impact our work at Teaching Lab." = "We have frequent conversations about how power and privilege impact our work at Teaching Lab.",
+    "We have frequent conversations about power and privilege." = "We have frequent conversations about how power and privilege impact our work at Teaching Lab.",
+    "We have frequent conversations about power and privilege" = "We have frequent conversations about how power and privilege impact our work at Teaching Lab.",
+    "We have frequent conversations about race/ethnicity re: how we work." = "We have frequent conversations about race/ethnicity re: how we work.",
+    "We have frequent conversations about race/ethnicity re: how we work" = "We have frequent conversations about race/ethnicity re: how we work.",
+    "We have frequent conversations about how race/ethnicity impacts our work at Teaching Lab." = "We have frequent conversations about race/ethnicity re: how we work."
+  )
+
+  string <- deparse(substitute(data))
+
+  data2 <- data %>%
+    dplyr::rename_with(~ str_replace_all(.x, rename)) %>%
+    dplyr::rename_with(~ str_remove_all(.x, "\\?")) %>%
+    dplyr::rename_with(~ str_remove_all(.x, "Please rate your agreement with the following items. \\[")) %>%
+    dplyr::rename_with(~ str_remove_all(.x, "\\]")) %>%
+    dplyr::rename_with(~ str_replace_all(.x, rename2)) %>%
+    dplyr::rename_with(~ str_replace_all(.x, c(
+      "Are you currently a Chief or Director at Teaching Lab...4" = "Are you part of the Leadership Team at Teaching Lab?",
+      "Are you a full-time team member or Fellow at Teaching Lab...2" = "What is your role?",
+      "Are you a full-time team member or Fellow at Teaching Lab...34" = "What is your role?",
+      "Are you currently a Director, Managing Director, or Chief at Teaching Lab...5" = "Are you part of the Leadership Team at Teaching Lab?",
+      "How do you identify racially or ethnically...3" = "How do you identify racially or ethnically?"
+    )))
+
+
+  assign(string, data2, envir = .GlobalEnv)
+}
+
+column_rename(march2019)
+column_rename(july2019)
+column_rename(february2020) %>%
+  mutate(`What is your role?` = str_replace_all(`What is your role?`, c(
+    "Yes" = "Full-time employee or Fellow",
+    "No" = "Part-time contractor"
+  )))
+column_rename(november2020)
+
+
+# map(.x = c(march2019, july2019, february2020, november2020), ~ column_rename(.x))
+```
+
+```{r}
+compare_cols <- janitor::compare_df_cols(march2019, july2019, february2020, november2020)
+# compare_cols_agreement <- compare_cols %>%
+#   select(1) %>%
+#   slice(c(25:88)) %>%
+#   mutate(column_name = str_remove_all(column_name, "Please rate your agreement with the following items. \\[")) %>%
+#   mutate(column_name = str_remove_all(column_name, "\\]"))
+```
+
+# Join Data
+
+```{r}
+fullish_data <- full_join(march2019, july2019) %>%
+  full_join(february2020) %>%
+  full_join(november2020)
+
+full_data <- fullish_data %>%
+  # Coalesce Columns
+  mutate(
+    `What is your role?` = coalesce(`What is your role?`, `What is your role`, `What is your role...2`),
+    `How do you identify racially or ethnically?` = coalesce(`How do you identify racially or ethnically?`, `How do you identify racially or ethnically`),
+    `Do you intend to remain an employee at Teaching Lab?` = coalesce(`WORK HERE RECODED`, `INTENT TO STAY <Recoded>`)
+  ) %>%
+  mutate(`Do you intend to remain an employee at Teaching Lab?` = str_replace_all(
+    `Do you intend to remain an employee at Teaching Lab?`,
+    c(
+      "Negative intent to stay" = "Negative",
+      "Positive intent to stay" = "Positive"
+    )
+  )) %>%
+  # Remove redundant coalesced columns
+  select(
+    -`What is your role...2`,
+    -`How do you identify racially or ethnically`,
+    -`INTENT TO STAY <Recoded>`,
+    -`WORK HERE RECODED`
+  ) %>%
+  # Parse numbers prep get rid of NAs
+  mutate(across(everything(), ~ na_if(.x, "nb"))) %>%
+  mutate(across(everything(), ~ na_if(.x, "9_No basis for response"))) %>%
+  # Parse numbers
+  mutate(across(c(
+    "Over the past three months, how happy have you been working for Teaching Lab",
+    "What's one thing we could do to improve that number", "I am satisfied with my manager at Teaching Lab.",
+    "I am satisfied with the logistics of working for Teaching Lab (contracting, invoices, reimbursements, payment, etc.).",
+    "I have access to the resources I need to do my job well at Teaching Lab.",
+    "I am satisfied with the work-life balance I'm able to achieve while working for Teaching Lab.",
+    "I feel the work I am doing at Teaching Lab will lead to positive impact on students.",
+    "I expect to be working at Teaching Lab organization three years from now.",
+    "I know what is expected of me at work.", "I have the materials and equipment I need to do my work right.",
+    "At work, I have the opportunity to do what I do best every day.",
+    "In the last seven days, I have received recognition or praise for doing good work.",
+    "My supervisor, or someone at work, seems to care about me as a person.",
+    "There is someone at work who encourages my development.", "At work, my opinions seem to count.",
+    "The mission or purpose of my organization makes me feel my job is important.",
+    "My associates (fellow employees) are committed to doing quality work.",
+    "I have a best friend at work.", "In the last six months, someone at work has talked to me about my progress.",
+    "This last year, I have had opportunities at work to learn and grow.",
+    "Our leadership team communicates well with the organization.",
+    "Our culture respects individuals and values differences", "We have free and open expression of ideas, opinions and beliefs.",
+    "I can bring my \"whole self\" to work", "We have frequent conversations about race/ethnicity re: how we work.",
+    "We have frequent conversations about how power and privilege impact our work at Teaching Lab.",
+    "Our organization has an explicit commitment to inclusiveness.",
+    "Our organization has an explicit commitment to racial equity.",
+    "Our organization tries to remove bias in our hiring process",
+    "Career advancement is equally accessible for all", "Our compensation systems are implemented fairly",
+    "I see a diverse group of employees advancing", "I see a clear link between performance and opportunities for promotion",
+    "I see the same opportunity for advancement for all racial/ethnic identities",
+    "How likely would you be to recommend working at Teaching Lab to a friend or colleague",
+    "Over the past three months, how would you rate your morale (defined as your sense of well being) at work at Teaching Lab",
+    "My manager(s) make their expectations clear.", "My manager(s) include me on decisions that impact my work and work environment.",
+    "I can ask my manager(s) a question and get a straight answer.",
+    "My manager(s) are clear about where the organization is going.",
+    "Our leadership team communicates well with the organization..",
+    "Our culture respects individuals and values differences.", "We have free and open expression of ideas, opinions and beliefs..",
+    "I can bring my \"whole self\" to work.", "We have frequent conversations about race/ethnicity re: how we work..",
+    "I’m given the opportunity to contribute meaningfully in meetings.",
+    "I trust that I will not be penalized if I ask for help or admit a mistake at work.",
+    "Our organization has a racial equity strategy.", "Team members are held accountable for racial equity.",
+    "Our Executive Team’s actions show that racial equity is a priority at Teaching Lab.",
+    "How likely would you be to recommend working at Teaching Lab to a friend or colleague who is a person of color",
+    "Our Executive Team (CEO Sarah Johnson, MD - Content Design Vaishali Joshi, MD - Partnerships Sheena Lights, MD - Learning and Research HaMy Vu) communicates well with the organization.",
+    "I am given the opportunity to contribute meaningfully in meetings.",
+    "I have participated in 13 of 16 (or~80%) of TL's Social Learning Groups (SLGS).",
+    "If yes...My experience in SLGS has deepened my knowledge about my racial identity.",
+    "If yes...My experience in SLGs has pushed me to reflect on racial group dynamics. ",
+    "If yes...My experience in SLGS has supported me to intentionally use the Courageous Conversations Compass and Four Agreements to engage in conversations about race and racism.",
+    "If no...Move to next section.", "To what degree does the Teaching Lab community uphold our values of Racial Equity"
+  ), ~ as.numeric(parse_number(.x)))) %>%
+  mutate(`Are you part of the Leadership Team at Teaching Lab` = str_replace_all(
+    `Are you part of the Leadership Team at Teaching Lab`,
+    c(
+      "People manager" = "Yes",
+      "Not a people manager" = "No",
+      "Manager: Prefer not to answer" = "Prefer not to answer"
+    )
+  ))
+
+
+write_sheet(full_data, ss = "https://docs.google.com/spreadsheets/d/1QXWWTdBC565ULOUI5XSSowRNZcHBbjI87WhfvQvPFPA/edit#gid=0", sheet = "full_data")
+write_rds(full_data, here::here("Dashboards/RaceandCulture/data/full_data.rds"))
+```
+
+# Number of responses over time
+
+```{r}
+n_responses <- tibble(
+  n = c(nrow(march2019), nrow(july2019), nrow(february2020), nrow(november2020)),
+  time = factor(c("March 2019", "July 2019", "February 2020", "November 2020"),
+    levels = c("March 2019", "July 2019", "February 2020", "November 2020")
+  )
+)
+
+ggplot(n_responses, aes(x = time, y = n)) +
+  geom_line(aes(group = 1), color = "#04ABEB") +
+  geom_point() +
+  labs(y = "Count", x = "", title = "Race and Culture Survey Responses") +
+  scale_y_continuous(limits = c(0, max(n_responses$n))) +
+  theme_tl()
+```
+
+# Questions that have stayed the same
+
+```{r}
+likert_data <- full_data %>%
+  select(c(6:23), c(25:31), c(33:39, 47, 49:58, 66, 68:72, 74:77, 79:85), time, `Are you part of the Leadership Team at Teaching Lab?`)
+
+numeric_data <- full_data %>%
+  rename(`Over the past three months, how happy have you been working for Teaching Lab?` = `Over the past three months, how happy have you been working for Teaching Lab`) %>%
+  select(
+    `Over the past three months, how happy have you been working for Teaching Lab?`,
+    `Over the past three months, how would you rate your morale (defined as your sense of well being) at work at Teaching Lab`,
+    `How likely would you be to recommend working at Teaching Lab to a friend or colleague`,
+    `How likely would you be to recommend working at Teaching Lab to a friend or colleague who is a person of color`,
+    time,
+    `Are you part of the Leadership Team at Teaching Lab?`
+  )
+
+discrete_data <- full_data %>%
+  select(`What is your role?`, `How do you identify racially or ethnically?`, `Are you part of the Leadership Team at Teaching Lab?`, time) %>%
+  pivot_longer(!c(time, `Are you part of the Leadership Team at Teaching Lab?`), names_to = "Question", values_to = "Rating") %>%
+  mutate(Rating = str_replace_all(Rating, c(
+    "As a person of color" = "Person of color",
+    "As a white person" = "White person",
+    "Race: Prefer not to answer" = "Prefer not to answer"
+  ))) %>%
+  mutate(Rating = str_replace_all(Rating, c(
+    "Yes" = "Full-time employee or Fellow",
+    "No" = "Part-time contractor",
+    "(?<!P)refer not to answer" = "Prefer not to answer"
+  )))
+```
+
+## Likert Questions
+
+```{r}
+likert_final <- likert_data %>%
+  mutate(across(everything(), ~ as.character(.x))) %>%
+  mutate(across(everything(), ~ na_if(.x, "9"))) %>%
+  mutate(across(c(1:32), ~ factor(.x, levels = c("1", "2", "3", "4", "5"))))
+
+likert_summary <- likert_final %>%
+  summarise(across(c(1:32), ~ list(
+    percent = 100 * (sum(.x %in% c("4", "5"), na.rm = T) / length(which(!is.na(.x)))),
+    n = length(which(!is.na(.x)))
+  )))
+
+likert_time <- likert_final %>%
+  group_by(time = factor(time, levels = c("March 2019", "July 2019", "February 2020", "November 2020"))) %>%
+  summarise(across(c(1:32), ~ list(
+    percent = 100 * (sum(.x %in% c("4", "5"), na.rm = T) / length(which(!is.na(.x)))),
+    n = length(which(!is.na(.x)))
+  )))
+likert_time %>%
+  slice(c(1, 3, 5, 7)) %>%
+  mutate(across(!c(1), ~ as.numeric(.x))) %>%
+  mutate(`I am satisfied with my manager at Teaching Lab.` = as.numeric(`I am satisfied with my manager at Teaching Lab.`)) %>%
+  pivot_longer(!time, names_to = "Question", values_to = "Percent") %>%
+  write_rds(here::here("Dashboards/RaceandCulture/data/likert_data.rds"))
+```
+
+## Numeric Questions
+
+```{r}
+numeric_data %>%
+  pivot_longer(!c(time, `Are you part of the Leadership Team at Teaching Lab?`), names_to = "Question", values_to = "Rating") %>%
+  drop_na(Rating) %>%
+  mutate(Rating = as.character(Rating)) %>%
+  # mutate(Rating = str_replace_all(Rating, "0", "1")) %>%
+  dplyr::group_by(time = factor(time, levels = c("March 2019", "July 2019", "February 2020", "November 2020")), Rating, Question) %>%
+  dplyr::summarise(n = n()) %>%
+  dplyr::ungroup() %>%
+  dplyr::mutate(Rating = factor(as.character(Rating), levels = c("1", "2", "3", "4", "5", "6", "7", "8", "9", "10"))) %>%
+  dplyr::group_by(time, Question) %>%
+  dplyr::summarise(Percent = 100 * n / sum(n), Rating = Rating) %>%
+  drop_na(Rating) %>%
+  view() %>%
+  write_rds(here::here("Dashboards/RaceandCulture/data/numeric_data.rds"))
+```
+
+### Discrete Data
+
+```{r}
+discrete_data %>%
+  group_by(time = factor(time, levels = c("March 2019", "July 2019", "February 2020", "November 2020")), Rating, Question) %>%
+  drop_na(Rating) %>%
+  summarise(n = n()) %>%
+  group_by(time, Question) %>%
+  summarise(Percent = 100 * n / sum(n), Rating = Rating) %>%
+  view() %>%
+  write_rds(here::here("Dashboards/RaceandCulture/data/discrete_data.rds"))
+```
+
+### Likert Questions by Time or by Manager
+
+```{r}
+likert_manager <- likert_final %>%
+  group_by(`Are you part of the Leadership Team at Teaching Lab?`) %>%
+  summarise(across(c(1:32), ~ list(
+    percent = 100 * (sum(.x %in% c("4", "5"), na.rm = T) / length(which(!is.na(.x)))),
+    n = length(which(!is.na(.x)))
+  )))
+```
+
+### Question Groupings
+
+#### At work
+
+```{r}
+likert_time_plot <- likert_time %>%
+  slice(c(1, 3, 5, 7)) %>%
+  mutate(across(!c(1), ~ as.numeric(as.character((.x))))) %>%
+  mutate(`I am satisfied with my manager at Teaching Lab.` = unlist(`I am satisfied with my manager at Teaching Lab.`)) %>%
+  mutate(across(everything(), ~ replace(.x, is.nan(.x), NA))) %>%
+  pivot_longer(!time, names_to = "Question", values_to = "Percent")
+likert_time_plot %>%
+  filter(str_detect(Question, "At work")) %>%
+  mutate(Question = str_wrap(Question, width = 40)) %>%
+  ggplot(aes(x = time, y = Percent, fill = time)) +
+  geom_col() +
+  geom_text(aes(label = paste0(round(Percent), "%")), vjust = -0.5) +
+  facet_wrap(~Question, ncol = 2) +
+  labs(x = "", y = "Percent that Agree/StronglyAgree") +
+  scale_fill_tl(n = 4) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  theme_tl() +
+  theme(strip.text = element_text(hjust = 0.5))
+```
+
+#### Work
+
+```{r}
+likert_time_plot %>%
+  filter(str_detect(Question, "work")) %>%
+  mutate(Question = str_wrap(Question, width = 40)) %>%
+  ggplot(aes(x = time, y = Percent, fill = time)) +
+  geom_col() +
+  geom_text(aes(label = paste0(round(Percent), "%")), vjust = -0.5) +
+  facet_wrap(~Question, ncol = 2) +
+  labs(x = "", y = "Percent that Agree/StronglyAgree") +
+  scale_fill_tl(n = 4) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  theme_tl() +
+  theme(strip.text = element_text(hjust = 0.5))
+```
+
+#### Race
+
+```{r}
+likert_time_plot %>%
+  filter(str_detect(Question, "race_conversations|bias|opportunity|We have frequent conversations about how power and privilege impact our work at Teaching Lab.|racial_equity|inclusion")) %>%
+  mutate(Question = str_wrap(Question, width = 40)) %>%
+  ggplot(aes(x = time, y = Percent, fill = time)) +
+  geom_col() +
+  geom_text(aes(label = paste0(round(Percent), "%")), vjust = -0.5) +
+  facet_wrap(~Question, ncol = 2) +
+  labs(x = "", y = "Percent that Agree/StronglyAgree") +
+  scale_fill_tl(n = 4) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  theme_tl() +
+  theme(strip.text = element_text(hjust = 0.5))
+```
+
+## Numeric Questions
+
+```{r}
+
+```
+
+#### July 2021
+
+```{r}
+library(googlesheets4)
+new_data <- read_sheet("https://docs.google.com/spreadsheets/d/1SJSuZc29u6cWAsBGkaTGAhQ8FhhnH_6GyJ_8uhiJAcQ/edit?resourcekey#gid=281752531") %>%
+  slice(c(1:26))
+
+
+
+renamed_data <- new_data %>%
+  rename(
+    `Over the past three months, how would you rate your morale (defined as your sense of well being) at work at Teaching Lab` = `Over the past three months, how would you rate your morale (defined as your sense of well being) at work at Teaching Lab?`,
+    `I am satisfied with the logistics of working for Teaching Lab (contracting, invoices, reimbursements, payment, etc.)` = `Please rate your agreement with the following items. [I am satisfied with the logistics of working for Teaching Lab (reimbursements, payment, etc.)]`,
+    `I have access to the resources I need to do my job well at Teaching Lab.` = `Please rate your agreement with the following items. [I have the data or information I need to do my job effectively.]`,
+    `I feel the work I am doing at Teaching Lab will lead to positive impact on students.` = `Please rate your agreement with the following items. [I feel the work I am doing at Teaching Lab will lead to positive impact on students.]`,
+    `I expect to be working at Teaching Lab organization three years from now.` = `Please rate your agreement with the following items. [I expect to be working at Teaching Lab three years from now.]`,
+    `I am satisfied with the work-life balance I'm able to achieve while working for Teaching Lab.` = `Please rate your agreement with the following items. [I am satisfied with the work-life balance I'm able to achieve while working for Teaching Lab.]`,
+    `What's one thing the organization could do to help you achieve better work-life balance` = `What's one thing the organization could do to help you achieve better work-life balance?`,
+    `What makes Teaching Lab a great place to work` = `What makes Teaching Lab a great place to work?`,
+    `What would make Teaching Lab an even better place to work` = `What would make Teaching Lab an even better place to work?`,
+    `My manager(s) include me on decisions that impact my work and work environment.` = `Please rate your agreement with the following items. [My manager(s) include me on decisions that impact my work and work environment.]`,
+    `I can ask my manager(s) a question and get a straight answer.` = `Please rate your agreement with the following items. [I can ask my manager(s) a question and get a straight answer.]`,
+    `My manager(s) are clear about where the organization is going.` = `Please rate your agreement with the following items. [My manager is clear about where the organization is going.]`,
+    `Our leadership team communicates well with the organization.` = `Please rate your agreement with the following items. [Our Executive Team communicates well with the organization.]`,
+    `I know what is expected of me at work.` = `Please rate your agreement with the following items. [I know what is expected of me at work.]`,
+    `I have the materials and equipment I need to do my work right.` = `Please rate your agreement with the following items. [I have the materials and equipment I need to do my work right.]`,
+    `At work, I have the opportunity to do what I do best every day.` = `Please rate your agreement with the following items. [At work, I have the opportunity to do what I do best every day.]`,
+    `In the last seven days, I have received recognition or praise for doing good work.` = `Please rate your agreement with the following items. [In the last seven days, I have received recognition or praise for doing good work.]`,
+    `My supervisor, or someone at work, seems to care about me as a person.` = `Please rate your agreement with the following items. [My supervisor, or someone at work, seems to care about me as a person.]`,
+    `There is someone at work who encourages my development.` = `Please rate your agreement with the following items. [There is someone at work who encourages my development.]`,
+    `At work, my opinions seem to count.` = `Please rate your agreement with the following items. [At work, my opinions seem to count.]`,
+    `The mission or purpose of my organization makes me feel my job is important.` = `Please rate your agreement with the following items. [The mission or purpose of my organization makes me feel my job is important.]`,
+    `My associates (fellow employees) are committed to doing quality work.` = `Please rate your agreement with the following items. [My associates (fellow employees) are committed to doing quality work.]`,
+    `I have a best friend at work.` = `Please rate your agreement with the following items. [I have a best friend at work.]`,
+    `In the last six months, someone at work has talked to me about my progress.` = `Please rate your agreement with the following items. [In the last six months, someone at work has talked to me about my progress.]`,
+    `This last year, I have had opportunities at work to learn and grow.` = `Please rate your agreement with the following items. [This last year, I have had opportunities at work to learn and grow.]`,
+    `Our organization has an explicit commitment to inclusiveness.` = `Please rate your agreement with the following items. [Our organization has an explicit commitment to inclusiveness.]`,
+    `Our organization has an explicit commitment to racial equity.` = `Please rate your agreement with the following items. [Our organization has an explicit commitment to racial equity.]`,
+    `We have free and open expression of ideas, opinions and beliefs.` = `Please rate your agreement with the following items. [We have free and open expression of ideas, opinions and beliefs.]`,
+    `We have frequent conversations about race/ethnicity re: how we work.` = `Please rate your agreement with the following items. [We have frequent conversations about how race/ethnicity impacts our work at Teaching Lab.]`,
+    `We have frequent conversations about how power and privilege impact our work at Teaching Lab.` = `Please rate your agreement with the following items. [We have frequent conversations about how power and privilege impact our work at Teaching Lab.]`,
+    `I’m given the opportunity to contribute meaningfully in meetings.` = `Please rate your agreement with the following items. [I am given the opportunity to contribute meaningfully in meetings.]`,
+    `I trust that I will not be penalized if I ask for help or admit a mistake at work.` = `Please rate your agreement with the following items. [I trust that I will not be penalized if I ask for help or admit a mistake at work.]`,
+    `I can bring my \"whole self\" to work` = `Please rate your agreement with the following items. [I can bring my "best self" to work.]`,
+    # `` = `Please rate your agreement with the following items. [When I show up as I want, I am able to be successful at work.]`,
+    `Our organization has a racial equity strategy.` = `Please rate your agreement with the following items. [Our organization has a racial equity strategy.]`,
+    `Team members are held accountable for racial equity.` = `Please rate your agreement with the following items. [Team members are held accountable for racial equity.]`,
+    `Our Executive Team’s actions show that racial equity is a priority at Teaching Lab.` = `Please rate your agreement with the following items. [Our Executive Team’s actions show that racial equity is a priority at Teaching Lab.]`,
+    # `` = `How frequently do you attend Social Learning Groups (SLGs) or 45 Lemons’ Equity Journey Work meetings?`,
+    # `` = `In the following items, “organized racial equity learning opportunities” refer to SLGs and 4 Lemons’ Equity Journey Work.                                                                                               Please rate your agreement with the following items. [The organized racial equity learning opportunities have deepened my knowledge about my racial identity.]`,
+    # `` = `In the following items, “organized racial equity learning opportunities” refer to SLGs and 4 Lemons’ Equity Journey Work.                                                                                               Please rate your agreement with the following items. [The organized racial equity learning opportunities have pushed me to reflect on racial group dynamics.]`,
+    # `` = `In the following items, “organized racial equity learning opportunities” refer to SLGs and 4 Lemons’ Equity Journey Work.                                                                                               Please rate your agreement with the following items. [The organized racial equity learning opportunities have supported me to engage in conversations about race and racism with people with similar racial identities as me.]`,
+    # `` = `In the following items, “organized racial equity learning opportunities” refer to SLGs and 4 Lemons’ Equity Journey Work.                                                                                               Please rate your agreement with the following items. [The organized racial equity learning opportunities have supported me to engage in conversations about race and racism with people with different racial identities as me.]`,
+    # `` = `In the following items, “organized racial equity learning opportunities” refer to SLGs and 4 Lemons’ Equity Journey Work.                                                                                               Please rate your agreement with the following items. [The SLGs have felt like a safe space for me to have sensitive conversations about race, my identity, and my anti-racist journey.]`,
+    # `` = `In the following items, “organized racial equity learning opportunities” refer to SLGs and 4 Lemons’ Equity Journey Work.                                                                                               Please rate your agreement with the following items. [I am looking for additional opportunities at Teaching Lab to further deepen my knowledge about how I can be an anti-racist.]`,
+    # `` = `How do you feel participation in SLGs has supported your development?`,
+    # `` = `How could SLGs be improved to better support your development?`,
+    # `` = `How do you feel participation in 45 Lemons’ Journey work has supported your development?`,
+    # `` = `How could 45 Lemons’ facilitation be improved to better support your development?`,
+    # `` = `How well do you understand the following Teaching Lab meeting agreements?  [Center equitable impact on students]`,
+    # `` = `How well do you understand the following Teaching Lab meeting agreements?  [Embrace and learn from tensions]`,
+    # `` = `How well do you understand the following Teaching Lab meeting agreements?  [Ask tough questions]`,
+    # `` = `How well do you understand the following Teaching Lab meeting agreements?  [Speak from evidence or experience]`,
+    # `` = `How well do you understand the following Teaching Lab meeting agreements?  [Check your biases]`,
+    # `` = `How well do you understand the following Teaching Lab meeting agreements?  [Champion equity over the status quo]`,
+    # `` = `How well do you understand the following Teaching Lab meeting agreements?  [Connect personally and communicate direclty (i.e., radical candor)]`,
+    # `` = `How well do you understand the following Teaching Lab meeting agreements?  [Seek to understand different perspectives]`,
+    # `` = `How well do you understand the following Teaching Lab meeting agreements?  [Get comfortable with being uncomfortable]`,
+    # `` = `How well do you understand the following Teaching Lab meeting agreements?  [Be mindful of air time]`,
+    # `` = `How well do you understand the following Teaching Lab meeting agreements?  [Empower others to lead]`,
+    # `` = `How well do you understand the following Teaching Lab meeting agreements?  [Interrupt microaggressions]`,
+    # `` = `How well do you understand the following Teaching Lab meeting agreements?  [Anyone can stop the line]`,
+    # `` = `How well do you understand the following Teaching Lab meeting agreements?  [Don't let the perfect be the enemy of the good]`,
+    # `` = `How well do you understand the following Teaching Lab meeting agreements?  [Balance results, process and relationships (RPR)]`,
+    # `` = `How well do you understand the following Teaching Lab meeting agreements?  [Consider purpose before process]`,
+    # `` = `How much do you agree or disagree that this should be a meeting agreement at Teaching Lab? [Center equitable impact on students]`,
+    # `` = `How much do you agree or disagree that this should be a meeting agreement at Teaching Lab? [Embrace and learn from tensions]`,
+    # `` = `How much do you agree or disagree that this should be a meeting agreement at Teaching Lab? [Ask tough questions]`,
+    # `` = `How much do you agree or disagree that this should be a meeting agreement at Teaching Lab? [Speak from evidence or experience]`,
+    # `` = `How much do you agree or disagree that this should be a meeting agreement at Teaching Lab? [Check your biases]`,
+    # `` = `How much do you agree or disagree that this should be a meeting agreement at Teaching Lab? [Champion equity over the status quo]`,
+    # `` = `How much do you agree or disagree that this should be a meeting agreement at Teaching Lab? [Connect personally and communicate directly (i.e., radical candor)]`,
+    # `` = `How much do you agree or disagree that this should be a meeting agreement at Teaching Lab? [Seek to understand different perspectives]`,
+    # `` = `How much do you agree or disagree that this should be a meeting agreement at Teaching Lab? [Get comfortable with being uncomfortable]`,
+    # `` = `How much do you agree or disagree that this should be a meeting agreement at Teaching Lab? [Be mindful of air time]`,
+    # `` = `How much do you agree or disagree that this should be a meeting agreement at Teaching Lab? [Empower others to lead]`,
+    # `` = `How much do you agree or disagree that this should be a meeting agreement at Teaching Lab? [Interrupt microaggressions]`,
+    # `` = `How much do you agree or disagree that this should be a meeting agreement at Teaching Lab? [Anyone can stop the line]`,
+    # `` = `How much do you agree or disagree that this should be a meeting agreement at Teaching Lab? [Don't let the perfect be the enemy of the good]`,
+    # `` = `How much do you agree or disagree that this should be a meeting agreement at Teaching Lab? [Balance results, process and relationships (RPR)]`,
+    # `` = `How much do you agree or disagree that this should be a meeting agreement at Teaching Lab? [Consider purpose before process]`,
+    # `` = `How often do you experience this meeting agreement being lived at Teaching Lab? [Center equitable impact on students]`,
+    # `` = `How often do you experience this meeting agreement being lived at Teaching Lab? [Embrace and learn from tensions]`,
+    # `` = `How often do you experience this meeting agreement being lived at Teaching Lab? [Ask tough questions]`,
+    # `` = `How often do you experience this meeting agreement being lived at Teaching Lab? [Speak from evidence or experience]`,
+    # `` = `How often do you experience this meeting agreement being lived at Teaching Lab? [Check your biases]`,
+    # `` = `How often do you experience this meeting agreement being lived at Teaching Lab? [Champion equity over the status quo]`,
+    # `` = `How often do you experience this meeting agreement being lived at Teaching Lab? [Connect personally and communicate directly (i.e., radical candor)]`,
+    # `` = `How often do you experience this meeting agreement being lived at Teaching Lab? [Seek to understand different perspectives]`,
+    # `` = `How often do you experience this meeting agreement being lived at Teaching Lab? [Get comfortable with being uncomfortable]`,
+    # `` = `How often do you experience this meeting agreement being lived at Teaching Lab? [Be mindful of air time]`,
+    # `` = `How often do you experience this meeting agreement being lived at Teaching Lab? [Empower others to lead]`,
+    # `` = `How often do you experience this meeting agreement being lived at Teaching Lab? [Interrupt microagressions]`,
+    # `` = `How often do you experience this meeting agreement being lived at Teaching Lab? [Anyone can stop the line]`,
+    # `` = `How often do you experience this meeting agreement being lived at Teaching Lab? [Don't let the perfect be the enemy of the good]`,
+    # `` = `How often do you experience this meeting agreement being lived at Teaching Lab? [Balance results, process and relationships (RPR)]`,
+    # `` = `How often do you experience this meeting agreement being lived at Teaching Lab? [Consider purpose before process]`,
+    `How likely would you be to recommend working at Teaching Lab to a friend or colleague` = `How likely would you be to recommend working at Teaching Lab to a friend or colleague?`,
+    `How likely would you be to recommend working at Teaching Lab to a friend or colleague who is a person of color` = `How likely would you be to recommend working at Teaching Lab to a friend or colleague who is a person of color?`,
+    `feedback3` = `We’d appreciate any comments, questions, or feedback you want to share about this survey or about your work at Teaching Lab.`,
+    `How do you identify racially or ethnically?` = `How do you identify racially or ethnically?`,
+    # `` = `What is your preferred pronoun?`,
+    # `` = `How long have you been an employee at Teaching Lab (full or part-time)?`,
+    `Are you part of the Leadership Team at Teaching Lab?` = `Are you a people manager at Teaching Lab?`
+  ) %>%
+  mutate(time = "July 2021")
+
+agree_replace <- c(
+  "Strongly agree" = "5",
+  "Agree" = "4",
+  "Neutral" = "3",
+  "Disagree" = "2",
+  "Strongly disagree" = "1"
+)
+
+final_df <- renamed_data %>%
+  mutate_all(~ as.character(.x)) %>%
+  mutate_all(~ str_replace_all(.x, agree_replace)) %>%
+  mutate_all(~ na_if(.x, "No basis for response"))
+
+
+july_2021 <- final_df %>%
+  select(c("I am satisfied with the work-life balance I'm able to achieve while working for Teaching Lab.", 
+                             "I feel the work I am doing at Teaching Lab will lead to positive impact on students.", 
+                             "I expect to be working at Teaching Lab organization three years from now.", 
+                             "I know what is expected of me at work.", 
+                             "I have the materials and equipment I need to do my work right.", 
+                             "At work, I have the opportunity to do what I do best every day.", 
+                             "In the last seven days, I have received recognition or praise for doing good work.", 
+                             "My supervisor, or someone at work, seems to care about me as a person.", 
+                             "There is someone at work who encourages my development.", 
+                             "At work, my opinions seem to count.", 
+                             "The mission or purpose of my organization makes me feel my job is important.", "My associates (fellow employees) are committed to doing quality work.", 
+                             "I have a best friend at work.", 
+                             "In the last six months, someone at work has talked to me about my progress.", 
+                             "This last year, I have had opportunities at work to learn and grow.", 
+                             "Our leadership team communicates well with the organization.", 
+                             "We have free and open expression of ideas, opinions and beliefs.", 
+                             "I can bring my \"whole self\" to work", 
+                             "We have frequent conversations about race/ethnicity re: how we work.", 
+                             "We have frequent conversations about how power and privilege impact our work at Teaching Lab.", 
+                             "Our organization has an explicit commitment to inclusiveness.", 
+                             "Our organization has an explicit commitment to racial equity.", 
+                             "How likely would you be to recommend working at Teaching Lab to a friend or colleague", 
+                             "feedback3", 
+                             "time", 
+                             "How do you identify racially or ethnically?", 
+                             "Are you part of the Leadership Team at Teaching Lab?", 
+                             "Over the past three months, how would you rate your morale (defined as your sense of well being) at work at Teaching Lab", 
+                             "My manager(s) include me on decisions that impact my work and work environment.", 
+                             "I can ask my manager(s) a question and get a straight answer.", 
+                             "My manager(s) are clear about where the organization is going.", 
+                             "I’m given the opportunity to contribute meaningfully in meetings.", 
+                             "What makes Teaching Lab a great place to work", 
+                             "What would make Teaching Lab an even better place to work", 
+                             "I am satisfied with the logistics of working for Teaching Lab (contracting, invoices, reimbursements, payment, etc.)", 
+                             "What's one thing the organization could do to help you achieve better work-life balance", 
+                             "I trust that I will not be penalized if I ask for help or admit a mistake at work.", 
+                             "Our organization has a racial equity strategy.", 
+                             "Team members are held accountable for racial equity.", 
+                             "Our Executive Team’s actions show that racial equity is a priority at Teaching Lab.", 
+                             "How likely would you be to recommend working at Teaching Lab to a friend or colleague who is a person of color",
+           "I have access to the resources I need to do my job well at Teaching Lab."))
+
+write_rds(july_2021, here::here("Dashboards/StaffandCulture/data/july_2021.rds"))
+```

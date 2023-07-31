@@ -1,0 +1,170 @@
+---
+title: "Teaching Lab Report"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  TeachingLab::TLDefault:
+    highlight: kate
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+devtools::load_all()
+library(TeachingLab)
+## Global options
+options(max.print="75")
+opts_chunk$set(echo=FALSE,
+	             cache=TRUE,
+               prompt=FALSE,
+               tidy=TRUE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE)
+opts_knit$set(width=75)
+library(tidyverse)
+# data <- read_rds(here::here("Data/SY20-21/full_2021.rds"))
+data <- readxl::read_excel(here::here("Data/SY19-20/SY19-20 Fall-Spring Merged Dataset Update.xls"))
+```
+
+
+```{r}
+delaware_data <- data %>% 
+  filter(district == "Delaware Department of Education, DE")
+
+delaware_index <- tibble(question = c("pre24a",
+  "pre24b",
+  "pre24c",
+  "pre24d",
+  "pre25",
+  "pre26a",
+  "pre26b",
+  "pre26c",
+  "pre26d",
+  "pre27",
+  "pre28",
+  "pre29",
+  "pre30a",
+  "pre30b",
+  "pre30c",
+  "pre30d",
+  "pre31a",
+  "pre31b",
+  "pre31c",
+  "pre31d"),
+  coding = c("Yes",
+  "Yes",
+  "No",
+  "No",
+  "Giving students opportunities to develop deep commands of the how, why, and when of mathematical concepts.",
+  "Yes",
+  "Yes",
+  "No",
+  "No",
+  "Students’ beliefs about whether or not they are a “math person” influences their performance in math class.",
+  "Students need to receive on grade-level instruction every year in order to graduate high school ready for college and career.",
+  "Having the teacher simplify the language and task complexity for students who are English learners.",
+  "Yes",
+  "Yes",
+  "No",
+  "No",
+  "Yes",
+  "Yes",
+  "No",
+  "No"))
+
+delaware_scores <- map2_dfr(delaware_index$question, delaware_index$coding, ~ score_question(data = delaware_data, question = .x, 
+                                                                          coding = .y))
+
+gen_standards <- delaware_scores %>%
+  slice(c(1:5)) %>%
+  summarise(mean = mean(percent))
+
+math_mindsets <- delaware_scores %>%
+  slice(c(6:10)) %>%
+  summarise(mean = mean(percent))
+
+principles_math <- delaware_scores %>%
+  slice(c(11:12)) %>%
+  summarise(mean = mean(percent))
+
+supp_students <- delaware_scores %>%
+  slice(c(13:20)) %>%
+  summarise(mean = mean(percent))
+
+overall <- delaware_scores %>%
+  summarise(mean = mean(percent))
+
+data1920 <- bind_rows(overall, gen_standards, math_mindsets, principles_math, supp_students)
+```
+
+```{r}
+data1920 <- data1920 %>%
+  mutate(question = c("Overall", "General Standards & Shifts", "Math Mindsets & Identities", 
+                      "Principles of Math Equitable Instruction", "Supporting Students with Unfinished Learning"))
+```
+
+```{r}
+data2021 <- tibble(mean = c(86, 73, NA, 93, 91))
+
+library(gt)
+data1920 %>%
+  bind_cols(data2021) %>%
+  relocate(question, .before = 1) %>%
+  rename(Question = question, `2019-2020` = 2, `2020-2021` = 3) %>%
+  mutate(across(where(is.numeric), ~ round(.x))) %>%
+  mutate(Improvement = `2020-2021` - `2019-2020`) %>%
+  gt::gt() %>%
+  gt::tab_header(title = html("<strong>Delaware Average Score Improvements<br>from <span style = 'color:#02587A;'>2019-2020</span> to <span style = 'color:#04abeb;'>2020-2021</span>")) %>%
+  cols_label(
+    `2019-2020` = html("<span style = 'color:#02587A;'>2019-2020</span>"),
+    `2020-2021` = html("<span style = 'color:#04abeb;'>2020-2021</span>")
+  ) %>%
+  fmt_missing(
+    columns = c(3, 4),
+    missing_text = "New Question Set Implemented"
+  ) %>%
+  data_color(
+    columns = c(4),
+    colors = scales::col_numeric(
+      palette = TeachingLab::tl_palette(n = 10, color = "blue", theme = "dark")[c(6:10)],
+      domain = NULL
+      )
+  ) %>%
+  fmt_percent(columns = c(2, 3),
+              scale_values = F,
+              decimals = 0) %>%
+  fmt_percent(columns = c(4),
+              scale_values = F,
+              decimals = 0,
+              pattern = "+{x}") %>%
+  gt_theme_tl() %>%
+  gtsave(here::here("Images/2020-2021/DelawareYearlyComparison.png"))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+# DelawareData1 <- data %>% 
+#   filter(pre_priorpart == "Yes") %>%
+#   filter(pre_site == "Delaware Department of Education, DE" | post_site == "Delaware Department of Education, DE")
+# 
+# DelawareData2 <- data %>% 
+#   filter(pre_priorpart == "No") %>%
+#   filter(pre_site == "Delaware Department of Education, DE" | post_site == "Delaware Department of Education, DE")
+```
+

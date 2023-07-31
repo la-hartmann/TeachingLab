@@ -1,0 +1,37 @@
+.airdatepicker--day-name {
+  color: #3D9970;
+}
+
+.selectize-input {
+  height: 40px; 
+  width: 1000px; 
+  font-size: 17px; 
+  margin-top: 20px;
+}
+
+.inline label{ 
+  display: table-cell; 
+  text-align: left; 
+  vertical-align: middle; 
+  padding-right: 10px;
+} 
+
+.inline .form-group { 
+  display: table-row;
+}
+
+.sw-air-picker .form-control .shiny-bound-input {
+  max-width: 300px;
+}
+
+/* Adding some basic styling to button */
+          
+.btn {
+    cursor: pointer;
+    outline: none;
+}
+/* Adding transformation when the button is active */
+  
+.btn:focus {
+  background-color: white;
+}

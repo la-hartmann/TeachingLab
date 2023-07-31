@@ -1,0 +1,51 @@
+Package: TeachingLab
+Title: Teaching Lab Custom R Development Package
+Version: 0.0.1
+Authors@R: person(given = "Duncan",
+           family = "Gates",
+           role = c("aut", "cre"),
+           email = "duncan.gates@teachinglab.org")
+Description: Provides templates, palettes, and useful data analysis for Teaching Lab purposes.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+URL: https://github.com/duncangates/teachinglab-duncan
+BugReports: https://github.com/duncangates/teachinglab-duncan/issues
+Imports:
+  assertthat,
+  bookdown,
+  dplyr,
+  fontawesome,
+  forcats,
+  ggplot2,
+  ggtext,
+  googlesheets4,
+  glue,
+  grid,
+  gt,
+  htmltools,
+  knitr,
+  lubridate,
+  magrittr,
+  purrr,
+  qualtRics,
+  readr,
+  rlang,
+  rmarkdown,
+  scales,
+  stats,
+  stringr,
+  tibble,
+  tidyr,
+  tidyselect,
+  tidytext,
+  treemapify,
+  waffle
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.2.3
+Depends: 
+    R (>= 3.10)
+Suggests: 
+    testthat (>= 3.0.0),
+    janitor
+Config/testthat/edition: 3
