@@ -22,6 +22,6 @@ devtools::load_all()
 googlesheets4::gs4_auth()
 
 ## Run all scripts based on location ##
-purrr::walk(r_scripts_final[3:length(r_scripts_final)], run_script)
+purrr::walk(r_scripts_final, run_script)
 
 ############################################# End Script ######################################################

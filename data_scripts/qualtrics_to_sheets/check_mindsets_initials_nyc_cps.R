@@ -19,7 +19,7 @@ educator_survey <- TeachingLab::get_diagnostic_survey(update = FALSE, year = "22
 
 ipg_forms <- TeachingLab::get_ipg_forms(update = FALSE, year = "22_23")
 
-student_work_survey <- TeachingLab::get_student_work(year = "22_23", write = FALSE)
+student_work_survey <- TeachingLab::get_student_work(year = "22_23")
 
 participant_feedback <- qualtRics::fetch_survey(
   surveyID = "SV_djt8w6zgigaNq0C",

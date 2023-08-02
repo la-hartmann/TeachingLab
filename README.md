@@ -67,7 +67,7 @@ To get a local copy up and running follow these simple example steps.
 
 ### Prerequisites
 
-[RStudio](https://www.rstudio.com/products/rstudio/download/)
+An IDE such as [RStudio](https://www.rstudio.com/products/rstudio/download/) or [VSCode](https://visualstudio.microsoft.com/)
 
 ### Installation
 
@@ -77,10 +77,10 @@ devtools::install_github("https://github.com/TeachingLabHQ/TeachingLab")
 
 ## Organization
 
-- dashbaords
-	- [ParticipantFeedback](https://teachinglabhq.shinyapps.io/ParticipantFeedback/): Course Feedback Visualization Dashboard from pre 2021-2022
+- analysis: Sets of analyses, reports, and visualizations code organized primarily by year
+- dashboards: A set of dashboards that have been used to visualize and analyze Teaching Lab data over time, most are deprecated.
 - data: All read-in data that should be stored
-- data_scripts: ongoing data scripts that mostly run daily
+- data_scripts: ongoing data scripts that run daily
 - html: html template building files
 - inst: Rmd template building files
 - man: Internal package documentation

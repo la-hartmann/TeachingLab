@@ -11,8 +11,8 @@ Provides templates, palettes, and useful data analysis for Teaching Lab purposes
 \seealso{
 Useful links:
 \itemize{
-  \item \url{https://github.com/duncangates/teachinglab-duncan}
-  \item Report bugs at \url{https://github.com/duncangates/teachinglab-duncan/issues}
+  \item \url{https://github.com/teachinglabhq/teachinglab}
+  \item Report bugs at \url{https://github.com/teachinglabhq/teachinglab/issues}
 }
 
 }

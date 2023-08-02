@@ -17,3 +17,4 @@ MondayR.httr-oauth
 .secrets
 data/*
 !data/*.rda
+data_scripts/monday.com/env/
