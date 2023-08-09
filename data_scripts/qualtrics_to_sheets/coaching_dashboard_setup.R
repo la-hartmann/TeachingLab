@@ -19,9 +19,9 @@ participant_feedback |>
     `They seem fully prepared for the coaching sessions` = coach_ongoing_feed_3,
     `They effectively build a safe learning environment` = coach_ongoing_feed_4,
     `They make necessary adjustments based on my needs` = coach_ongoing_feed_5,
-    `Additional feedback` = coach_additonal_feed,
-    `What has gone well in your coaching sessions?` = coach_gone_well,
-    `What could have been better about your coaching sessions?` = been_better_coach,
+    `Additional feedback` = coach_add_feed_1,
+    `What has gone well in your coaching sessions?` = coach_gone_well_1,
+    `What could have been better about your coaching sessions?` = been_better_coach_1,
     course,
     site,
     Date = RecordedDate,
@@ -31,3 +31,4 @@ participant_feedback |>
     ss = "https://docs.google.com/spreadsheets/d/1fvy2NTZXs3zuIi9BE1XZP_0MZW7_7I_r8lrbjaqbtnU/edit#gid=0",
     sheet = "Sheet3"
   )
+

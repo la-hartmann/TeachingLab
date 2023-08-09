@@ -1,7 +1,7 @@
 ---
 params:
   matched: "unmatched"
-  partner: "NYC District 9 - District-wide, NY"
+  partner: "All Partners"
 title: "`r ifelse(params$matched == 'matched', paste0('Teaching Lab ', params$partner, ' Report: Matched'), paste0('Teaching Lab ', params$partner, ' Report'))`"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: 
@@ -37,7 +37,7 @@ library(TeachingLab)
 library(tidyverse)
 
 ### IPG Forms Read-In ###
-ipg_forms <- readr::read_rds(here::here("data/ipg_forms.rds")) |>
+ipg_forms <- readr::read_rds(here::here("data/sy21_22/ipg_forms.rds")) |>
   TeachingLab::neg_cond_filter(
     if_not_this = "All Partners",
     filter_this = params$partner,
@@ -64,7 +64,7 @@ ipg_forms <- readr::read_rds(here::here("data/ipg_forms.rds")) |>
   ))
 
 ### Coaching Participant Feedback Read-in ###
-coaching_participant_feedback <- TeachingLab::get_coaching_feedback() |>
+coaching_participant_feedback <- TeachingLab::get_coaching_feedback(year = "21_22") |>
   TeachingLab::neg_cond_filter(
     if_not_this = "All Partners",
     filter_this = params$partner,
@@ -72,7 +72,7 @@ coaching_participant_feedback <- TeachingLab::get_coaching_feedback() |>
   )
 
 ### Ongoing Coaching Feedback
-ongoing_participant_feedback <- TeachingLab::get_ongoing_coaching() |>
+ongoing_participant_feedback <- TeachingLab::get_ongoing_coaching(year = "21_22") |>
   TeachingLab::neg_cond_filter(
     if_not_this = "All Partners",
     filter_this = params$partner,
@@ -80,7 +80,7 @@ ongoing_participant_feedback <- TeachingLab::get_ongoing_coaching() |>
   )
 
 ### End of Session Read-in ###
-session_survey <- TeachingLab::get_session_survey() |>
+session_survey <- TeachingLab::get_session_survey(year = "21_22") |>
   TeachingLab::neg_cond_filter(
     if_not_this = "All Partners",
     filter_this = params$partner,
@@ -88,7 +88,7 @@ session_survey <- TeachingLab::get_session_survey() |>
   )
 
 ### End of Course Read-in ###
-course_survey <- TeachingLab::get_course_survey() |>
+course_survey <- TeachingLab::get_course_survey(year = "21_22") |>
   filter(date_created >= as.Date("2021-07-01")) |>
   TeachingLab::neg_cond_filter(
     if_not_this = "All Partners",
@@ -97,7 +97,7 @@ course_survey <- TeachingLab::get_course_survey() |>
   )
 
 ### Diagnostic Educator Read-in ###
-diagnostic_survey <- TeachingLab::get_diagnostic_survey() |>
+diagnostic_survey <- TeachingLab::get_diagnostic_survey(year = "21_22") |>
   TeachingLab::neg_cond_filter(
     if_not_this = "All Partners",
     filter_this = params$partner,
@@ -105,7 +105,7 @@ diagnostic_survey <- TeachingLab::get_diagnostic_survey() |>
   )
 
 ### Follow Up Educator Read-in ###
-followup_educator <- TeachingLab:::get_followup_educator() |>
+followup_educator <- TeachingLab:::get_followup_educator(year = "21_22") |>
   TeachingLab::neg_cond_filter(
     if_not_this = "All Partners",
     filter_this = params$partner,
@@ -113,7 +113,7 @@ followup_educator <- TeachingLab:::get_followup_educator() |>
   )
 
 ### Student Survey Read-in ###
-student_survey <- TeachingLab::get_student_survey() |>
+student_survey <- TeachingLab::get_student_survey(year = "21_22") |>
   TeachingLab::neg_cond_filter(
     if_not_this = "All Partners",
     filter_this = params$partner,
@@ -121,7 +121,7 @@ student_survey <- TeachingLab::get_student_survey() |>
   )
 
 ### Knowledge Assessments Read-in ###
-knowledge_assessments <- TeachingLab::get_knowledge_assessments() |>
+knowledge_assessments <- TeachingLab::get_knowledge_assessments(year = "21_22") |>
   TeachingLab::neg_cond_filter(
     if_not_this = "All Partners",
     filter_this = params$partner,

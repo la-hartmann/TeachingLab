@@ -2,9 +2,10 @@
 #' @description Gets dashboard data by reading it in from data folder
 #' @param update FALSE, whether or not to update
 #' @param year "21_22" or "22_23"
+#' @param write FALSE by default, otherwise writes data to year and data directory
 #' @return Returns a tibble
 #' @export
-get_session_survey <- function(update = FALSE, year = "22_23") {
+get_session_survey <- function(update = FALSE, year = "22_23", write = FALSE) {
   if (year == "22_23") {
     session_survey <- qualtRics::fetch_survey(
       surveyID = "SV_djt8w6zgigaNq0C",
@@ -17,9 +18,17 @@ get_session_survey <- function(update = FALSE, year = "22_23") {
     session_survey <- readr::read_rds("data/sy21_22/session_survey_21_22data.rds")
   } else if (update == TRUE & year == "21_22") {
     print("This code can unfortunately no longer be run due to the cancellation of the SurveyMonkey contract.")
+  } else if (year == "20_21") {
+    session_survey <- read.csv("data/sy20_21/session_survey.csv")
+  } else if (year == "19_20") {
+    session_survey <- read.csv("data/19_20/session_survey.csv")
+  } else if (year == "18_19") {
+    session_survey <- read.csv("data/18_19/session_survey.csv")
   }
 
-  write.csv(session_survey, glue::glue("data/sy{year}/session_survey.csv"))
+  if (write != FALSE) {
+    write.csv(session_survey, glue::glue("data/sy{year}/session_survey.csv"))
+  }
 
   return(session_survey)
 }
@@ -28,9 +37,10 @@ get_session_survey <- function(update = FALSE, year = "22_23") {
 #' @description Gets dashboard data by reading it in from data folder
 #' @param update FALSE, optional to update end of course data or not
 #' @param year "21_22" or "22_23"
+#' @param write FALSE by default
 #' @return Returns a tibble
 #' @export
-get_course_survey <- function(update = FALSE, year = "22_23") {
+get_course_survey <- function(update = FALSE, year = "22_23", write = FALSE) {
   if (year == "22_23") {
     course_survey <- qualtRics::fetch_survey(
       surveyID = "SV_djt8w6zgigaNq0C",
@@ -43,9 +53,13 @@ get_course_survey <- function(update = FALSE, year = "22_23") {
     course_survey <- readr::read_rds(file = "data/merged/course_surveymonkey.rds")
   } else if (update == TRUE & year == "21_22") {
     print("This code can unfortunately no longer be run due to the cancellation of the SurveyMonkey contract.")
+  } else if (year == "20_21") {
+    course_survey <- read.csv("data/sy20_21/course_survey.csv")
   }
 
-  write.csv(course_survey, glue::glue("data/sy{year}/course_survey.csv"))
+  if (write != FALSE) {
+    write.csv(course_survey, glue::glue("data/sy{year}/course_survey.csv"))
+  }
 
   return(course_survey)
 }
@@ -54,9 +68,10 @@ get_course_survey <- function(update = FALSE, year = "22_23") {
 #' @description Gets data from Student Survey
 #' @param update FALSE whether or not to update the data
 #' @param year "21_22" or "22_23"
+#' @param write FALSE by default
 #' @return Returns a tibble
 #' @export
-get_student_survey <- function(update = FALSE, year = "22_23") {
+get_student_survey <- function(update = FALSE, year = "22_23", write = FALSE) {
   if (year == "22_23") {
     student_survey <- qualtRics::fetch_survey(
       surveyID = "SV_9uze2faHuIf3vP8",
@@ -121,9 +136,10 @@ get_student_survey <- function(update = FALSE, year = "22_23") {
 #' @description Get the diagnostic survey
 #' @param update FALSE, optional updating
 #' @param year "21_22" or "22_23"
+#' @param write FALSE by default
 #' @return A tibble
 #' @export
-get_diagnostic_survey <- function(update = FALSE, year = "22_23") {
+get_diagnostic_survey <- function(update = FALSE, year = "22_23", write = FALSE) {
   if (year == "22_23") {
     nm_diagnostic <- qualtRics::fetch_survey(
       surveyID = "SV_3a2OM4f9j85EuyO",
@@ -170,9 +186,17 @@ get_diagnostic_survey <- function(update = FALSE, year = "22_23") {
     diagnostic_final <- readr::read_rds("data/sy21_22/diagnostic.rds")
   } else if (update == TRUE & year == "21_22") {
     print("This code can unfortunately no longer be run due to the cancellation of the SurveyMonkey contract.")
+  } else if (year == "20_21") {
+    diagnostic_final <- read.csv("data/sy20_21/educator_survey.csv")
+  } else if (year == "19_20") {
+    diagnostic_final <- read.csv("data/sy19_20/educator_survey.csv")
   }
 
-  write.csv(diagnostic_final, glue::glue("data/sy{year}/educator_survey.csv"))
+  ### If you want to save data, use the write argument and it will save educator.csv to the relevant data/year folder ###
+  if (write != FALSE) {
+    write.csv(diagnostic_final, glue::glue("data/sy{year}/educator_survey.csv"))
+  }
+  
   return(diagnostic_final)
 }
 
@@ -180,9 +204,10 @@ get_diagnostic_survey <- function(update = FALSE, year = "22_23") {
 #' @description Gets data from Coaching Participant Feedback
 #' @param update FALSE, whether or not to pull the updated version
 #' @param year "21_22" or "22_23"
+#' @param write FALSE by default
 #' @return Returns a tibble
 #' @export
-get_ongoing_coaching <- function(update = FALSE, year = "22_23") {
+get_ongoing_coaching <- function(update = FALSE, year = "22_23", write = FALSE) {
   if (year == "22_23") {
     coaching_feedback_clean <- qualtRics::fetch_survey(
       surveyID = "SV_djt8w6zgigaNq0C",
@@ -197,7 +222,9 @@ get_ongoing_coaching <- function(update = FALSE, year = "22_23") {
     print("This code can unfortunately no longer be run due to the cancellation of the SurveyMonkey contract.")
   }
 
-  write.csv(coaching_feedback_clean, glue::glue("data/sy{year}/ongoing_coaching.csv"))
+  if (write != FALSE) {
+    write.csv(coaching_feedback_clean, glue::glue("data/sy{year}/ongoing_coaching.csv"))
+  }
 
   return(coaching_feedback_clean)
 }
@@ -206,9 +233,10 @@ get_ongoing_coaching <- function(update = FALSE, year = "22_23") {
 #' @description Gets data from the Follow Up Educator Survey
 #' @param update FALSE, whether or not to pull the updated version
 #' @param year "21_22" or "22_23"
+#' @param write FALSE by default
 #' @return Returns a tibble
 #' @export
-get_followup_educator <- function(update = FALSE, year = "22_23") {
+get_followup_educator <- function(update = FALSE, year = "22_23", write = FALSE) {
   if (year == "22_23") {
     nm_diagnostic <- qualtRics::fetch_survey(
       surveyID = "SV_3a2OM4f9j85EuyO",
@@ -270,6 +298,12 @@ get_followup_educator <- function(update = FALSE, year = "22_23") {
     followup_educator_clean <- readr::read_rds("data/sy21_22/followup_educator_survey.rds")
   } else if (update == TRUE & year == "21_22") {
     print("This code can unfortunately no longer be run due to the cancellation of the SurveyMonkey contract.")
+  } else if (year == "20_21") {
+    followup_educator_clean <- read.csv("data/sy20_21/followup_educator.csv")
+  }
+  
+  if (write != FALSE) {
+    write.csv(end_coaching_survey_clean, glue::glue("data/sy{year}/followup_educator.csv"))
   }
 
   return(followup_educator_clean)

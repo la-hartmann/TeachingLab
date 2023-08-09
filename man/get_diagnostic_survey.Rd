@@ -4,12 +4,14 @@
 \alias{get_diagnostic_survey}
 \title{Diagnostic Survey Update}
 \usage{
-get_diagnostic_survey(update = FALSE, year = "22_23")
+get_diagnostic_survey(update = FALSE, year = "22_23", write = FALSE)
 }
 \arguments{
 \item{update}{FALSE, optional updating}
 
 \item{year}{"21_22" or "22_23"}
+
+\item{write}{FALSE by default}
 }
 \value{
 A tibble

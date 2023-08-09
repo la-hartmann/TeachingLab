@@ -4,12 +4,14 @@
 \alias{get_course_survey}
 \title{End of Course Dashboard Data}
 \usage{
-get_course_survey(update = FALSE, year = "22_23")
+get_course_survey(update = FALSE, year = "22_23", write = FALSE)
 }
 \arguments{
 \item{update}{FALSE, optional to update end of course data or not}
 
 \item{year}{"21_22" or "22_23"}
+
+\item{write}{FALSE by default}
 }
 \value{
 Returns a tibble

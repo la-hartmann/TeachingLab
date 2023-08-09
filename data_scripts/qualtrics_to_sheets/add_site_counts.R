@@ -237,7 +237,7 @@ district11_classroom_obs_count <- ipg_forms |>
   ) |>
   tidyr::pivot_wider(names_from = round, values_from = n, names_sort = TRUE)
 
-if (!"Fourth site visit" %in% colnames(district11_classroom_obs_count)) {
+if (!"Fourth site visit" %in% colnames(district11_classroom_obs_count) & nrow(district11_classroom_obs_count) > 0) {
   district11_classroom_obs_count <- dplyr::mutate(district11_classroom_obs_count,
     `Fourth site visit` = NA
   ) |>

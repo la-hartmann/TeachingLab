@@ -72,5 +72,20 @@ create_single_file(file1 = "Scored Pre-Test Informational Writing B Gr 7-10.xlsx
                    file2 = "Scored Post-Test Informational Writing A Gr 7-10.xlsx",
                    output_file = "Pair 4 Combined Informational Writing Gr 7-10.xlsx")
 
+### Work from 08-08-2023 ###
+create_single_file(file1 = "Final - Pre-Test Informational Writing B Gr 7-10 with IDs.xlsx",
+                   file2 = "Copy of TranscribedResponses_PostInfoA.xlsx",
+                   output_file = "InformationalBAJoin1.xlsx")
 
+create_single_file(file1 = "Final - Pre-Test Informational Writing A Gr 7-10 with IDs.xlsx",
+                   file2 = "Copy of TranscribedResponses_PostInfoB.xlsx",
+                   output_file = "InformationalABJoin2.xlsx")
+
+create_single_file(file1 = "Final - Pre-Test Persuasive Writing A Gr 7-10 with IDs v2.xlsx",
+                   file2 = "Copy of TranscribedResponses_PostPersB.xlsx",
+                   output_file = "PersuasiveABJoin3.xlsx")
+
+create_single_file(file1 = "Final - Pre-Test Persuasive Writing B Gr 7-10 with IDs.xlsx",
+                   file2 = "Copy of TranscribedResponses_PostPersA.xlsx",
+                   output_file = "PersuasiveBAJoin4.xlsx")
 

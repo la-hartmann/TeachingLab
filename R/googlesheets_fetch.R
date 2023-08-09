@@ -33,9 +33,10 @@ get_current_partner_sites <- function(update = FALSE, year = "22_23") {
 #' @description Gets data from IPG forms
 #' @param update FALSE
 #' @param year "21_22" or "22_23"
+#' @param write FALSE by default
 #' @return Returns a tibble
 #' @export
-get_ipg_forms <- function(update = FALSE, year = "22_23") {
+get_ipg_forms <- function(update = FALSE, year = "22_23", write = FALSE) {
   
   if (year == "22_23") {
     ipg_forms <- qualtRics::fetch_survey(

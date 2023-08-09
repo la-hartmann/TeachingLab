@@ -4,12 +4,14 @@
 \alias{get_session_survey}
 \title{End of Session Dashboard Data}
 \usage{
-get_session_survey(update = FALSE, year = "22_23")
+get_session_survey(update = FALSE, year = "22_23", write = FALSE)
 }
 \arguments{
 \item{update}{FALSE, whether or not to update}
 
 \item{year}{"21_22" or "22_23"}
+
+\item{write}{FALSE by default, otherwise writes data to year and data directory}
 }
 \value{
 Returns a tibble

@@ -27,7 +27,7 @@ tx_raise_feedback |>
               "The strategies I’ve learned in this session will improve my instruction.",
               "I have applied or will apply what I have learned in this session to my practice.",
               "This session has supported me in being responsive to students' backgrounds, cultures, and points of view.")) |>
-  googlesheets4::range_write(ss = "https://docs.google.com/spreadsheets/d/1nic0uhJt3Wi7Df5Romc2GilBj3cFGKALkxPVVJ-i5GE/edit#gid=393168439",
+  googlesheets4::range_write(ss = "https://docs.google.com/spreadsheets/d/1nic0uhJt3Wi7Df5Romc2GilBj3cFGKALkxPVVJ-i5GE",
                              sheet = "data",
                              col_names = F,
                              range = glue::glue("A2:F{sheet_length}"))

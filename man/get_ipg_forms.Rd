@@ -4,12 +4,14 @@
 \alias{get_ipg_forms}
 \title{IPG Data}
 \usage{
-get_ipg_forms(update = FALSE, year = "22_23")
+get_ipg_forms(update = FALSE, year = "22_23", write = FALSE)
 }
 \arguments{
 \item{update}{FALSE}
 
 \item{year}{"21_22" or "22_23"}
+
+\item{write}{FALSE by default}
 }
 \value{
 Returns a tibble
