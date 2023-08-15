@@ -4,12 +4,14 @@
 \alias{get_end_coaching}
 \title{Ongoing Coaching Feedback Survey Data}
 \usage{
-get_end_coaching(update = FALSE, year = "22_23")
+get_end_coaching(update = FALSE, year = "22_23", write = FALSE)
 }
 \arguments{
 \item{update}{FALSE, whether or not to pull the updated version}
 
 \item{year}{"21_22" or "22_23"}
+
+\item{write}{FALSE by default}
 }
 \value{
 Returns a tibble

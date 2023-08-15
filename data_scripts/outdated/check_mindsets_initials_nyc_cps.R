@@ -712,7 +712,7 @@ check_initials_match <- function(codes_match, column) {
 participant_feedback |>
   dplyr::filter(stringr::str_detect(site, "Chic|NY") &
     course == "Coaching" &
-    last_session_or_not == "Yes - there will be more sessions for this PL course or coaching support.") |>
+    last_session_or_not == "Yes - there will be more sessions for this PL course or coaching cycle.") |>
   dplyr::select(initials, site) |>
   dplyr::mutate(
     initials = toupper(initials),

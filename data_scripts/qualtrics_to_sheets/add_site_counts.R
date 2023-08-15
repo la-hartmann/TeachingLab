@@ -64,7 +64,7 @@ district_11_course_count <- participant_feedback |>
 
 ### Ongoing coaching count ###
 ongoing_coaching_count <- participant_feedback |>
-  dplyr::filter(last_session_or_not == "Yes - there will be more sessions for this PL course or coaching support." &
+  dplyr::filter(last_session_or_not == "Yes - there will be more sessions for this PL course or coaching cycle." &
     course == "Coaching") |>
   dplyr::mutate(site = replace_na(as.character(site), "Other")) |>
   dplyr::group_by(site) |>
@@ -72,14 +72,14 @@ ongoing_coaching_count <- participant_feedback |>
   dplyr::rename(`Ongoing Coaching` = n)
 
 district9_ongoing_coaching_count <- participant_feedback |>
-  dplyr::filter(last_session_or_not == "Yes - there will be more sessions for this PL course or coaching support." & course == "Coaching") |>
+  dplyr::filter(last_session_or_not == "Yes - there will be more sessions for this PL course or coaching cycle." & course == "Coaching") |>
   dplyr::group_by(district9) |>
   dplyr::count(sort = T) |>
   tidyr::drop_na() |>
   dplyr::rename(`Ongoing Coaching` = n)
 
 district11_ongoing_coaching_count <- participant_feedback |>
-  dplyr::filter(last_session_or_not == "Yes - there will be more sessions for this PL course or coaching support." & course == "Coaching") |>
+  dplyr::filter(last_session_or_not == "Yes - there will be more sessions for this PL course or coaching cycle." & course == "Coaching") |>
   dplyr::group_by(district11) |>
   dplyr::count(sort = T) |>
   dplyr::mutate(district11 = as.character(district11)) |>
@@ -89,21 +89,21 @@ district11_ongoing_coaching_count <- participant_feedback |>
 
 ### End of coaching count ###
 end_coaching_count <- participant_feedback |>
-  dplyr::filter(last_session_or_not != "Yes - there will be more sessions for this PL course or coaching support." & course == "Coaching") |>
+  dplyr::filter(last_session_or_not != "Yes - there will be more sessions for this PL course or coaching cycle." & course == "Coaching") |>
   dplyr::mutate(site = replace_na(as.character(site), "Other")) |>
   dplyr::group_by(site) |>
   dplyr::count(sort = T) |>
   dplyr::rename(`End of Coaching` = n)
 
 district9_end_coaching_count <- participant_feedback |>
-  dplyr::filter(last_session_or_not != "Yes - there will be more sessions for this PL course or coaching support." & course == "Coaching") |>
+  dplyr::filter(last_session_or_not != "Yes - there will be more sessions for this PL course or coaching cycle." & course == "Coaching") |>
   dplyr::group_by(district9) |>
   dplyr::count(sort = T) |>
   tidyr::drop_na() |>
   dplyr::rename(`End of Coaching` = n)
 
 district11_end_coaching_count <- participant_feedback |>
-  dplyr::filter(last_session_or_not != "Yes - there will be more sessions for this PL course or coaching support." & course == "Coaching") |>
+  dplyr::filter(last_session_or_not != "Yes - there will be more sessions for this PL course or coaching cycle." & course == "Coaching") |>
   dplyr::group_by(district11) |>
   dplyr::count(sort = T) |>
   dplyr::mutate(district11 = as.character(district11)) |>

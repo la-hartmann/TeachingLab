@@ -12,7 +12,7 @@ max_date <- max(original_sheet$Date, na.rm = T)
 
 participant_feedback |>
   dplyr::filter(course == "Coaching" & Finished == TRUE & RecordedDate > max_date &
-    last_session_or_not == "Yes - there will be more sessions for this PL course or coaching support.") |>
+    last_session_or_not == "Yes - there will be more sessions for this PL course or coaching cycle.") |>
   dplyr::select(coach,
     `They demonstrate deep knowledge of the content on which they coach` = coach_ongoing_feed_1,
     `Their coaching is clear` = coach_ongoing_feed_2,
