@@ -168,11 +168,11 @@ course_feed_choices <- tibble(
   recode = as.numeric(purrr::map(1:length(course_feed_meta$questions$QID6$choices), ~ course_feed_meta$questions$QID6$choices[[.x]]$recode)),
 )
 
-setdiff(course_list$`Course Name Official`, course_feed_choices$choices) -> course_diff
+setdiff(purrr::discard(course_list$`Course Name Official`, is.na), course_feed_choices$choices) -> course_diff
 
 if (length(course_diff) > 0) {
   print(paste0("The following courses need to be added: ", course_diff))
-}
+} # Note that Eureka Math² 4-5 Cycle of Inquiry: Instructional Routines is actually there, I'm not sure why it comes up here
 
 ###################################### Course Checking #########################################
 

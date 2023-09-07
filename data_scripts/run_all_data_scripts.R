@@ -24,6 +24,6 @@ googlesheets4::gs4_auth()
 ## Run all scripts based on location ##
 purrr::walk(r_scripts_final[-c(2, 7, 3)], run_script)
 
-usethis::edit_file(r_scripts_final[3])
+usethis::edit_file(r_scripts_final[3]) ### So it can be ran and checked at each point
 
 ############################################# End Script ######################################################

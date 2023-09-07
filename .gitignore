@@ -19,3 +19,4 @@ data/*
 !data/*.rda
 !data/*.csv
 data_scripts/monday.com/env/
+read_sites_test
