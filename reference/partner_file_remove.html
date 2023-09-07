@@ -50,7 +50,16 @@
     </div>
 
     <div id="ref-usage">
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">partner_file_remove</span><span class="op">(</span><span class="va">partner</span>, content_area <span class="op">=</span> <span class="cn">NULL</span>, <span class="va">input</span>, <span class="va">output_dir</span>, <span class="va">...</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">partner_file_remove</span><span class="op">(</span></span>
+<span>  <span class="va">partner</span>,</span>
+<span>  content_area <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  d27 <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  d11 <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  matched <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  <span class="va">input</span>,</span>
+<span>  <span class="va">output_dir</span>,</span>
+<span>  <span class="va">...</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div id="arguments">
@@ -61,6 +70,18 @@
 
 <dt>content_area</dt>
 <dd><p>content area to filter by default to NULL and ignored</p></dd>
+
+
+<dt>d27</dt>
+<dd><p>site dropdown filter by default NULL and ignored</p></dd>
+
+
+<dt>d11</dt>
+<dd><p>site dropdown filter by default NULL and ignored</p></dd>
+
+
+<dt>matched</dt>
+<dd><p>whether or not the responses should be matched, either "True" or "False"</p></dd>
 
 
 <dt>input</dt>
