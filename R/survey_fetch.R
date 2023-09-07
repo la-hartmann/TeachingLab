@@ -1,3 +1,19 @@
+#' @title Participant Feedback Data
+#' @description Gets all participant feedback qualtrics data
+#' @param update FALSE, whether or not to update
+#' @param start_date the initial date to get data from, defaults to start of data collection
+#' @return Returns a tibble
+#' @export
+get_participant_feedback <- function(update = FALSE, start_date = as.Date("2022-07-01")) {
+  participant_feedback <- qualtRics::fetch_survey(
+    surveyID = "SV_djt8w6zgigaNq0C",
+    verbose = FALSE,
+    include_display_order = FALSE,
+    start_date = start_date,
+    force_request = update
+  )
+}
+
 #' @title End of Session Dashboard Data
 #' @description Gets dashboard data by reading it in from data folder
 #' @param update FALSE, whether or not to update
@@ -11,12 +27,15 @@ get_session_survey <- function(update = FALSE, year = "22_23", write = FALSE) {
       surveyID = "SV_djt8w6zgigaNq0C",
       verbose = FALSE,
       include_display_order = FALSE,
+      start_date = as.Date("2023-07-01"),
       force_request = update
     ) |>
-      dplyr::filter(last_session_or_not == "Yes - there will be more sessions for this PL course or coaching cycle." & course != "Coaching" & Finished == TRUE) |>
-      dplyr::mutate(selected_date = as.Date(selected_date, "%m-%d-%Y")) |>
-      dplyr::filter(RecordedDate >= as.Date("2023-07-01"))
-  } else if (year == "22_23") {
+      dplyr::filter(last_session_or_not %in% c("Yes - there will be more sessions for this PL course or coaching cycle.",
+                                             "This was a 1-day PL course.") & 
+                      course != "Coaching" & 
+                      Finished == TRUE) |>
+      dplyr::mutate(selected_date = as.Date(selected_date, "%m-%d-%Y"))
+  } else if (year == "22_23" & update == TRUE) {
     session_survey <- qualtRics::fetch_survey(
       surveyID = "SV_djt8w6zgigaNq0C",
       verbose = FALSE,
@@ -25,8 +44,10 @@ get_session_survey <- function(update = FALSE, year = "22_23", write = FALSE) {
     ) |>
       dplyr::filter(last_session_or_not == "Yes - there will be more sessions for this PL course or coaching cycle." & course != "Coaching" & Finished == TRUE) |>
       dplyr::mutate(selected_date = as.Date(selected_date, "%m-%d-%Y"))
+  } else if (year == "22_23" & update == FALSE) {
+    session_survey <- readr::read_csv("data/sy22_23/session_survey.csv")
   } else if (update == FALSE & year == "21_22") {
-    session_survey <- readr::read_rds("data/sy21_22/session_survey_21_22data.rds")
+    session_survey <- readr::read_csv("data/sy21_22/session_survey.csv")
   } else if (update == TRUE & year == "21_22") {
     print("This code can unfortunately no longer be run due to the cancellation of the SurveyMonkey contract.")
   } else if (year == "20_21") {
@@ -57,12 +78,14 @@ get_course_survey <- function(update = FALSE, year = "22_23", write = FALSE) {
       surveyID = "SV_djt8w6zgigaNq0C",
       verbose = FALSE,
       include_display_order = FALSE,
+      start_date = as.Date("2023-07-01"),
       force_request = update
     ) |>
-      dplyr::filter(last_session_or_not != "Yes - there will be more sessions for this PL course or coaching cycle." & course != "Coaching" & Finished == TRUE) |>
-      dplyr::mutate(selected_date = as.Date(selected_date, "%m-%d-%Y")) |>
-      dplyr::filter(RecordedDate >= as.Date("2023-07-01"))
-  } else if (year == "22_23") {
+      dplyr::filter(last_session_or_not == "No - this was the final session for this PL course (e.g., last day of Bootcamp, close of Inquiry cycle) or last coaching session of the cycle." &
+                      course != "Coaching" & 
+                      Finished == TRUE) |>
+      dplyr::mutate(selected_date = as.Date(selected_date, "%m-%d-%Y"))
+  } else if (year == "22_23" & update == TRUE) {
     course_survey <- qualtRics::fetch_survey(
       surveyID = "SV_djt8w6zgigaNq0C",
       verbose = FALSE,
@@ -71,7 +94,9 @@ get_course_survey <- function(update = FALSE, year = "22_23", write = FALSE) {
     ) |>
       dplyr::filter(last_session_or_not != "Yes - there will be more sessions for this PL course or coaching cycle." & course != "Coaching" & Finished == TRUE) |>
       dplyr::mutate(selected_date = as.Date(selected_date, "%m-%d-%Y"))
-  } else if (update == FALSE & year == "21_22") {
+  } else if (update == FALSE & year == "22_23") {
+    course_survey <- read_csv("data/sy22_23/course_survey.csv")
+  }else if (update == FALSE & year == "21_22") {
     course_survey <- readr::read_rds(file = "data/merged/course_surveymonkey.rds")
   } else if (update == TRUE & year == "21_22") {
     print("This code can unfortunately no longer be run due to the cancellation of the SurveyMonkey contract.")
@@ -101,12 +126,13 @@ get_ongoing_coaching <- function(update = FALSE, year = "22_23", write = FALSE) 
       surveyID = "SV_djt8w6zgigaNq0C",
       verbose = FALSE,
       include_display_order = FALSE,
-      force_request = update
+      force_request = update,
+      start_date = as.Date("2023-07-01")
     ) |>
-      dplyr::filter(last_session_or_not == "Yes - there will be more sessions for this PL course or coaching cycle." & 
+      dplyr::filter(last_session_or_not %in% c("Yes - there will be more sessions for this PL course or coaching cycle.",
+                                               "This was a 1-day PL course.") & 
                       course == "Coaching" & 
-                      Finished == TRUE &
-                      RecordedDate >= as.Date("2023-07-01"))
+                      Finished == TRUE)
   } else if (year == "22_23") {
     coaching_feedback_clean <- qualtRics::fetch_survey(
       surveyID = "SV_djt8w6zgigaNq0C",
@@ -128,6 +154,49 @@ get_ongoing_coaching <- function(update = FALSE, year = "22_23", write = FALSE) 
   }
   
   return(coaching_feedback_clean)
+}
+
+#' @title Ongoing Coaching Feedback Survey Data
+#' @description Gets data from the Ongoing Coaching Feedback Survey
+#' @param update FALSE, whether or not to pull the updated version
+#' @param year "21_22" or "22_23"
+#' @param write FALSE by default
+#' @return Returns a tibble
+#' @export
+get_end_coaching <- function(update = FALSE, year = "22_23", write = FALSE) {
+  if (year == "23_24") {
+    end_coaching_survey_clean <- qualtRics::fetch_survey(
+      surveyID = "SV_djt8w6zgigaNq0C",
+      verbose = FALSE,
+      include_display_order = FALSE,
+      start_date = as.Date("2023-07-01"),
+      force_request = update
+    ) |>
+      dplyr::filter(last_session_or_not == "No - this was the final session for this PL course (e.g., last day of Bootcamp, close of Inquiry cycle) or last coaching session of the cycle." & 
+                      course == "Coaching" & 
+                      Finished == TRUE)
+  } else if (year == "22_23" & update == TRUE) {
+    end_coaching_survey_clean <- qualtRics::fetch_survey(
+      surveyID = "SV_djt8w6zgigaNq0C",
+      verbose = FALSE,
+      include_display_order = FALSE,
+      end_date = as.Date("2023-07-01"),
+      force_request = update
+    ) |>
+      dplyr::filter(last_session_or_not != "Yes - there will be more sessions for this PL course or coaching cycle." & course == "Coaching" & Finished == TRUE)
+  } else if (year == "22_23" & update == TRUE) {
+    end_coaching_survey_clean <- read_csv("data/sy22_23/end_coaching.csv")
+  } else if (update == FALSE & year == "21_22") {
+    end_coaching_survey_clean <- readr::read_rds("data/sy21_22/ongoing_coaching_feedback.rds")
+  } else if (update == TRUE & year == "21_22") {
+    print("This code can unfortunately no longer be run due to the cancellation of the SurveyMonkey contract.")
+  }
+  
+  if (write != FALSE) {
+    readr::write_csv(end_coaching_survey_clean, glue::glue("data/sy{year}/end_coaching.csv"))
+  }
+  
+  return(end_coaching_survey_clean)
 }
 
 #' @title Student Survey Data
@@ -197,6 +266,34 @@ get_student_survey <- function(update = FALSE, year = "22_23", write = FALSE) {
   return(student_survey_coalesced)
 }
 
+#' @title Student Work Data
+#' @description Gets metadata about student work files
+#' @param update FALSE, whether or not to pull the updated version
+#' @param year "21_22" or "22_23"
+#' @return Returns a tibble
+#' @export
+get_student_work <- function(update = FALSE, year = "22_23") {
+  if (year == "23_24") {
+    student_work <- qualtRics::fetch_survey("SV_6nwa9Yb4OyXLji6",
+                                            include_display_order = FALSE,
+                                            verbose = FALSE,
+                                            start_date = as.Date("2023-07-01"),
+                                            force_request = update
+    ) |>
+      suppressWarnings()
+  } else if (year == "22_23") {
+    student_work <- qualtRics::fetch_survey("SV_6nwa9Yb4OyXLji6",
+                                            include_display_order = FALSE,
+                                            verbose = FALSE,
+                                            force_request = update
+    ) |>
+      suppressWarnings()
+  }
+  
+  student_work
+  
+}
+
 
 #' @title Diagnostic Survey Update
 #' @description Get the diagnostic survey
@@ -206,7 +303,19 @@ get_student_survey <- function(update = FALSE, year = "22_23", write = FALSE) {
 #' @return A tibble
 #' @export
 get_diagnostic_survey <- function(update = FALSE, year = "22_23", write = FALSE) {
-  if (year == "22_23") {
+  
+  if (year == "23_24") {
+    
+    diagnostic_final <- qualtRics::fetch_survey(
+      surveyID = "SV_8vrKtPDtqQFbiBM",
+      verbose = FALSE,
+      include_display_order = FALSE,
+      force_request = update,
+      start_date = as.Date("2023-07-01")
+    ) |>
+      suppressWarnings()
+    
+  } else if (year == "22_23" & update == TRUE) {
     nm_diagnostic <- qualtRics::fetch_survey(
       surveyID = "SV_3a2OM4f9j85EuyO",
       verbose = FALSE,
@@ -248,14 +357,28 @@ get_diagnostic_survey <- function(update = FALSE, year = "22_23", write = FALSE)
         !(RecordedDate >= as.Date("2022-11-01") & site == "TX_RAISE Rice University") &
         !(RecordedDate >= as.Date("2023-04-15") & site == "AR_Arkansas DOE")) |> # last part here gets rid of TX_RAISE follow up from initial and Ar_Arkansas DOE
       dplyr::bind_rows(nm_diagnostic)
+  } else if (year == "22_23" & update == FALSE) {
+    diagnostic_final <- readr::read_csv("data/sy22_23/educator_survey.csv")
   } else if (update == FALSE & year == "21_22") {
     diagnostic_final <- readr::read_rds("data/sy21_22/diagnostic.rds")
   } else if (update == TRUE & year == "21_22") {
     print("This code can unfortunately no longer be run due to the cancellation of the SurveyMonkey contract.")
   } else if (year == "20_21") {
+    # diagnostic <- googlesheets4::read_sheet(ss = "1DhVmQWqOzXab1EARPuleWSdZirNNuAcENhG2Wn2IVwU",
+    #                           sheet = "Form Responses 1",
+    #                           skip = 1)
+    # diagnostic |>
+    #   rename(date = labels) |>
+    #   slice(-1) |>
+    #   mutate(date = as_datetime(unlist(date))) |>
+    #   mutate(across(where(is.list), ~ as.character(.x)),
+    #          across(where(is.character), ~ na_if(.x, "NULL")),
+    #          date = as.character(date)) -> final_data
+    # write_csv(final_data, "data/sy20_21/educator_survey.csv")
+    
     diagnostic_final <- readr::read_csv("data/sy20_21/educator_survey.csv")
   } else if (year == "19_20") {
-    diagnostic_final <- readr::read_csv("data/sy19_20/educator_survey.csv")
+    diagnostic_final <- readr::read_csv("data/sy19_20/educator_survey.csv", skip = 1)
   }
 
   ### If you want to save data, use the write argument and it will save educator.csv to the relevant data/year folder ###
@@ -274,7 +397,22 @@ get_diagnostic_survey <- function(update = FALSE, year = "22_23", write = FALSE)
 #' @return Returns a tibble
 #' @export
 get_followup_educator <- function(update = FALSE, year = "22_23", write = FALSE) {
-  if (year == "22_23") {
+  if (year == "23_24") {
+    
+    diagnostic_final <- qualtRics::fetch_survey(
+      surveyID = "SV_8vrKtPDtqQFbiBM",
+      verbose = FALSE,
+      include_display_order = FALSE,
+      force_request = update,
+      start_date = as.Date("2023-07-01")
+    ) |>
+      dplyr::mutate(email = tolower(email)) |>
+      dplyr::group_by(email) |>
+      dplyr::slice(2) |>
+      dplyr::ungroup() |>
+      suppressWarnings()
+    
+  } else if (year == "22_23" & update == TRUE) {
     nm_diagnostic <- qualtRics::fetch_survey(
       surveyID = "SV_3a2OM4f9j85EuyO",
       verbose = FALSE,
@@ -331,88 +469,30 @@ get_followup_educator <- function(update = FALSE, year = "22_23", write = FALSE)
 
     followup_educator_clean <- followup_educator_general |>
       dplyr::bind_rows(tx_raise_additional_data, nm_diagnostic, arkansas_doe_additional_data)
+  } else if (year == "22_23" & update == FALSE) {
+    followup_educator_clean <- readr::read_csv("data/sy22_23/followup_educator.csv")
   } else if (update == FALSE & year == "21_22") {
     followup_educator_clean <- readr::read_rds("data/sy21_22/followup_educator_survey.rds")
   } else if (update == TRUE & year == "21_22") {
     print("This code can unfortunately no longer be run due to the cancellation of the SurveyMonkey contract.")
   } else if (year == "20_21") {
+    # followup_educator_20_21 <- googlesheets4::read_sheet(ss = "1e3IvUw36O9jjYqZOU6alOClBsGmA6Sy6Wzr4Bz7fNG4",
+    #                                                      sheet = "Form Responses 1")
+    # followup_educator_20_21 |>
+    #   slice(-1) |>
+    #   mutate(date = as_datetime(unlist(date))) |>
+    #   mutate(across(where(is.list), ~ as.character(.x)),
+    #          across(where(is.character), ~ na_if(.x, "NULL")),
+    #          date = as.character(date)) -> final_data
+    #   write_csv(final_data, "data/sy20_21/followup_educator.csv")
     followup_educator_clean <- readr::read_csv("data/sy20_21/followup_educator.csv")
   }
   
   if (write != FALSE) {
-    readr::write_csv(end_coaching_survey_clean, glue::glue("data/sy{year}/followup_educator.csv"))
+    readr::write_csv(followup_educator_clean, glue::glue("data/sy{year}/followup_educator.csv"))
   }
 
   return(followup_educator_clean)
-}
-
-#' @title Ongoing Coaching Feedback Survey Data
-#' @description Gets data from the Ongoing Coaching Feedback Survey
-#' @param update FALSE, whether or not to pull the updated version
-#' @param year "21_22" or "22_23"
-#' @param write FALSE by default
-#' @return Returns a tibble
-#' @export
-get_end_coaching <- function(update = FALSE, year = "22_23", write = FALSE) {
-  if (year == "23_24") {
-    end_coaching_survey_clean <- qualtRics::fetch_survey(
-      surveyID = "SV_djt8w6zgigaNq0C",
-      verbose = FALSE,
-      include_display_order = FALSE,
-      force_request = update
-    ) |>
-      dplyr::filter(last_session_or_not != "Yes - there will be more sessions for this PL course or coaching cycle." & 
-                      course == "Coaching" & 
-                      Finished == TRUE &
-                      RecordedDate >= as.Date("2023-07-01"))
-  } else if (year == "22_23") {
-    end_coaching_survey_clean <- qualtRics::fetch_survey(
-      surveyID = "SV_djt8w6zgigaNq0C",
-      verbose = FALSE,
-      include_display_order = FALSE,
-      force_request = update
-    ) |>
-      dplyr::filter(last_session_or_not != "Yes - there will be more sessions for this PL course or coaching cycle." & course == "Coaching" & Finished == TRUE)
-  } else if (update == FALSE & year == "21_22") {
-    end_coaching_survey_clean <- readr::read_rds("data/sy21_22/ongoing_coaching_feedback.rds")
-  } else if (update == TRUE & year == "21_22") {
-    print("This code can unfortunately no longer be run due to the cancellation of the SurveyMonkey contract.")
-  }
-
-  if (write != FALSE) {
-    readr::write_csv(end_coaching_survey_clean, glue::glue("data/sy{year}/end_coaching.csv"))
-  }
-
-  return(end_coaching_survey_clean)
-}
-
-
-#' @title Student Work Data
-#' @description Gets metadata about student work files
-#' @param update FALSE, whether or not to pull the updated version
-#' @param year "21_22" or "22_23"
-#' @return Returns a tibble
-#' @export
-get_student_work <- function(update = FALSE, year = "22_23") {
-  if (year == "23_24") {
-    student_work <- qualtRics::fetch_survey("SV_6nwa9Yb4OyXLji6",
-                                            include_display_order = FALSE,
-                                            verbose = FALSE,
-                                            force_request = update
-    ) |>
-      dplyr::filter(RecordedDate >= as.Date("2023-07-01")) |>
-      suppressWarnings()
-  } else if (year == "22_23") {
-    student_work <- qualtRics::fetch_survey("SV_6nwa9Yb4OyXLji6",
-      include_display_order = FALSE,
-      verbose = FALSE,
-      force_request = update
-    ) |>
-      suppressWarnings()
-  }
-  
-  student_work
-  
 }
 
 #' @title Knowledge Assessments Update
@@ -422,7 +502,112 @@ get_student_work <- function(update = FALSE, year = "22_23") {
 #' @return A tibble
 #' @export
 get_knowledge_assessments <- function(update = FALSE, year = "22_23") {
-  if (year == "22_23" & update == TRUE) {
+  
+  if (year == "23_24") {
+    ### List of ids and knowledge assessments ###
+    knowledge_assessment_ids <- tibble::tibble(
+      id = c(
+        "SV_37uHoiF60EUKATQ",
+        "SV_9YsBPlM5jZ30Dbg",
+        "SV_d5nw8tm0NF56kU6",
+        "SV_esouu9cYMOBSsGG",
+        "SV_0cxz1wVSJm3YOvc",
+        "SV_0GwEWwJqBGVOCPQ",
+        "SV_0vqNPC8wOinlWGa",
+        "SV_1CeZeXCWeyARdWe",
+        "SV_1HBrIAy2QDQwhiC",
+        "SV_1MJC6vEhbx69d30",
+        "SV_2lRbQxavLPyyRyC",
+        "SV_4HgPBvUQG6gxtsO",
+        "SV_55e1kSGK8f2TB4i",
+        "SV_5mCJ6o027GHTGcu",
+        "SV_5mMRhEvhx7YCLZQ",
+        "SV_6ineKFETiGhyDEq",
+        "SV_6umnpT1GKXJeWnI",
+        "SV_78OgnxKdYrBrem2",
+        "SV_7OOmjLlJxpVgME6",
+        "SV_8CFKiPQxAxwOZ9Q",
+        "SV_9HsrInMIskVsqTY",
+        "SV_bg5hii3sOQikIce",
+        "SV_bqg3mIevbXmAjfo",
+        "SV_cAMzWUjKWLZYC8e",
+        "SV_cwsF6v3SUG5zhc2",
+        "SV_d1pWuGz0wIOlO5M",
+        "SV_daT4Yvd8svibO1U",
+        "SV_efmWSbQwB6pclWm",
+        "SV_eONDuDJ9dfq5ZZk",
+        "SV_eVSKqZnfbI6k0rs",
+        "SV_ezb2kb3hqO6meHk",
+        "SV_eL4PMDURWjWyrn8",
+        "SV_1MJC6vEhbx69d30",
+        "SV_d3TcHB2JN5xnHJI"
+      ),
+      name = c(
+        "Math: Bootcamp",
+        "Math: RAISE",
+        "ELA: Bootcamp - General",
+        "ELA: Bootcamp - Foundational Skills",
+        "ELA Guidebooks: Cycle of Inquiry 2 - Writing & Language Skills",
+        "ELA Guidebooks Diverse Learners: Bootcamp - Writing",
+        "Math: Bootcamp  - Curriculum Flexible",
+        "Math: Cycle of Inquiry I - Eliciting Student Thinking - Curriculum Flexible",
+        "ELA Guidebooks Diverse Learners: Cycle of Inquiry - Fluency",
+        "Math: Supporting Math Intervention",
+        "ELA Foundational Skills: Cycle of Inquiry 1: Classroom Management",
+        "ELA Guidebooks Diverse Learners: Bootcamp - Teacher",
+        "Math: Accelerating Learning",
+        "ELA EL: HQIM & Enrichment",
+        "Math: Cycle of Inquiry VI- Summarizing the Mathematics",
+        "ELA Curriculum Adaptive Foundational Skills: Cycle of Inquiry",
+        "Math: Cycle of Inquiry II - Making Math Visible",
+        "ELA Guidebooks Diverse Learners: Cycle of Inquiry - Vocabulary",
+        "ELA Guidebooks Diverse Learners: Bootcamp - Leader",
+        "ELA EL: Bootcamp - ALL Block (3-5)",
+        "Math: Cycle of Inquiry V- Sequencing and Connecting Representations",
+        "Math: Cycle of Inquiry I - Eliciting Student Thinking",
+        "ELA General: Cycle of Inquiry - Speaking & Listening",
+        "ELA General: Cycle of Inquiry - Complex Text",
+        "Math: Cycle of Inquiry III - Facilitating Mathematical Discourse",
+        "ELA CRSE: PLC",
+        "ELA Guidebooks: Cycle of Inquiry 1 - Close Reading/ Speaking & Listening",
+        "School Leaders: ELA CRSE PLC",
+        "Math: Cycle of Inquiry IV - Checking for Understanding",
+        "ELA Foundational Skills: Cycle of Inquiry 1",
+        "ELA Foundational Skills: Cycle of Inquiry 2: Using Data to Inform Foundational Skills Instruction",
+        "School Leaders: Curriculum Adaptive Math/ELA (ILN)",
+        "Math: Learning Across the Domains",
+        "Language Standards/Conventions Knowledge_NYBlendedLit"
+      )
+    )
+    
+    ### Filter list for just those with responses ###
+    
+    knowledge_assessments_for_scoring <- knowledge_assessment_ids |>
+      dplyr::filter(name %in% c(
+        "ELA: Bootcamp - General",
+        "Math: Bootcamp",
+        "Math: Cycle of Inquiry I - Eliciting Student Thinking",
+        "ELA: Bootcamp - Foundational Skills",
+        "ELA General: Cycle of Inquiry - Complex Text",
+        "Math: Learning Across the Domains",
+        "Math: RAISE",
+        "Math: Accelerating Learning",
+        "School Leaders: Curriculum Adaptive Math/ELA (ILN)",
+        "Language Standards/Conventions Knowledge_NYBlendedLit",
+        "ELA Guidebooks: Cycle of Inquiry 2 - Writing & Language Skills",
+        "Math: Cycle of Inquiry III - Facilitating Mathematical Discourse"
+      )) |>
+      ### This line is for the knowledge assessments dashboard, it can't handle the / ###
+      dplyr::mutate(name = stringr::str_replace_all(name, "\\/", "|"))
+    
+    ### percent, prepost, site, know_assess ###
+    all_knowledge_assessments <- purrr::map2_dfr(
+      knowledge_assessments_for_scoring$id, knowledge_assessments_for_scoring$name,
+      ~ TeachingLab::knowledge_assess_select_score(.x, .y)
+    )
+    
+    
+    } else if (year == "22_23" & update == TRUE) {
     ### List of ids and knowledge assessments ###
     knowledge_assessment_ids <- tibble::tibble(
       id = c(
@@ -529,7 +714,7 @@ get_knowledge_assessments <- function(update = FALSE, year = "22_23") {
     ### percent, prepost, site, know_assess ###
     all_knowledge_assessments <- purrr::map2_dfr(
       knowledge_assessments_for_scoring$id, knowledge_assessments_for_scoring$name,
-      ~ TeachingLab::knowledge_assess_select_score(.x, .y)
+      ~ TeachingLab::knowledge_assess_select_score(.x, .y, start_date = as.Date("2022-07-01"), end_date = as.Date("2023-07-01"))
     ) |>
       dplyr::bind_rows(
         ### Digital Nest School Leader Qs
@@ -617,7 +802,7 @@ get_knowledge_assessments <- function(update = FALSE, year = "22_23") {
           tidyr::drop_na(percent)
       )
   } else if (year == "22_23" & update == FALSE) {
-    all_knowledge_assessments <- readr::read_rds("data/sy22_23/knowledge_assessments_22_23.rds")
+    all_knowledge_assessments <- readr::read_rds(here::here("data/sy22_23/knowledge_assessments_22_23.rds"))
   } else if (update == FALSE & year == "21_22") {
     all_knowledge_assessments <- readr::read_rds("data/sy21_22/knowledge_assessments.rds")
   } else if (update == TRUE & year == "21_22") {

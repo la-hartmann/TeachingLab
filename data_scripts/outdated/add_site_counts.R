@@ -326,7 +326,7 @@ knowledge_assessment_n <- function(survey_id, survey_name) {
     suppressWarnings()
 
   ### All necessary knowledge_assessment_columns ###
-  if (nrow(know_assess |> dplyr::filter(Finished == TRUE)) >= 1) {
+  if (nrow(know_assess |> dplyr::filter(Finished == TRUE & RecordedDate >= as.Date("2023-07-01"))) >= 1) {
     ### Ensure there is a site column ###
     if ("site" %in% colnames(know_assess)) {
       ### Get Count of each knowledge assessment by site ###

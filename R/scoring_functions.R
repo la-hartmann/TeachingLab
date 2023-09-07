@@ -559,17 +559,17 @@ tl_score_percent <- function(data, answer) {
   rounded_data_percent
 }
 
-#' @title Knowledge Assessments Scoring 2022-2023
+#' @title Knowledge Assessments Scoring
 #' @param survey_id Qualtrics survey id
 #' @param survey_name Name of survey - should match Qualtrics name
 #' @description function to grade and output specific set of data points for knowledge assessments
 #' @return a dataframe of columns: id, percent, prepost, site, know_assess, date
 #' @export
 
-knowledge_assess_select_score <- function(survey_id, survey_name) {
+knowledge_assess_select_score <- function(survey_id, survey_name, start_date = as.Date("2023-07-01")) {
   
   ### Get Survey ###
-  selected_assessment <- qualtRics::fetch_survey(surveyID = survey_id, verbose = TRUE)
+  selected_assessment <- qualtRics::fetch_survey(surveyID = survey_id, verbose = TRUE, start_date = start_date)
   
   ### Get max score of survey ###
   if (survey_name == "Math: Bootcamp") {

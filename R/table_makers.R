@@ -910,29 +910,30 @@ tl_summary_table <- function(data,
       
       if (prepost == T & rename == T & admin == F) {
         equitable_questions <- tibble::tibble(
-          question = c("To what extent do you agree or disagree with the following statements? - I am color blind when it comes to my teaching - I don't think of my students in terms of their race or ethnicity.",
+          question = c("To what extent do you agree or disagree with the following statements? - I am color blind when it comes to my teaching - I don’t think of my students in terms of their race or ethnicity.",
                        "To what extent do you agree or disagree with the following statements? - The gap in the achievement among students of different races is about poverty, not race.",
                        "To what extent do you agree or disagree with the following statements? - I think about my own background and experiences and how those affect my instruction."),
           reverse = c(T, T, F)
         )
         
         high_expectations_questions <- tibble::tibble(
-          question = c("To what extent do you agree or disagree with the following statements? - I try to keep in mind the limits of my students' ability and give them assignments that I know they can do so that they do not become discouraged.",
+          question = c("To what extent do you agree or disagree with the following statements? - I try to keep in mind the limits of my students’ ability and give them assignments that I know they can do so that they do not become discouraged.",
                        "To what extent do you agree or disagree with the following statements? - Before students are asked to engage in complex learning tasks, they need to have a solid grasp of basic skills.",
                        "To what extent do you agree or disagree with the following statements? - It is not fair to ask students who are struggling with English to take on challenging academic assignments.",
                        "To what extent do you agree or disagree with the following statements? - Teachers should provide all students the opportunity to work with grade-level texts and tasks."),
           reverse = c(T, T, T, F)
         )
         
-        crse_questions <- c("Please rate your confidence on the following items. <br>I am able to... - Adapt instruction to meet the needs of my students",
-                            "Please rate your confidence on the following items. <br>I am able to... - Identify ways that the school culture (e.g., values, norms, and practices) is different from my students' home culture",
-                            "Please rate your confidence on the following items. <br>I am able to... - Use my students' prior knowledge to help them make sense of new information",
-                            "Please rate your confidence on the following items. <br>I am able to... - Revise instructional material to include a better representation of cultural groups",
-                            "Please rate your confidence on the following items. <br>I am able to... - Teach the curriculum to students with unfinished learning",
-                            "Please rate your confidence on the following items. <br>I am able to... - Teach the curriculum to students who are from historically marginalized groups")
+        crse_questions <- c("Please rate your confidence on the following items. <br>I am able to... - Adapt instruction to meet the needs of my students",
+                            "Please rate your confidence on the following items. <br>I am able to... - Identify ways that the school culture (e.g., values, norms, and practices) is different from my students’ home culture",
+                            "Please rate your confidence on the following items. <br>I am able to... - Use my students’ prior knowledge to help them make sense of new information",
+                            "Please rate your confidence on the following items. <br>I am able to... - Revise instructional material to include a better representation of cultural groups",
+                            "Please rate your confidence on the following items. <br>I am able to... - Teach the curriculum to students with unfinished learning",
+                            "Please rate your confidence on the following items. <br>I am able to... - Teach the curriculum to students who are from historically marginalized groups")
         
         
         if (grouping != "crse") {
+          
           selected <- c(equitable_questions |> pull(question),
                         high_expectations_questions |> pull(question),
                         crse_questions)
@@ -1011,6 +1012,7 @@ tl_summary_table <- function(data,
         
         
         if (grouping != "crse") {
+          
           selected <- c(equitable_questions |> dplyr::pull(question),
                         high_expectations_questions |> dplyr::pull(question),
                         crse_questions)
@@ -1055,7 +1057,7 @@ tl_summary_table <- function(data,
         ## Only reversed columns for later calculations
         reversed <- c(equitable_questions %>% dplyr::filter(reverse == T) |> dplyr::pull(question),
                       high_expectations_questions %>% dplyr::filter(reverse == T) |> dplyr::pull(question))
-        
+
         selected <- c(equitable_questions |> dplyr::pull(question),
                       high_expectations_questions |> dplyr::pull(question),
                       crse_questions)
@@ -1072,6 +1074,12 @@ tl_summary_table <- function(data,
         equitable_questions$question <- NULL 
         high_expectations_questions$question <- NULL
       }
+      
+      # print(selected)
+      # print(which(!selected %in% colnames(data)))
+      # view(tibble::tibble(x = c(selected, 1),
+      #                     y = colnames(data),
+      #                     z = ifelse(x == y, TRUE, FALSE)))
       
       data_sums <- data |>
         ## Select just relevant columns

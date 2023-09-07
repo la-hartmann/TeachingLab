@@ -36,9 +36,19 @@ get_current_partner_sites <- function(update = FALSE, year = "22_23") {
 #' @param write FALSE by default
 #' @return Returns a tibble
 #' @export
-get_ipg_forms <- function(update = FALSE, year = "22_23", write = FALSE) {
+get_ipg_forms <- function(update = FALSE, year = "23_24", write = FALSE) {
   
-  if (year == "22_23") {
+  if (year == "23_24") {
+    ipg_forms <- qualtRics::fetch_survey(
+      surveyID = "SV_0BSnkV9TVXK1hjw",
+      verbose = FALSE,
+      include_display_order = FALSE,
+      force_request = update,
+      start_date = as.Date("2023-07-01")
+    ) |>
+      dplyr::filter(Finished == TRUE) |>
+      dplyr::mutate(dplyr::across(dplyr::everything(), ~ dplyr::na_if(as.character(.x), "NA")))
+    } else if (year == "22_23" & update == TRUE) {
     ipg_forms <- qualtRics::fetch_survey(
       surveyID = "SV_0BSnkV9TVXK1hjw",
       verbose = FALSE,
@@ -46,8 +56,10 @@ get_ipg_forms <- function(update = FALSE, year = "22_23", write = FALSE) {
       force_request = update
     ) |>
       dplyr::mutate(dplyr::across(dplyr::everything(), ~ dplyr::na_if(as.character(.x), "NA"))) |>
-      dplyr::filter(Finished == TRUE)
+      dplyr::filter(Finished == TRUE & RecordedDate <= as.Date("2023-07-01"))
     
+  } else if (year == "22_23" & update == FALSE) {
+    ipg_forms <- read_csv("data/sy22_23/ipg_forms.csv")
   } else if (update == FALSE & year == "21_22") {
     ipg_forms <- readr::read_rds("data/sy21_22/ipg_forms.rds")
   } else if (update == TRUE & year == "21_22") {
@@ -104,7 +116,9 @@ get_ipg_forms <- function(update = FALSE, year = "22_23", write = FALSE) {
     readr::write_rds(ipg_forms, "data/sy21_22/ipg_forms.rds")
   }
   
-  write.csv(ipg_forms, glue::glue("data/sy{year}/ipg_forms.csv"))
+  if (write != FALSE) {
+    readr::write_csv(ipg_forms, glue::glue("data/sy{year}/ipg_forms.csv"))
+  }
   
   return(ipg_forms)
 }
@@ -180,10 +194,14 @@ get_student_scores_mississippi2 <- function(update = FALSE) {
 #' @export
 get_student_work_grades <- function(year = "22_23") {
   
-  if (year == "22_23") {
+  if (year == "23_24") {
     googlesheets4::read_sheet("15ixca0QKloZtYLcmj_9Uc20zdQ5FE6pSVj3EBamLoiI",
                               "Student Work Scores") |>
-      dplyr::filter(`Date of Submission`)
+      dplyr::filter(`Date of Submission` >= as.Date("2023-07-01"))
+  } else if (year == "22_23") {
+    googlesheets4::read_sheet("15ixca0QKloZtYLcmj_9Uc20zdQ5FE6pSVj3EBamLoiI",
+                              "Student Work Scores") |>
+      dplyr::filter(`Date of Submission` <= as.Date("2023-07-01"))
   }
   
 }

@@ -4,12 +4,27 @@
 \alias{partner_file_remove}
 \title{Remove Image Files Render R Markdown}
 \usage{
-partner_file_remove(partner, content_area = NULL, input, output_dir, ...)
+partner_file_remove(
+  partner,
+  content_area = NULL,
+  d27 = NULL,
+  d11 = NULL,
+  matched = NULL,
+  input,
+  output_dir,
+  ...
+)
 }
 \arguments{
 \item{partner}{The partner to render a report for}
 
 \item{content_area}{content area to filter by default to NULL and ignored}
+
+\item{d27}{site dropdown filter by default NULL and ignored}
+
+\item{d11}{site dropdown filter by default NULL and ignored}
+
+\item{matched}{whether or not the responses should be matched, either "True" or "False"}
 
 \item{input}{the rmd to use to parametrically generate reports}
 
