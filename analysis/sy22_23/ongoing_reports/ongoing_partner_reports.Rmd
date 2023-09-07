@@ -1,0 +1,3279 @@
+---
+params:
+  partner: "All Sites"
+title: "`r paste0('Teaching Lab Ongoing Partner Report: ', params$partner)`"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  TeachingLab::TLDefault:
+    css: styles.css
+    fontawesome: false
+    self_contained: true
+    thumbnails: false
+    lightbox: true
+    gallery: false
+    highlight: kate # Also can do tango
+    number_sections: false
+    includes:
+      in_header: header.html
+      after_body: footer.html
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+na_df <- TeachingLab::na_df
+library(ggtext)
+library(glue)
+library(gt)
+library(here)
+library(knitr)
+library(lubridate)
+library(patchwork)
+library(qualtRics)
+library(rmdformats)
+library(scales)
+# devtools::load_all()
+library(TeachingLab)
+library(tidyverse)
+library(waffle)
+update_data <- FALSE
+
+### IPG Forms Read-In ###
+ipg_forms <- TeachingLab::get_ipg_forms(update = update_data, year = "22_23") |>
+  dplyr::filter(site == "MA_DESE") |>
+  TeachingLab::neg_cond_filter(
+    if_not_this = "All Sites",
+    filter_this = params$partner,
+    dat_filter = ma_dese
+  ) |>
+  dplyr::mutate(
+    direct_to_ts_obs = as.character(direct_to_ts_obs),
+    not_direct_to_ts = as.character(not_direct_to_ts)
+  ) |>
+  dplyr::filter(rater_name != "Molly Branson Thayer") #|>
+  # dplyr::filter(is.na(grade_level_1) &
+  #                 is.na(grade_level_2) &
+  #                 is.na(grade_level_3) &
+  #                 is.na(grade_level_4) &
+  #                 is.na(grade_level_5) &
+  #                 is.na(grade_level_6))
+
+ipg_count <- nrow(ipg_forms)
+
+### Educator Survey Read-In ###
+educator_survey <- TeachingLab::get_diagnostic_survey(update = update_data, year = "22_23") |>
+  dplyr::filter(site == "MA_DESE") |>
+  TeachingLab::neg_cond_filter(
+    if_not_this = "All Sites",
+    filter_this = params$partner,
+    dat_filter = ma_dese
+  ) #|>
+  # dplyr::filter(is.na(grade_level_1) &
+  #                 is.na(grade_level_2) &
+  #                 is.na(grade_level_3) &
+  #                 is.na(grade_level_4) &
+  #                 is.na(grade_level_5))
+
+diagnostic_count <- nrow(educator_survey)
+
+### Follow-up Educator Survey Read-In ###
+followup_educator <- TeachingLab::get_followup_educator(update = update_data, year = "22_23") |>
+  dplyr::filter(site == "MA_DESE") |>
+  TeachingLab::neg_cond_filter(
+    if_not_this = "All Sites",
+    filter_this = params$partner,
+    dat_filter = ma_dese
+  )
+
+followup_count <- nrow(followup_educator)
+
+### Student Work Grades ###
+student_work_grades <- googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/15ixca0QKloZtYLcmj_9Uc20zdQ5FE6pSVj3EBamLoiI/edit?pli=1#gid=0",
+  sheet = "Student Work Scores"
+) |>
+  dplyr::mutate(`Grade Band` = case_when(
+    MA_DESE == "ABRSD" ~ "K-6",
+    MA_DESE == "Agawam" ~ "K-4",
+    MA_DESE == "Berkshire Hills" ~ "K-4",
+    MA_DESE == "Boston Prep" ~ "6-8",
+    MA_DESE == "Dennis-Yarmouth" & Grade %in% c("Pre-K", "K", "1", "2", "3", "Other") ~ "PK-3",
+    MA_DESE == "Dennis-Yarmouth" & Grade %in% c("4", "5") ~ "4-5",
+    MA_DESE == "Greenfield" & Grade %in% c("K", "1", "2", "3", "4") ~ "K-4",
+    MA_DESE == "Greenfield" & Grade %in% c("5", "6", "7") ~ "5-7",
+    MA_DESE == "King Phillip" ~ "7-8",
+    MA_DESE == "Milford" & Grade %in% c("K", "1", "2") ~ "K-2",
+    MA_DESE == "Milford" & Grade %in% c("3", "4", "5") ~ "3-5",
+    MA_DESE == "Milton" ~ "1-5",
+    MA_DESE == "Needham" ~ "K-5",
+    MA_DESE == "Northampton" ~ "3-5",
+    MA_DESE == "Plainville" ~ "K-2",
+    MA_DESE == "Uxbridge" ~ "K-3",
+    MA_DESE == "Wakefield" & Grade %in% c("K", "1", "2", "3", "4") ~ "K-4",
+    MA_DESE == "Wakefield" & Grade %in% c("5", "6", "7", "8", "9", "10", "11", "12") ~ "5-12",
+    MA_DESE == "West Springfield" ~ "9-11"
+  )) |>
+  dplyr::mutate(`Grade Band` = str_replace_all(`Grade Band`, "Other", "K-3"),
+                `Grade Band` = tidyr::replace_na(`Grade Band`, "K-3")) |>
+  dplyr::filter(!is.na(MA_DESE)) |>
+  TeachingLab::neg_cond_filter(
+    if_not_this = "All Sites",
+    filter_this = params$partner,
+    dat_filter = MA_DESE
+  ) #|>
+  # dplyr::filter(`Grade Band` == "5-12")
+
+student_work_count <- student_work_grades |>
+  dplyr::filter((Legible == "New Version" | Legible == "Yes") & !is.null(`Submitted Grade/s`)) |>
+  dplyr::select(`Submitted Grade/s`, `Student Work File`) |>
+  tidyr::drop_na(`Submitted Grade/s`) |>
+  dplyr::mutate(`Submitted Grade/s` = as.character(`Submitted Grade/s`)) |>
+  tidyr::separate_rows(`Submitted Grade/s`, sep = ", ") |>
+  nrow()
+
+### Knowledge Assessments ###
+knowledge_assessments <- TeachingLab::get_diagnostic_survey() |>
+  filter(site == "MA_DESE" & content_area == "Mathematics") |>
+  slice(-c(1:64)) |>
+  TeachingLab::neg_cond_filter(
+    if_not_this = "All Sites",
+    filter_this = params$partner,
+    dat_filter = ma_dese
+  ) |>
+  # dplyr::filter(is.na(grade_level_1) &
+  #                 is.na(grade_level_2) &
+  #                 is.na(grade_level_3) &
+  #                 is.na(grade_level_4) &
+  #                 is.na(grade_level_5)) |>
+  select(SC1, SC2, SC3, SC4)
+
+know_assess_count <- nrow(knowledge_assessments)
+
+###################################################################################################
+
+no_data_plot <- ggplot(tibble(text = "No data here - yet!", x = 0, y = 0)) +
+  geom_text(aes(label = text, x, y), fontface = "bold", family = "Calibri Bold", size = 10) +
+  theme_void()
+
+theme_final_report <- function() {
+  theme_tl(legend = T) +
+    theme(
+      axis.text.x = element_blank(),
+      axis.text.y = element_text(
+        lineheight = 0.9, size = 12,
+        margin = margin(t = 0, l = 0, r = -25, b = 0)
+      ),
+      strip.text = element_text(
+        size = 14, face = "bold", family = "Calibri Bold",
+        hjust = 0.5
+      ),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      legend.position = "bottom",
+      legend.justification = c(0, 1),
+      legend.margin = margin(-30, 0, 0, -155),
+      legend.key.height = unit(1.3, "cm"),
+      legend.key.width = unit(1.3, "cm"),
+      legend.key.size = unit(0.75, "cm"),
+      legend.text = element_text(size = 11),
+      plot.title = element_text(lineheight = 1.1, size = 18, face = "bold"),
+      plot.subtitle = element_text(size = 14, face = "bold")
+    )
+}
+
+## Global options
+options(max.print = "75", width = 1000)
+opts_chunk$set(
+  echo = FALSE,
+  cache = FALSE,
+  prompt = FALSE,
+  tidy = TRUE,
+  comment = NA,
+  message = FALSE,
+  warning = FALSE
+)
+```
+
+```{=html}
+<script src="js/hideOutput.js"></script>
+```
+#### Ongoing Partner Report
+
+### Background
+
+Teaching Lab collects a variety of data to understand the impact of its
+PL for educators and students. Please see this
+[resource](https://docs.google.com/presentation/d/1Vo844M0_Au8bqfeK5-hPdFh30oGRjzjCxwm6vctemQ8/edit#slide=id.g1165a219667_0_182)
+for a visual overview of our evaluation framework. Additionally, the
+[narrative](https://docs.google.com/document/d/19yDyFCx1KeSPHlD9SLvLfG76FRGdfChL1hnCo_dV1zQ/edit)
+of our evaluation plan provides more details.
+
+To date (`r Sys.Date() |> format("%b %d, %Y")`), Teaching Lab has
+collected the following data during SY22-23:
+
+-   `r format(know_assess_count, big.mark = ",")` responses to Knowledge or
+    Self-Reported Practices Assessments.
+
+-   `r format(diagnostic_count, big.mark = ",")` complete responses to
+    the Baseline Diagnostic Educator Survey that collects information on
+    teachers' use of curricula, mindsets, self-reported practices, and
+    school environment.
+    
+-   `r format(ipg_count, big.mark = ",")` observations of classroom instruction.
+
+-   `r format(student_work_count, big.mark = ",")` samples of student work.
+
+Below we have compiled the results in various sections: Teachers' Mindsets & School Environment, School Leaders' Mindsets & Observational Practices, Instructional Practice, and Student Outcomes.
+
+# Section 1: Participant Background and Demographics Summary
+
+This section provides a demographic and background summary on
+participants.
+
+## Gender and Racial Identity
+
+::: {.fold .o}
+<center>
+
+```{r gender-identity, fig.dim = c(6.5, 4.5)}
+if (sum(!is.na(educator_survey$gender)) >= 1) {
+  gt_percent_n(
+    df = educator_survey[!str_detect(educator_survey$gender, "NA"), ],
+    column = "gender",
+    custom_column_name = "Gender Identity", viz_type = sample(c("waffle", "pie", "treemap"),
+      size = 1
+    )
+  )
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+::: {.fold .o}
+<center>
+
+```{r racial-identity, fig.dim = c(6.5, 4.5)}
+race_cols <- c("race_1", "race_2", "race_3", "race_4", "race_5", "race_6", "race_7")
+### Below code adds together the length of non na responses of all of the above columns to see if there is data ###
+if (reduce(map(race_cols, ~ sum(!is.na(educator_survey[[.x]]))), `+`) >= 1) {
+  educator_survey |>
+    select(
+      all_of(
+        race_cols
+      )
+    ) |>
+    pivot_longer(everything()) |>
+    mutate(value = fct_lump(factor(value), 3)) |>
+    rename(`Race Identity` = value) |>
+    gt_percent_n(
+      column = "Race Identity",
+      custom_column_name = "Racial Identity",
+      viz_type = sample(c("pie", "waffle", "treemap"), size = 1)
+    )
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+::: {.fold .o}
+<center>
+
+```{r racial-identity2, fig.dim = c(6.5, 4.5)}
+if (sum(!is.na(educator_survey$ethnicity)) >= 1) {
+  gt_percent_n(
+    educator_survey[!str_detect(educator_survey$ethnicity, "NA"), ],
+    column = "ethnicity",
+    custom_column_name = "Ethnicity", viz_type = sample(c("waffle", "pie", "treemap"),
+      size = 1
+    )
+  )
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+## Years of Teaching Experience
+
+::: {.fold .o}
+<center>
+
+```{r teach-experience}
+if (sum(!is.na(educator_survey$teaching_experience)) >= 1) {
+  n <- sum(!is.na(educator_survey$teaching_experience[!str_detect(educator_survey$teaching_experience, "NA")]))
+
+  educator_survey |>
+    # transmute(experience = as.numeric(teaching_experience)) |>
+    # mutate(experience = experience - (experience %% 10)) |>
+    drop_na(teaching_experience) |>
+    dplyr::filter(!str_detect(teaching_experience, "NA")) |>
+    dplyr::mutate(teaching_experience = na.omit(teaching_experience)) |>
+    group_by(teaching_experience) |>
+    count(sort = T) |>
+    ungroup() |>
+    mutate(
+      percent = round(100 * n / sum(n), 1),
+      # experience = factor(experience, levels = c("0", "10", "20", "30", "40", "50")),
+      color = if_else(percent < 10, "black", "white"),
+      hjust = if_else(color == "white", 1.5, -0.5)
+    ) |>
+    ggplot(aes(teaching_experience, percent)) +
+    geom_col(aes(fill = percent)) +
+    geom_text(
+      aes(
+        label = paste0(percent, "%"),
+        color = color, hjust = hjust
+      ),
+      fontface = "bold"
+    ) +
+    coord_flip() +
+    labs(title = glue::glue("Years of Teaching Experience (n = {n})"), x = "", y = "") +
+    scale_color_manual(values = c("black", "white")) +
+    scale_fill_continuous() +
+    scale_y_continuous(
+      labels = scales::percent_format(scale = 1),
+      breaks = scales::pretty_breaks(n = 6)
+    ) +
+    scale_x_discrete(labels = c("Less than 1", "0-9", "10-19", "20-29", "30-39", "40-49", "50+")) +
+    ggplot2::theme(
+      axis.text = ggtext::element_markdown(size = 20),
+      axis.title = ggtext::element_markdown(size = 24)
+    ) +
+    TeachingLab::theme_tl()
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+## Content Area
+
+::: {.fold .o}
+<center>
+
+```{r content-area, fig.dim = c(6.5, 4.5)}
+if (sum(!is.na(educator_survey$content_area)) >= 1 & params$partner != "US_Digital Nest") {
+  educator_survey |>
+    select(content_area) |>
+    drop_na() |>
+    dplyr::filter(!str_detect(content_area, "NA")) |>
+    gt_percent_n(
+      column = "content_area",
+      custom_column_name = "Content Area", viz_type = sample(c("waffle", "pie", "treemap"),
+        size = 1
+      )
+    )
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+## Grades
+
+::: {.fold .o}
+<center>
+
+```{r grade}
+grades <- c(map_chr(1:14, ~ paste0("grade_level_", .x)))
+if (reduce(map(grades, ~ sum(!is.na(educator_survey[[.x]]))), `+`) >= 1) {
+  n <- educator_survey |>
+    select(all_of(grades)) |>
+    janitor::remove_empty("rows") |>
+    nrow()
+
+  educator_survey |>
+    select(all_of(grades)) |>
+    mutate(across(everything(), ~ as.character(.x))) |>
+    pivot_longer(everything()) |>
+    tidyr::drop_na(value) |>
+    group_by(value) |>
+    count(sort = T) |>
+    # mutate(name = as.character(readr::parse_number(name))) |>
+    # suppressWarnings() |>
+    # mutate(name = replace_na(name, "K")) |>
+    ungroup() |>
+    mutate(
+      percent = round(100 * n / sum(n), 1),
+      value = factor(value, levels = c(
+        "K", "1", "2", "3", "4", "5",
+        "6", "7", "8", "9", "10", "11",
+        "12", "Other"
+      ))
+    ) |>
+    ggplot(aes(value, percent)) +
+    geom_col(aes(fill = percent)) +
+    geom_text(
+      aes(
+        label = paste0(percent, "%"),
+        color = ifelse(percent < 5, "white", "black"),
+        vjust = ifelse(percent < 3, 1.3, -0.5)
+      ),
+      fontface = "bold"
+    ) +
+    labs(
+      y = "", x = "Grade",
+      title = glue::glue("Grades Taught (n = {n})"),
+      subtitle = "<i>More than one could be selected.</i>"
+    ) +
+    scale_color_manual(values = c("black", "white")) +
+    scale_fill_continuous() +
+    scale_y_continuous(
+      labels = scales::percent_format(scale = 1),
+      breaks = scales::pretty_breaks(n = 6)
+    ) +
+    theme_tl() +
+    theme(
+      axis.text = element_markdown(size = 20),
+      axis.title = element_markdown(size = 24),
+      plot.subtitle = element_markdown()
+    )
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+## Prior Experience with Teaching Lab Professional Learning
+
+::: {.fold .o}
+<center>
+
+```{r prior-experience, fig.dim = c(6.5, 4.5)}
+if (sum(!str_detect(educator_survey$tl_pl_participation, "NA"), na.rm = T) >= 1) {
+  gt_percent_n(
+    df = educator_survey[!str_detect(educator_survey$tl_pl_participation, "NA"), ],
+    column = "tl_pl_participation",
+    custom_column_name = "Previous Experience with Teaching Lab", viz_type = sample(c("waffle", "pie", "treemap"),
+      size = 1
+    )
+  )
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+## Roles
+
+::: {.fold .o}
+<center>
+
+```{r roles, fig.dim = c(6.5, 4.5)}
+if (sum(!str_detect(educator_survey$role, "NA"), na.rm = T) >= 1) {
+  gt_percent_n(
+    df = educator_survey[!str_detect(educator_survey$role, "NA"), ],
+    column = "role",
+    custom_column_name = "Primary Role",
+    viz_type = sample(c("waffle", "treemap"),
+      size = 1
+    )
+  )
+} else {
+  no_data_plot
+}
+```
+
+```{r roles2, fig.dim = c(6.5, 4.5)}
+if (sum(!str_detect(educator_survey$lab_leader, "NA"), na.rm = T) >= 1) {
+  gt_percent_n(
+    df = educator_survey[!str_detect(educator_survey$lab_leader, "NA"), ],
+    column = "lab_leader",
+    custom_column_name = "Lab Leader",
+    viz_type = sample(c("waffle", "pie", "treemap"),
+      size = 1
+    )
+  )
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+# Section 2: Participant Knowledge/Self-Reported Practices Assessments
+
+For most PL courses, Teaching Lab administers a pre- and post- content
+knowledge or self-reported practice assessment. Below the pre and post
+averages are visualized by assessment.
+
+## Results {.tabset}
+
+::: {.fold .o}
+<center>
+
+```{r knowledge-assessments-summary, fig.dim = c(6,6)}
+n_know_size <- sum(!is.na(educator_survey$hqim_3))
+
+# Same but slightly faster method for saving image files to display in next chunk
+if (n_know_size >= 1) {
+  knowledge_assessments |>
+    rename(Overall = SC4, `Instructional Shifts` = SC1, 
+           `Equitable Math Instruction` = SC2, `Eliciting Student Thinking` = SC3) |>
+    summarise(across(everything(), ~ mean(.x))) |>
+    relocate(Overall, .before = 1) |>
+    pivot_longer(everything(), names_to = " ", values_to = "Score") |>
+    mutate(Score = case_when(
+      ` ` == "Overall" ~ Score / 14,
+      ` ` == "Instructional Shifts" ~ Score / 2,
+      ` ` == "Equitable Math Instruction" ~ Score / 7,
+      ` ` == "Eliciting Student Thinking" ~ Score / 5
+    )) |>
+    gt::gt() |>
+    gt::data_color(
+      columns = Score,
+      palette = "ggsci::blue_material"
+    ) |>
+    gt::fmt_percent(Score,
+      scale_values = TRUE
+    ) |>
+    gt::tab_footnote(footnote = glue::glue("n = {n_know_size}")) |>
+    TeachingLab::gt_theme_tl(align = "left") |>
+    gt::gtsave(here::here("images/report_images/ma_dese_knowledge_assessments.png"))
+
+  knitr::include_graphics(here::here("images/report_images/ma_dese_knowledge_assessments.png"))
+} else {
+  ggplot(tibble(text = "No data to show as n < 5", x = 0, y = 0)) +
+    geom_text(aes(label = text, x, y),
+      fontface = "bold",
+      size = 10, family = "Calibri Bold"
+    ) +
+    theme_void()
+}
+```
+
+</center>
+:::
+
+# Section 3: Teachers' Mindsets & School Environment
+
+Participants complete Teaching Lab's Educator Survey twice a year: at
+the beginning and end of their participation in PL. The survey collects
+data on teachers' mindsets, perception and use of curricula, and
+perceptions of school culture and climate.
+
+## Section 3a: Teacher - Mindsets
+
+Teachers responded to several items about mindsets, related to
+recognizing race and culture, the need for remediation, high
+expectations for all students, and growth mindsets on a 5-point Likert
+scale. Composite measures were created for each construct by reverse
+coding some items and then averaging responses across items. In this
+way, higher scores correspond to holding equitable mindsets.
+
+### Overall
+
+::: {.fold .o}
+<center>
+
+```{r teacher-mindsets-overall, fig.width = 12, fig.height = 12}
+if (sum(!is.na(educator_survey$`mindsets_ts_1_1`)) >= 1) {
+  n_size <- sum(!is.na(educator_survey$`mindsets_ts_1_1`))
+
+  teacher_mindsets <- educator_survey |>
+    select(contains("mindsets_ts")) |>
+    pivot_longer(everything()) |>
+    mutate(name = str_replace_all(name, c(
+      "mindsets_ts_1_2" = "The gap in the achievement among students of different races is about poverty, not race",
+      "mindsets_ts_1_3" = "I think about my own background and experiences and how those affect my instruction",
+      "mindsets_ts_1_4" = "I try to keep in mind the limits of my students’ ability and give them assignments that I know they can do so that they do not become discouraged",
+      "mindsets_ts_1_5" = "Before students are asked to engage in complex learning tasks, they need to have a solid grasp of basic skills",
+      "mindsets_ts_1_6" = "It is not fair to ask students who are struggling with English to take on challenging academic assignments",
+      "mindsets_ts_1_7" = "Teachers should provide all students the opportunity to work with grade-level texts and tasks",
+      "mindsets_ts_1_8" = "Students of all ethnic or cultural backgrounds can be successful in my classroom",
+      "mindsets_ts_1_9" = "Students of all ethnic or cultural backgrounds are capable of solving problems by using critical thinking in my classroom",
+      "mindsets_ts_1_10" = "Students of all ethnic or cultural backgrounds are able to meet the expectations for higher order skills in my classroom",
+      "mindsets_ts_1_11" = "Grouping students of different levels of achievement for instruction may benefit some students, but it can undermine the progress that could otherwise be made by higher achieving students",
+      "mindsets_ts_1_12" = "Students who come into my classroom behind grade level will have a hard time succeeding",
+      "mindsets_ts_1_13" = "Students have a certain amount of intelligence, and they can’t really do much to change it",
+      "mindsets_ts_1_14" = "Intelligence is something about students that they can’t change very much",
+      "mindsets_ts_1_15" = "Students can learn new things, but they can’t really change their basic intelligence",
+      "mindsets_ts_1_1" = "I am color blind when it comes to my teaching - I don’t think of my students in terms of their race or ethnicity"
+    ))) |>
+    group_by(name, value) |>
+    count(sort = T) |>
+    ungroup() |>
+    drop_na(value) |>
+    ungroup()
+
+  # teacher_mindsets_1 <- teacher_mindsets |>
+
+  teacher_mindsets |>
+    mutate(
+      pos_neg = case_when(
+        str_detect(name, "race") ~ "negative",
+        name %in% c(
+          "Before students are asked to engage in complex learning tasks, they need to have a solid grasp of basic skills",
+          "Grouping students of different levels of achievement for instruction may benefit some students, but it can undermine the progress that could otherwise be made by higher achieving students",
+          "I try to keep in mind the limits of my students’ ability and give them assignments that I know they can do so that they do not become discouraged",
+          "It is not fair to ask students who are struggling with English to take on challenging academic assignments",
+          "Students who come into my classroom behind grade level will have a hard time succeeding",
+          "Students can learn new things, but they can’t really change their basic intelligence",
+          "Students have a certain amount of intelligence, and they can’t really do much to change it",
+          "Intelligence is something about students that they can’t change very much"
+        ) ~ "negative",
+        TRUE ~ "positive"
+      ),
+      ` ` = case_when(
+        str_detect(name, "race|own background") ~ "Recognition of Race & Culture",
+        name %in% c(
+          "Students who come into my classroom behind grade level will have a hard time succeeding",
+          "Students of all ethnic or cultural backgrounds can be successful in my classroom",
+          "Students of all ethnic or cultural backgrounds are capable of solving problems by using critical thinking in my classroom",
+          "Students of all ethnic or cultural backgrounds are able to meet the expectations for higher order skills in my classroom"
+        ) ~ "Need for Remediation",
+        name %in% c(
+          "Before students are asked to engage in complex learning tasks, they need to have a solid grasp of basic skills",
+          "Grouping students of different levels of achievement for instruction may benefit some students, but it can undermine the progress that could otherwise be made by higher achieving students",
+          "I try to keep in mind the limits of my students’ ability and give them assignments that I know they can do so that they do not become discouraged",
+          "It is not fair to ask students who are struggling with English to take on challenging academic assignments",
+          "Teachers should provide all students the opportunity to work with grade-level texts and tasks"
+        ) ~ "High Expectations",
+        name %in% c(
+          "Students can learn new things, but they can’t really change their basic intelligence",
+          "Students have a certain amount of intelligence, and they can’t really do much to change it",
+          "Intelligence is something about students that they can’t change very much"
+        ) ~ "Growth Mindsets"
+      ),
+      score_multiplier = case_when(
+        value == "1 - Strongly disagree" & pos_neg == "negative" ~ 1,
+        value == "1 - Strongly disagree" & pos_neg == "positive" ~ 0,
+        value == "2 - Disagree" & pos_neg == "negative" ~ 0.75,
+        value == "2 - Disagree" & pos_neg == "positive" ~ 0.25,
+        value == "3 - Neither agree nor disagree" & pos_neg == "negative" ~ 0.5,
+        value == "3 - Neither agree nor disagree" & pos_neg == "positive" ~ 0.5,
+        value == "4 - Agree" & pos_neg == "negative" ~ 0.25,
+        value == "4 - Agree" & pos_neg == "positive" ~ 0.75,
+        value == "5 - Strongly agree" & pos_neg == "negative" ~ 0,
+        value == "5 - Strongly agree" & pos_neg == "positive" ~ 1
+      ),
+      name = if_else(pos_neg == "negative", paste0("<p style='color:red;'>", name, "</p>"), name)
+    ) |>
+    filter(` ` != "Need for Remediation") |>
+    group_by(name) |>
+    mutate(score = (n * score_multiplier) / sum(n)) |>
+    summarise(
+      score = sum(score),
+      ` ` = min(` `)
+    ) |>
+    ungroup() |>
+    group_by(` `) |>
+    summarise(Score = mean(score)) %>%
+    add_row(` ` = "<b>Overall score</b>", !!!colMeans(.[-1]), .before = 1) |>
+    gt::gt() |>
+    gt::fmt_percent(Score,
+      scale_values = TRUE
+    ) |>
+    gt::fmt_markdown(` `) |>
+    gt::data_color(
+      columns = Score,
+      colors = scales::col_bin(
+        palette = c(
+          TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+        ),
+        domain = c(0, 1),
+        bins = c(0, 0.39, 0.79, 1)
+      )
+    ) |>
+    TeachingLab::gt_theme_tl(align = "left") |>
+    gt::tab_footnote(footnote = paste0("n = ", n_size)) |>
+    gtsave(here::here("images/report_images/tab_teacher_mindsets_overall.png"))
+
+  knitr::include_graphics(here::here("images/report_images/tab_teacher_mindsets_overall.png"))
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+### Recognition of Race & Culture
+
+::: {.fold .o}
+<center>
+
+```{r teacher-mindsets-1, fig.width = 12, fig.height = 12}
+if (sum(!is.na(educator_survey$`mindsets_ts_1_1`)) >= 1) {
+  n_size <- sum(!is.na(educator_survey$`mindsets_ts_1_1`))
+
+  teacher_mindsets |>
+    filter(str_detect(name, "color blind|own background|in the achievement")) |>
+    mutate(
+      pos_neg = case_when(
+        str_detect(name, "race") ~ "negative",
+        TRUE ~ "positive"
+      ),
+      score_multiplier = case_when(
+        value == "1 - Strongly disagree" & pos_neg == "negative" ~ 1,
+        value == "1 - Strongly disagree" & pos_neg == "positive" ~ 0,
+        value == "2 - Disagree" & pos_neg == "negative" ~ 0.75,
+        value == "2 - Disagree" & pos_neg == "positive" ~ 0.25,
+        value == "3 - Neither agree nor disagree" & pos_neg == "negative" ~ 0.5,
+        value == "3 - Neither agree nor disagree" & pos_neg == "positive" ~ 0.5,
+        value == "4 - Agree" & pos_neg == "negative" ~ 0.25,
+        value == "4 - Agree" & pos_neg == "positive" ~ 0.75,
+        value == "5 - Strongly agree" & pos_neg == "negative" ~ 0,
+        value == "5 - Strongly agree" & pos_neg == "positive" ~ 1
+      ),
+      name = if_else(pos_neg == "negative", paste0("<p style='color:red;'>", name, "</p>"), name)
+    ) |>
+    group_by(name) |>
+    mutate(score = (n * score_multiplier) / sum(n)) |>
+    summarise(score = sum(score)) |>
+    rename(` ` = name, Score = score) %>%
+    add_row(` ` = "<b>Overall score</b>", !!!colMeans(.[-1]), .before = 1) |>
+    gt::gt() |>
+    gt::fmt_percent(Score,
+      scale_values = TRUE
+    ) |>
+    gt::fmt_markdown(` `) |>
+    gt::data_color(
+      columns = Score,
+      colors = scales::col_bin(
+        palette = c(
+          TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+        ),
+        domain = c(0, 1),
+        bins = c(0, 0.39, 0.79, 1)
+      )
+    ) |>
+    TeachingLab::gt_theme_tl(align = "left") |>
+    gt::tab_footnote(footnote = paste0("n = ", n_size)) |>
+    gtsave(here::here("images/report_images/tab_teacher_mindsets_1.png"))
+
+  knitr::include_graphics(here::here("images/report_images/tab_teacher_mindsets_1.png"))
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+### High Expectations
+
+::: {.fold .o}
+<center>
+
+```{r teacher-mindsets-3, fig.width = 12, fig.height = 12}
+if (sum(!is.na(educator_survey$`mindsets_ts_1_1`)) >= 1) {
+  teacher_mindsets |>
+    filter(name %in% c(
+      "Teachers should provide all students the opportunity to work with grade-level texts and tasks",
+      "Before students are asked to engage in complex learning tasks, they need to have a solid grasp of basic skills",
+      "I try to keep in mind the limits of my students’ ability and give them assignments that I know they can do so that they do not become discouraged",
+      "It is not fair to ask students who are struggling with English to take on challenging academic assignments",
+      "Grouping students of different levels of achievement for instruction may benefit some students, but it can undermine the progress that could otherwise be made by higher achieving students"
+    )) |>
+    mutate(
+      pos_neg = if_else(name != "Teachers should provide all students the opportunity to work with grade-level texts and tasks", "negative", "positive"),
+      score_multiplier = case_when(
+        value == "1 - Strongly disagree" & pos_neg == "negative" ~ 1,
+        value == "1 - Strongly disagree" & pos_neg == "positive" ~ 0,
+        value == "2 - Disagree" & pos_neg == "negative" ~ 0.75,
+        value == "2 - Disagree" & pos_neg == "positive" ~ 0.25,
+        value == "3 - Neither agree nor disagree" & pos_neg == "negative" ~ 0.5,
+        value == "3 - Neither agree nor disagree" & pos_neg == "positive" ~ 0.5,
+        value == "4 - Agree" & pos_neg == "negative" ~ 0.25,
+        value == "4 - Agree" & pos_neg == "positive" ~ 0.75,
+        value == "5 - Strongly agree" & pos_neg == "negative" ~ 0,
+        value == "5 - Strongly agree" & pos_neg == "positive" ~ 1
+      ),
+      name = if_else(pos_neg == "negative", paste0("<p style='color:red;'>", name, "</p>"), name)
+    ) |>
+    group_by(name) |>
+    mutate(score = (n * score_multiplier) / sum(n)) |>
+    summarise(score = sum(score)) |>
+    rename(` ` = name, Score = score) %>%
+    add_row(` ` = "<b>Overall score</b>", !!!colMeans(.[-1]), .before = 1) |>
+    gt::gt() |>
+    gt::fmt_percent(Score,
+      scale_values = TRUE
+    ) |>
+    gt::fmt_markdown(` `) |>
+    gt::data_color(
+      columns = Score,
+      colors = scales::col_bin(
+        palette = c(
+          TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+        ),
+        domain = c(0, 1),
+        bins = c(0, 0.39, 0.79, 1)
+      )
+    ) |>
+    TeachingLab::gt_theme_tl(align = "left") |>
+    gt::tab_footnote(footnote = paste0("n = ", n_size)) |>
+    gtsave(here::here("images/report_images/tab_teacher_mindsets_3.png"))
+
+  knitr::include_graphics(here::here("images/report_images/tab_teacher_mindsets_3.png"))
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+### Growth Mindsets
+
+::: {.fold .o}
+<center>
+
+```{r teacher-mindsets-4, fig.width = 12, fig.height = 12}
+if (sum(!is.na(educator_survey$`mindsets_ts_1_1`)) >= 1) {
+  teacher_mindsets |>
+    filter(name %in% c(
+      "Students can learn new things, but they can’t really change their basic intelligence",
+      "Students have a certain amount of intelligence, and they can’t really do much to change it",
+      "Intelligence is something about students that they can’t change very much"
+    )) |>
+    mutate(
+      pos_neg = "negative",
+      score_multiplier = case_when(
+        value == "1 - Strongly disagree" & pos_neg == "negative" ~ 1,
+        value == "1 - Strongly disagree" & pos_neg == "positive" ~ 0,
+        value == "2 - Disagree" & pos_neg == "negative" ~ 0.75,
+        value == "2 - Disagree" & pos_neg == "positive" ~ 0.25,
+        value == "3 - Neither agree nor disagree" & pos_neg == "negative" ~ 0.5,
+        value == "3 - Neither agree nor disagree" & pos_neg == "positive" ~ 0.5,
+        value == "4 - Agree" & pos_neg == "negative" ~ 0.25,
+        value == "4 - Agree" & pos_neg == "positive" ~ 0.75,
+        value == "5 - Strongly agree" & pos_neg == "negative" ~ 0,
+        value == "5 - Strongly agree" & pos_neg == "positive" ~ 1
+      ),
+      name = if_else(pos_neg == "negative", paste0("<p style='color:red;'>", name, "</p>"), name)
+    ) |>
+    group_by(name) |>
+    mutate(score = (n * score_multiplier) / sum(n)) |>
+    summarise(score = sum(score)) |>
+    rename(` ` = name, Score = score) %>%
+    add_row(` ` = "<b>Overall score</b>", !!!colMeans(.[-1]), .before = 1) |>
+    gt::gt() |>
+    gt::fmt_percent(Score,
+      scale_values = TRUE
+    ) |>
+    gt::fmt_markdown(` `) |>
+    gt::data_color(
+      columns = Score,
+      colors = scales::col_bin(
+        palette = c(
+          TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+        ),
+        domain = c(0, 1),
+        bins = c(0, 0.39, 0.79, 1)
+      )
+    ) |>
+    TeachingLab::gt_theme_tl(align = "left") |>
+    gt::tab_footnote(footnote = paste0("n = ", n_size)) |>
+    gtsave(here::here("images/report_images/tab_teacher_mindsets_4.png"))
+
+  knitr::include_graphics(here::here("images/report_images/tab_teacher_mindsets_4.png"))
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+## Section 3b: Teachers - Perceptions and Use of Curricula
+
+Teachers responded about the different curricula they use regularly and
+the most often. Overall we see the following results.
+
+### Aggregate
+
+::: {.fold .o}
+<center>
+
+```{r perceptions-curricula-1, fig.width = 8, fig.height = 5}
+if (sum(!is.na(educator_survey$materials_1[!str_detect(educator_survey$materials_1, "NA")])) >= 1) {
+  n_size <- sum(!is.na(educator_survey$materials_1[!str_detect(educator_survey$materials_1, "NA")]))
+
+  educator_survey |>
+    select(contains("materials")) |>
+    pivot_longer(everything()) |>
+    mutate(name = str_replace_all(name, c(
+      "materials_1" = "curriculum materials adopted by your district",
+      "materials_2" = "materials developed by your school or district",
+      "materials_3" = "materials you found on the internet",
+      "materials_4" = "materials developed by yourself or with colleagues"
+    ))) |>
+    group_by(name, value) |>
+    count(sort = T) |>
+    ungroup() |>
+    drop_na(value) |>
+    mutate(
+      name = html_wrap(name, 25),
+      value = str_wrap(value, 20)
+    ) |>
+    group_by(name) |>
+    mutate(
+      Percent = round(100 * n / sum(n), 2),
+      value = factor(value, levels = c(
+        "Never use",
+        "Sometimes (once a\nmonth)",
+        "Use often (once or\ntwice weekly)",
+        "Use everyday"
+      ))
+    ) |>
+    ggplot(aes(
+      x = fct_reorder(name, Percent, .desc = T),
+      y = Percent,
+      fill = value
+    )) +
+    geom_col(color = NA, position = position_stack(reverse = TRUE)) +
+    geom_text(
+      aes(
+        color = value,
+        label = if_else(Percent >= 10, paste0(round(Percent), "%"), "")
+      ),
+      position = position_stack(vjust = 0.5, reverse = TRUE),
+      fontface = "bold",
+      size = 6
+    ) +
+    labs(
+      x = "Please indicate the extent to which you use...", y = "",
+      title = glue::glue("Teacher Curriculum Usage (n = {n_size})"),
+      fill = ""
+    ) +
+    scale_fill_manual(values = c(
+      "Never use" = "#032E3F",
+      "Sometimes (once a\nmonth)" = "#02587A",
+      "Use often (once or\ntwice weekly)" = "#0182B4",
+      "Use everyday" = "#00ACF0"
+    )) +
+    scale_color_manual(values = c(
+      "Never use" = "white",
+      "Sometimes (once a\nmonth)" = "black",
+      "Use often (once or\ntwice weekly)" = "black",
+      "Use everyday" = "black"
+    )) +
+    guides(
+      fill = guide_legend()
+    ) +
+    scale_y_continuous(
+      labels = scales::label_percent(scale = 1),
+      expand = c(0.14, 0)
+    ) +
+    coord_flip() +
+    guides(color = "none") +
+    theme_tl(legend = T) +
+    theme(
+      axis.text.y = element_markdown(
+        margin = margin(t = 0, l = 0, r = -40, b = 0),
+        size = 16
+      ),
+      axis.text.x = element_blank(),
+      plot.title = element_text(size = 25, face = "bold"),
+      legend.position = "bottom",
+      legend.key.height = unit(1.3, "cm"),
+      legend.key.width = unit(1.3, "cm"),
+      legend.key.size = unit(0.75, "cm"),
+      legend.text = element_text(size = 13),
+      legend.margin = margin(-25, 0, 0, -150)
+    )
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+::: {.fold .o}
+<center>
+
+```{r perceptions-curricula-2, fig.width = 8.75, fig.height = 3}
+if (sum(!is.na(educator_survey$lesson_modifications[!str_detect(educator_survey$lesson_modifications, "NA")])) >= 1) {
+  n_size <- sum(!is.na(educator_survey$lesson_modifications[!str_detect(educator_survey$lesson_modifications, "NA")]))
+
+  educator_survey |>
+    select(lesson_modifications) |>
+    drop_na() |>
+    filter(!str_detect(lesson_modifications, "NA")) |>
+    group_by(lesson_modifications) |>
+    count(sort = T) |>
+    ungroup() |>
+    mutate(
+      lesson_modifications = str_wrap(lesson_modifications, 20),
+      Percent = round(100 * n / sum(n), 2),
+      lesson_modifications = factor(lesson_modifications, levels = c(
+        "with no or few\nmodifications",
+        "with modifications\nto less than half of\na lesson plan",
+        "with modifications\nto more than half of\na lesson plan",
+        "my main materials do\nnot include lesson\nplans or I typically\ncreate my own lesson\nplans"
+      ))
+    ) |>
+    ggplot(aes(
+      x = 0,
+      y = Percent,
+      fill = lesson_modifications
+    )) +
+    geom_col(color = NA, position = position_stack(reverse = TRUE), width = 1) +
+    geom_text(
+      aes(
+        color = lesson_modifications,
+        label = if_else(Percent >= 10, paste0(round(Percent), "%"), "")
+      ),
+      position = position_stack(vjust = 0.5, reverse = TRUE),
+      fontface = "bold",
+      size = 6
+    ) +
+    labs(
+      x = "I typically use lessons with...", y = "",
+      title = glue::glue("Teachers' use of lessons from district or\nschool-adopted materials (n = {n_size})"),
+      fill = ""
+    ) +
+    scale_fill_manual(values = c(
+      "with no or few\nmodifications" = "#032E3F",
+      "with modifications\nto less than half of\na lesson plan" = "#02587A",
+      "with modifications\nto more than half of\na lesson plan" = "#0182B4",
+      "my main materials do\nnot include lesson\nplans or I typically\ncreate my own lesson\nplans" = "#00ACF0"
+    )) +
+    scale_color_manual(values = c(
+      "with no or few\nmodifications" = "white",
+      "with modifications\nto less than half of\na lesson plan" = "white",
+      "with modifications\nto more than half of\na lesson plan" = "black",
+      "my main materials do\nnot include lesson\nplans or I typically\ncreate my own lesson\nplans" = "black"
+    )) +
+    guides(
+      fill = guide_legend(),
+      color = "none"
+    ) +
+    scale_y_continuous(
+      labels = scales::label_percent(scale = 1),
+      expand = c(0.14, 0)
+    ) +
+    coord_flip() +
+    theme_tl(legend = T) +
+    theme(
+      axis.text.y = element_blank(),
+      axis.text.x = element_blank(),
+      plot.title = element_text(size = 25, face = "bold"),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      legend.position = "bottom",
+      legend.key.height = unit(1.3, "cm"),
+      legend.key.width = unit(1.3, "cm"),
+      legend.key.size = unit(0.75, "cm"),
+      legend.text = element_text(size = 13),
+      legend.margin = margin(-25, 0, 0, 0)
+    )
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+::: {.fold .o}
+<center>
+
+```{r perceptions-curricula-3, fig.width = 10, fig.height = 7}
+if (sum(!is.na(educator_survey$curriculum_sch_dist_1[!str_detect(educator_survey$curriculum_sch_dist_1, "NA")])) >= 1) {
+  n_size <- sum(!is.na(educator_survey$curriculum_sch_dist_1[!str_detect(educator_survey$curriculum_sch_dist_1, "NA")]))
+
+  educator_survey |>
+    select(contains("curriculum_sch_dist")) |>
+    pivot_longer(everything()) |>
+    mutate(name = str_replace_all(name, c(
+      "curriculum_sch_dist_1" = "The curriculum materials adopted by my school or district are well-suited to the needs of my students",
+      "curriculum_sch_dist_2" = "The  curriculum materials adopted by my school or district offer students high-quality opportunities to learn.",
+      "curriculum_sch_dist_3" = "The  curriculum materials adopted by my school or district are well-organized and easy to use.",
+      "curriculum_sch_dist_4" = "I like the  curriculum materials adopted by my school or district.",
+      "curriculum_sch_dist_5" = "The  curriculum materials adopted by my school or district will help my students learn.",
+      "curriculum_sch_dist_6" = "The  curriculum materials adopted by my school are too scripted and don't provide me with enough autonomy."
+    ))) |>
+    group_by(name, value) |>
+    count(sort = T) |>
+    ungroup() |>
+    drop_na(value) |>
+    mutate(name = html_wrap(name, 25)) |>
+    group_by(name) |>
+    mutate(
+      Percent = round(100 * n / sum(n), 2),
+      value = factor(value, levels = c(
+        "Strongly disagree",
+        "Disagree",
+        "Neither agree nor disagree",
+        "Agree",
+        "Strongly agree"
+      ))
+    ) |>
+    ggplot(aes(
+      x = fct_reorder(name, Percent, .desc = T),
+      y = Percent,
+      color = value,
+      fill = value
+    )) +
+    geom_col(color = NA, position = position_stack(reverse = TRUE)) +
+    geom_text(
+      aes(
+        color = value,
+        label = if_else(Percent >= 10, paste0(round(Percent), "%"), "")
+      ),
+      position = position_stack(vjust = 0.5, reverse = TRUE),
+      fontface = "bold",
+      size = 8
+    ) +
+    labs(
+      x = "", y = "",
+      title = glue::glue("Teacher perceptions of curriculum (n = {n_size})"),
+      fill = ""
+    ) +
+    scale_fill_manual(values = c(
+      "Strongly disagree" = "#040404",
+      "Disagree" = "#032E3F",
+      "Neither agree nor disagree" = "#02587A",
+      "Agree" = "#0182B4",
+      "Strongly agree" = "#00ACF0"
+    )) +
+    scale_color_manual(values = c(
+      "Strongly disagree" = "white",
+      "Disagree" = "white",
+      "Neither agree nor disagree" = "black",
+      "Agree" = "black",
+      "Strongly agree" = "black"
+    )) +
+    guides(
+      fill = guide_legend(),
+      color = "none"
+    ) +
+    scale_y_continuous(
+      labels = scales::label_percent(scale = 1),
+      expand = c(0.14, 0)
+    ) +
+    coord_flip() +
+    theme_tl(legend = T) +
+    theme(
+      axis.text.y = element_markdown(
+        margin = margin(t = 0, l = 0, r = -40, b = 0),
+        size = 13.5
+      ),
+      axis.text.x = element_blank(),
+      plot.title = element_text(size = 25, face = "bold"),
+      legend.position = "bottom",
+      legend.key.height = unit(1.3, "cm"),
+      legend.key.width = unit(1.3, "cm"),
+      legend.key.size = unit(0.75, "cm"),
+      legend.text = element_text(size = 13),
+      legend.margin = margin(-25, 0, 0, -80)
+    )
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+### Math
+
+Teachers responded about the different curricula they use regularly and
+the most often. For math we see the following results.
+
+::: {.fold .o}
+<center>
+
+```{r math-perceptions-curricula-1, fig.width = 8, fig.height = 5}
+if (sum(!is.na(educator_survey$materials_1[educator_survey$content_area == "Mathematics"])) >= 1) {
+  n_size <- sum(!is.na(educator_survey$materials_1[educator_survey$content_area == "Mathematics" & !str_detect(educator_survey$materials_1, "NA")]))
+
+  educator_survey |>
+    filter(content_area == "Mathematics") |>
+    select(contains("materials")) |>
+    pivot_longer(everything()) |>
+    mutate(name = str_replace_all(name, c(
+      "materials_1" = "curriculum materials adopted by your district",
+      "materials_2" = "materials developed by your school or district",
+      "materials_3" = "materials you found on the internet",
+      "materials_4" = "materials developed by yourself or with colleagues"
+    ))) |>
+    group_by(name, value) |>
+    count(sort = T) |>
+    ungroup() |>
+    drop_na(value) |>
+    mutate(
+      name = html_wrap(name, 25),
+      value = str_wrap(value, 20)
+    ) |>
+    group_by(name) |>
+    mutate(
+      Percent = round(100 * n / sum(n), 2),
+      value = factor(value, levels = c(
+        "Never use",
+        "Sometimes (once a\nmonth)",
+        "Use often (once or\ntwice weekly)",
+        "Use everyday"
+      ))
+    ) |>
+    ggplot(aes(
+      x = fct_reorder(name, Percent, .desc = T),
+      y = Percent,
+      fill = value
+    )) +
+    geom_col(color = NA, position = position_stack(reverse = TRUE)) +
+    geom_text(
+      aes(
+        color = value,
+        label = if_else(Percent >= 10, paste0(round(Percent), "%"), "")
+      ),
+      position = position_stack(vjust = 0.5, reverse = TRUE),
+      fontface = "bold",
+      size = 6
+    ) +
+    labs(
+      x = "Please indicate the extent to which you use...", y = "",
+      title = glue::glue("Teacher Curriculum Usage (n = {n_size})"),
+      fill = ""
+    ) +
+    scale_fill_manual(values = c(
+      "Never use" = "#032E3F",
+      "Sometimes (once a\nmonth)" = "#02587A",
+      "Use often (once or\ntwice weekly)" = "#0182B4",
+      "Use everyday" = "#00ACF0"
+    )) +
+    scale_color_manual(values = c(
+      "Never use" = "white",
+      "Sometimes (once a\nmonth)" = "black",
+      "Use often (once or\ntwice weekly)" = "black",
+      "Use everyday" = "black"
+    )) +
+    guides(
+      fill = guide_legend()
+    ) +
+    scale_y_continuous(
+      labels = scales::label_percent(scale = 1),
+      expand = c(0.14, 0)
+    ) +
+    coord_flip() +
+    guides(color = "none") +
+    theme_tl(legend = T) +
+    theme(
+      axis.text.y = element_markdown(
+        margin = margin(t = 0, l = 0, r = -40, b = 0),
+        size = 16
+      ),
+      axis.text.x = element_blank(),
+      plot.title = element_text(size = 25, face = "bold"),
+      legend.position = "bottom",
+      legend.key.height = unit(1.3, "cm"),
+      legend.key.width = unit(1.3, "cm"),
+      legend.key.size = unit(0.75, "cm"),
+      legend.text = element_text(size = 13),
+      legend.margin = margin(-25, 0, 0, -150)
+    )
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+::: {.fold .o}
+<center>
+
+```{r math-perceptions-curricula-2, fig.width = 8.75, fig.height = 3}
+if (sum(!is.na(educator_survey$lesson_modifications[educator_survey$content_area == "Mathematics"])) >= 1 & nrow(educator_survey) >= 1 & params$partner != "NY_Channel View School for Research") {
+  n_size <- sum(!is.na(educator_survey$lesson_modifications[educator_survey$content_area == "Mathematics" & !str_detect(educator_survey$lesson_modifications, "NA")]))
+
+  educator_survey |>
+    filter(content_area == "Mathematics") |>
+    select(lesson_modifications) |>
+    drop_na() |>
+    filter(!str_detect(lesson_modifications, "NA")) |>
+    group_by(lesson_modifications) |>
+    count(sort = T) |>
+    ungroup() |>
+    mutate(
+      lesson_modifications = str_wrap(lesson_modifications, 20),
+      Percent = round(100 * n / sum(n), 2),
+      lesson_modifications = factor(lesson_modifications, levels = c(
+        "with no or few\nmodifications",
+        "with modifications\nto less than half of\na lesson plan",
+        "with modifications\nto more than half of\na lesson plan",
+        "my main materials do\nnot include lesson\nplans or I typically\ncreate my own lesson\nplans"
+      ))
+    ) |>
+    ggplot(aes(
+      x = 0,
+      y = Percent,
+      fill = lesson_modifications
+    )) +
+    geom_col(color = NA, position = position_stack(reverse = TRUE), width = 1) +
+    geom_text(
+      aes(
+        color = lesson_modifications,
+        label = if_else(Percent >= 10, paste0(round(Percent), "%"), "")
+      ),
+      position = position_stack(vjust = 0.5, reverse = TRUE),
+      fontface = "bold",
+      size = 6
+    ) +
+    labs(
+      x = "I typically use lessons with...", y = "",
+      title = glue::glue("Teachers' use of lessons from district or\nschool-adopted materials (n = {n_size})"),
+      fill = ""
+    ) +
+    scale_fill_manual(values = c(
+      "with no or few\nmodifications" = "#032E3F",
+      "with modifications\nto less than half of\na lesson plan" = "#02587A",
+      "with modifications\nto more than half of\na lesson plan" = "#0182B4",
+      "my main materials do\nnot include lesson\nplans or I typically\ncreate my own lesson\nplans" = "#00ACF0"
+    )) +
+    scale_color_manual(values = c(
+      "with no or few\nmodifications" = "white",
+      "with modifications\nto less than half of\na lesson plan" = "white",
+      "with modifications\nto more than half of\na lesson plan" = "black",
+      "my main materials do\nnot include lesson\nplans or I typically\ncreate my own lesson\nplans" = "black"
+    )) +
+    guides(
+      fill = guide_legend(),
+      color = "none"
+    ) +
+    scale_y_continuous(
+      labels = scales::label_percent(scale = 1),
+      expand = c(0.14, 0)
+    ) +
+    coord_flip() +
+    theme_tl(legend = T) +
+    theme(
+      axis.text.y = element_blank(),
+      axis.text.x = element_blank(),
+      plot.title = element_text(size = 25, face = "bold"),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      legend.position = "bottom",
+      legend.key.height = unit(1.3, "cm"),
+      legend.key.width = unit(1.3, "cm"),
+      legend.key.size = unit(0.75, "cm"),
+      legend.text = element_text(size = 13),
+      legend.margin = margin(-25, 0, 0, 0)
+    )
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+::: {.fold .o}
+<center>
+
+```{r math-perceptions-curricula-3, fig.width = 10, fig.height = 7}
+if (sum(!is.na(educator_survey$curriculum_sch_dist_1[educator_survey$content_area == "Mathematics"])) >= 1) {
+  n_size <- sum(!is.na(educator_survey$curriculum_sch_dist_1[educator_survey$content_area == "Mathematics" & !str_detect(educator_survey$curriculum_sch_dist_1, "NA")]))
+
+  educator_survey |>
+    filter(content_area == "Mathematics") |>
+    select(contains("curriculum_sch_dist")) |>
+    pivot_longer(everything()) |>
+    mutate(name = str_replace_all(name, c(
+      "curriculum_sch_dist_1" = "The curriculum materials adopted by my school or district are well-suited to the needs of my students",
+      "curriculum_sch_dist_2" = "The  curriculum materials adopted by my school or district offer students high-quality opportunities to learn.",
+      "curriculum_sch_dist_3" = "The  curriculum materials adopted by my school or district are well-organized and easy to use.",
+      "curriculum_sch_dist_4" = "I like the  curriculum materials adopted by my school or district.",
+      "curriculum_sch_dist_5" = "The  curriculum materials adopted by my school or district will help my students learn.",
+      "curriculum_sch_dist_6" = "The  curriculum materials adopted by my school are too scripted and don't provide me with enough autonomy."
+    ))) |>
+    group_by(name, value) |>
+    count(sort = T) |>
+    ungroup() |>
+    drop_na(value) |>
+    mutate(name = html_wrap(name, 25)) |>
+    group_by(name) |>
+    mutate(
+      Percent = round(100 * n / sum(n), 2),
+      value = factor(value, levels = c(
+        "Strongly disagree",
+        "Disagree",
+        "Neither agree nor disagree",
+        "Agree",
+        "Strongly agree"
+      ))
+    ) |>
+    ggplot(aes(
+      x = fct_reorder(name, Percent, .desc = T),
+      y = Percent,
+      color = value,
+      fill = value
+    )) +
+    geom_col(color = NA, position = position_stack(reverse = TRUE)) +
+    geom_text(
+      aes(
+        color = value,
+        label = if_else(Percent >= 10, paste0(round(Percent), "%"), "")
+      ),
+      position = position_stack(vjust = 0.5, reverse = TRUE),
+      fontface = "bold",
+      size = 8
+    ) +
+    labs(
+      x = "", y = "",
+      title = glue::glue("Teacher perceptions of curriculum (n = {n_size})"),
+      fill = ""
+    ) +
+    scale_fill_manual(values = c(
+      "Strongly disagree" = "#040404",
+      "Disagree" = "#032E3F",
+      "Neither agree nor disagree" = "#02587A",
+      "Agree" = "#0182B4",
+      "Strongly agree" = "#00ACF0"
+    )) +
+    scale_color_manual(values = c(
+      "Strongly disagree" = "white",
+      "Disagree" = "white",
+      "Neither agree nor disagree" = "black",
+      "Agree" = "black",
+      "Strongly agree" = "black"
+    )) +
+    guides(
+      fill = guide_legend(),
+      color = "none"
+    ) +
+    scale_y_continuous(
+      labels = scales::label_percent(scale = 1),
+      expand = c(0.14, 0)
+    ) +
+    coord_flip() +
+    theme_tl(legend = T) +
+    theme(
+      axis.text.y = element_markdown(
+        margin = margin(t = 0, l = 0, r = -40, b = 0),
+        size = 13.5
+      ),
+      axis.text.x = element_blank(),
+      plot.title = element_text(size = 25, face = "bold"),
+      legend.position = "bottom",
+      legend.key.height = unit(1.3, "cm"),
+      legend.key.width = unit(1.3, "cm"),
+      legend.key.size = unit(0.75, "cm"),
+      legend.text = element_text(size = 13),
+      legend.margin = margin(-25, 0, 0, -80)
+    )
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+### ELA
+
+Teachers responded about the different curricula they use regularly and
+the most often. For ELA we see the following results.
+
+::: {.fold .o}
+<center>
+
+```{r ela-perceptions-curricula-1, fig.width = 8, fig.height = 5}
+if (sum(!is.na(educator_survey$materials_1[educator_survey$content_area == "ELA/Literacy"])) >= 1) {
+  n_size <- sum(!is.na(educator_survey$materials_1[educator_survey$content_area == "ELA/Literacy" & !str_detect(educator_survey$materials_1, "NA")]))
+
+  educator_survey |>
+    filter(content_area == "ELA/Literacy") |>
+    select(contains("materials")) |>
+    pivot_longer(everything()) |>
+    mutate(name = str_replace_all(name, c(
+      "materials_1" = "curriculum materials adopted by your district",
+      "materials_2" = "materials developed by your school or district",
+      "materials_3" = "materials you found on the internet",
+      "materials_4" = "materials developed by yourself or with colleagues"
+    ))) |>
+    group_by(name, value) |>
+    count(sort = T) |>
+    ungroup() |>
+    drop_na(value) |>
+    mutate(
+      name = html_wrap(name, 25),
+      value = str_wrap(value, 20)
+    ) |>
+    group_by(name) |>
+    mutate(
+      Percent = round(100 * n / sum(n), 2),
+      value = factor(value, levels = c(
+        "Never use",
+        "Sometimes (once a\nmonth)",
+        "Use often (once or\ntwice weekly)",
+        "Use everyday"
+      ))
+    ) |>
+    ggplot(aes(
+      x = fct_reorder(name, Percent, .desc = T),
+      y = Percent,
+      fill = value
+    )) +
+    geom_col(color = NA, position = position_stack(reverse = TRUE)) +
+    geom_text(
+      aes(
+        color = value,
+        label = if_else(Percent >= 10, paste0(round(Percent), "%"), "")
+      ),
+      position = position_stack(vjust = 0.5, reverse = TRUE),
+      fontface = "bold",
+      size = 6
+    ) +
+    labs(
+      x = "Please indicate the extent to which you use...", y = "",
+      title = glue::glue("Teacher Curriculum Usage (n = {n_size})"),
+      fill = ""
+    ) +
+    scale_fill_manual(values = c(
+      "Never use" = "#032E3F",
+      "Sometimes (once a\nmonth)" = "#02587A",
+      "Use often (once or\ntwice weekly)" = "#0182B4",
+      "Use everyday" = "#00ACF0"
+    )) +
+    scale_color_manual(values = c(
+      "Never use" = "white",
+      "Sometimes (once a\nmonth)" = "black",
+      "Use often (once or\ntwice weekly)" = "black",
+      "Use everyday" = "black"
+    )) +
+    guides(
+      fill = guide_legend()
+    ) +
+    scale_y_continuous(
+      labels = scales::label_percent(scale = 1),
+      expand = c(0.14, 0)
+    ) +
+    coord_flip() +
+    guides(color = "none") +
+    theme_tl(legend = T) +
+    theme(
+      axis.text.y = element_markdown(
+        margin = margin(t = 0, l = 0, r = -40, b = 0),
+        size = 16
+      ),
+      axis.text.x = element_blank(),
+      plot.title = element_text(size = 25, face = "bold"),
+      legend.position = "bottom",
+      legend.key.height = unit(1.3, "cm"),
+      legend.key.width = unit(1.3, "cm"),
+      legend.key.size = unit(0.75, "cm"),
+      legend.text = element_text(size = 13),
+      legend.margin = margin(-25, 0, 0, -150)
+    )
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+::: {.fold .o}
+<center>
+
+```{r ela-perceptions-curricula-2, fig.width = 8.75, fig.height = 3}
+if (sum(!is.na(educator_survey$lesson_modifications[educator_survey$content_area == "ELA/Literacy"])) >= 1 & nrow(educator_survey) >= 1 & params$partner != "US_City Year") {
+  n_size <- sum(!is.na(educator_survey$lesson_modifications[educator_survey$content_area == "ELA/Literacy" & !str_detect(educator_survey$lesson_modifications, "NA")]))
+
+  educator_survey |>
+    filter(content_area == "ELA/Literacy") |>
+    select(lesson_modifications) |>
+    drop_na() |>
+    filter(!str_detect(lesson_modifications, "NA")) |>
+    group_by(lesson_modifications) |>
+    count(sort = T) |>
+    ungroup() |>
+    mutate(
+      lesson_modifications = str_wrap(lesson_modifications, 20),
+      Percent = round(100 * n / sum(n), 2),
+      lesson_modifications = factor(lesson_modifications, levels = c(
+        "with no or few\nmodifications",
+        "with modifications\nto less than half of\na lesson plan",
+        "with modifications\nto more than half of\na lesson plan",
+        "my main materials do\nnot include lesson\nplans or I typically\ncreate my own lesson\nplans"
+      ))
+    ) |>
+    ggplot(aes(
+      x = 0,
+      y = Percent,
+      fill = lesson_modifications
+    )) +
+    geom_col(color = NA, position = position_stack(reverse = TRUE), width = 1) +
+    geom_text(
+      aes(
+        color = lesson_modifications,
+        label = if_else(Percent >= 10, paste0(round(Percent), "%"), "")
+      ),
+      position = position_stack(vjust = 0.5, reverse = TRUE),
+      fontface = "bold",
+      size = 6
+    ) +
+    labs(
+      x = "I typically use lessons with...", y = "",
+      title = glue::glue("Teachers' use of lessons from district or\nschool-adopted materials (n = {n_size})"),
+      fill = ""
+    ) +
+    scale_fill_manual(values = c(
+      "with no or few\nmodifications" = "#032E3F",
+      "with modifications\nto less than half of\na lesson plan" = "#02587A",
+      "with modifications\nto more than half of\na lesson plan" = "#0182B4",
+      "my main materials do\nnot include lesson\nplans or I typically\ncreate my own lesson\nplans" = "#00ACF0"
+    )) +
+    scale_color_manual(values = c(
+      "with no or few\nmodifications" = "white",
+      "with modifications\nto less than half of\na lesson plan" = "white",
+      "with modifications\nto more than half of\na lesson plan" = "black",
+      "my main materials do\nnot include lesson\nplans or I typically\ncreate my own lesson\nplans" = "black"
+    )) +
+    guides(
+      fill = guide_legend(),
+      color = "none"
+    ) +
+    scale_y_continuous(
+      labels = scales::label_percent(scale = 1),
+      expand = c(0.14, 0)
+    ) +
+    coord_flip() +
+    theme_tl(legend = T) +
+    theme(
+      axis.text.y = element_blank(),
+      axis.text.x = element_blank(),
+      plot.title = element_text(size = 25, face = "bold"),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      legend.position = "bottom",
+      legend.key.height = unit(1.3, "cm"),
+      legend.key.width = unit(1.3, "cm"),
+      legend.key.size = unit(0.75, "cm"),
+      legend.text = element_text(size = 13),
+      legend.margin = margin(-25, 0, 0, 0)
+    )
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+::: {.fold .o}
+<center>
+
+```{r ela-perceptions-curricula-3, fig.width = 10, fig.height = 7}
+if (sum(!is.na(educator_survey$curriculum_sch_dist_1[educator_survey$content_area == "ELA/Literacy"])) >= 1) {
+  n_size <- sum(!is.na(educator_survey$curriculum_sch_dist_1[educator_survey$content_area == "ELA/Literacy" & !str_detect(educator_survey$curriculum_sch_dist_1, "NA")]))
+
+  educator_survey |>
+    filter(content_area == "ELA/Literacy") |>
+    select(contains("curriculum_sch_dist")) |>
+    pivot_longer(everything()) |>
+    mutate(name = str_replace_all(name, c(
+      "curriculum_sch_dist_1" = "The curriculum materials adopted by my school or district are well-suited to the needs of my students",
+      "curriculum_sch_dist_2" = "The  curriculum materials adopted by my school or district offer students high-quality opportunities to learn.",
+      "curriculum_sch_dist_3" = "The  curriculum materials adopted by my school or district are well-organized and easy to use.",
+      "curriculum_sch_dist_4" = "I like the  curriculum materials adopted by my school or district.",
+      "curriculum_sch_dist_5" = "The  curriculum materials adopted by my school or district will help my students learn.",
+      "curriculum_sch_dist_6" = "The  curriculum materials adopted by my school are too scripted and don't provide me with enough autonomy."
+    ))) |>
+    group_by(name, value) |>
+    count(sort = T) |>
+    ungroup() |>
+    drop_na(value) |>
+    mutate(name = html_wrap(name, 25)) |>
+    group_by(name) |>
+    mutate(
+      Percent = round(100 * n / sum(n), 2),
+      value = factor(value, levels = c(
+        "Strongly disagree",
+        "Disagree",
+        "Neither agree nor disagree",
+        "Agree",
+        "Strongly agree"
+      ))
+    ) |>
+    ggplot(aes(
+      x = fct_reorder(name, Percent, .desc = T),
+      y = Percent,
+      color = value,
+      fill = value
+    )) +
+    geom_col(color = NA, position = position_stack(reverse = TRUE)) +
+    geom_text(
+      aes(
+        color = value,
+        label = if_else(Percent >= 10, paste0(round(Percent), "%"), "")
+      ),
+      position = position_stack(vjust = 0.5, reverse = TRUE),
+      fontface = "bold",
+      size = 8
+    ) +
+    labs(
+      x = "", y = "",
+      title = glue::glue("Teacher perceptions of curriculum (n = {n_size})"),
+      fill = ""
+    ) +
+    scale_fill_manual(values = c(
+      "Strongly disagree" = "#040404",
+      "Disagree" = "#032E3F",
+      "Neither agree nor disagree" = "#02587A",
+      "Agree" = "#0182B4",
+      "Strongly agree" = "#00ACF0"
+    )) +
+    scale_color_manual(values = c(
+      "Strongly disagree" = "white",
+      "Disagree" = "white",
+      "Neither agree nor disagree" = "black",
+      "Agree" = "black",
+      "Strongly agree" = "black"
+    )) +
+    guides(
+      fill = guide_legend(),
+      color = "none"
+    ) +
+    scale_y_continuous(
+      labels = scales::label_percent(scale = 1),
+      expand = c(0.14, 0)
+    ) +
+    coord_flip() +
+    theme_tl(legend = T) +
+    theme(
+      axis.text.y = element_markdown(
+        margin = margin(t = 0, l = 0, r = -40, b = 0),
+        size = 13.5
+      ),
+      axis.text.x = element_blank(),
+      plot.title = element_text(size = 25, face = "bold"),
+      legend.position = "bottom",
+      legend.key.height = unit(1.3, "cm"),
+      legend.key.width = unit(1.3, "cm"),
+      legend.key.size = unit(0.75, "cm"),
+      legend.text = element_text(size = 13),
+      legend.margin = margin(-25, 0, 0, -80)
+    )
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+### Other
+
+Teachers responded about the different curricula they use regularly and
+the most often. For "other" (non-math or ELA) subjects we see the
+following results.
+
+::: {.fold .o}
+<center>
+
+```{r other-perceptions-curricula-1, fig.width = 8, fig.height = 5}
+if (sum(!is.na(educator_survey$materials_1[educator_survey$content_area %!in% c("ELA/Literacy", "Mathematics")])) >= 1) {
+  n_size <- sum(!is.na(educator_survey$materials_1[educator_survey$content_area %!in% c("ELA/Literacy", "Mathematics") & !str_detect(educator_survey$materials_1, "NA")]))
+
+  educator_survey |>
+    filter(content_area %!in% c("ELA/Literacy", "Mathematics")) |>
+    select(contains("materials")) |>
+    pivot_longer(everything()) |>
+    mutate(name = str_replace_all(name, c(
+      "materials_1" = "curriculum materials adopted by your district",
+      "materials_2" = "materials developed by your school or district",
+      "materials_3" = "materials you found on the internet",
+      "materials_4" = "materials developed by yourself or with colleagues"
+    ))) |>
+    group_by(name, value) |>
+    count(sort = T) |>
+    ungroup() |>
+    drop_na(value) |>
+    mutate(
+      name = html_wrap(name, 25),
+      value = str_wrap(value, 20)
+    ) |>
+    group_by(name) |>
+    mutate(
+      Percent = round(100 * n / sum(n), 2),
+      value = factor(value, levels = c(
+        "Never use",
+        "Sometimes (once a\nmonth)",
+        "Use often (once or\ntwice weekly)",
+        "Use everyday"
+      ))
+    ) |>
+    ggplot(aes(
+      x = fct_reorder(name, Percent, .desc = T),
+      y = Percent,
+      fill = value
+    )) +
+    geom_col(color = NA, position = position_stack(reverse = TRUE)) +
+    geom_text(
+      aes(
+        color = value,
+        label = if_else(Percent >= 10, paste0(round(Percent), "%"), "")
+      ),
+      position = position_stack(vjust = 0.5, reverse = TRUE),
+      fontface = "bold",
+      size = 6
+    ) +
+    labs(
+      x = "Please indicate the extent to which you use...", y = "",
+      title = glue::glue("Teacher Curriculum Usage (n = {n_size})"),
+      fill = ""
+    ) +
+    scale_fill_manual(values = c(
+      "Never use" = "#032E3F",
+      "Sometimes (once a\nmonth)" = "#02587A",
+      "Use often (once or\ntwice weekly)" = "#0182B4",
+      "Use everyday" = "#00ACF0"
+    )) +
+    scale_color_manual(values = c(
+      "Never use" = "white",
+      "Sometimes (once a\nmonth)" = "black",
+      "Use often (once or\ntwice weekly)" = "black",
+      "Use everyday" = "black"
+    )) +
+    guides(
+      fill = guide_legend()
+    ) +
+    scale_y_continuous(
+      labels = scales::label_percent(scale = 1),
+      expand = c(0.14, 0)
+    ) +
+    coord_flip() +
+    guides(color = "none") +
+    theme_tl(legend = T) +
+    theme(
+      axis.text.y = element_markdown(
+        margin = margin(t = 0, l = 0, r = -40, b = 0),
+        size = 16
+      ),
+      axis.text.x = element_blank(),
+      plot.title = element_text(size = 25, face = "bold"),
+      legend.position = "bottom",
+      legend.key.height = unit(1.3, "cm"),
+      legend.key.width = unit(1.3, "cm"),
+      legend.key.size = unit(0.75, "cm"),
+      legend.text = element_text(size = 13),
+      legend.margin = margin(-25, 0, 0, -150)
+    )
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+::: {.fold .o}
+<center>
+
+```{r other-perceptions-curricula-2, fig.width = 8.75, fig.height = 3}
+if (sum(!is.na(educator_survey$lesson_modifications[educator_survey$content_area %!in% c("ELA/Literacy", "Mathematics")])) >= 1 & params$partner != "US_Digital Nest") {
+  n_size <- sum(!is.na(educator_survey$lesson_modifications[educator_survey$content_area %!in% c("ELA/Literacy", "Mathematics") & !str_detect(educator_survey$lesson_modifications, "NA")]))
+
+  educator_survey |>
+    filter(content_area %!in% c("ELA/Literacy", "Mathematics")) |>
+    select(lesson_modifications) |>
+    drop_na() |>
+    filter(!str_detect(lesson_modifications, "NA")) |>
+    group_by(lesson_modifications) |>
+    count(sort = T) |>
+    ungroup() |>
+    mutate(
+      lesson_modifications = str_wrap(lesson_modifications, 20),
+      Percent = round(100 * n / sum(n), 2),
+      lesson_modifications = factor(lesson_modifications, levels = c(
+        "with no or few\nmodifications",
+        "with modifications\nto less than half of\na lesson plan",
+        "with modifications\nto more than half of\na lesson plan",
+        "my main materials do\nnot include lesson\nplans or I typically\ncreate my own lesson\nplans"
+      ))
+    ) |>
+    ggplot(aes(
+      x = 0,
+      y = Percent,
+      fill = lesson_modifications
+    )) +
+    geom_col(color = NA, position = position_stack(reverse = TRUE), width = 1) +
+    geom_text(
+      aes(
+        color = lesson_modifications,
+        label = if_else(Percent >= 10, paste0(round(Percent), "%"), "")
+      ),
+      position = position_stack(vjust = 0.5, reverse = TRUE),
+      fontface = "bold",
+      size = 6
+    ) +
+    labs(
+      x = "I typically use lessons with...", y = "",
+      title = glue::glue("Teachers' use of lessons from district or\nschool-adopted materials (n = {n_size})"),
+      fill = ""
+    ) +
+    scale_fill_manual(values = c(
+      "with no or few\nmodifications" = "#032E3F",
+      "with modifications\nto less than half of\na lesson plan" = "#02587A",
+      "with modifications\nto more than half of\na lesson plan" = "#0182B4",
+      "my main materials do\nnot include lesson\nplans or I typically\ncreate my own lesson\nplans" = "#00ACF0"
+    )) +
+    scale_color_manual(values = c(
+      "with no or few\nmodifications" = "white",
+      "with modifications\nto less than half of\na lesson plan" = "white",
+      "with modifications\nto more than half of\na lesson plan" = "black",
+      "my main materials do\nnot include lesson\nplans or I typically\ncreate my own lesson\nplans" = "black"
+    )) +
+    guides(
+      fill = guide_legend(),
+      color = "none"
+    ) +
+    scale_y_continuous(
+      labels = scales::label_percent(scale = 1),
+      expand = c(0.14, 0)
+    ) +
+    coord_flip() +
+    theme_tl(legend = T) +
+    theme(
+      axis.text.y = element_blank(),
+      axis.text.x = element_blank(),
+      plot.title = element_text(size = 25, face = "bold"),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      legend.position = "bottom",
+      legend.key.height = unit(1.3, "cm"),
+      legend.key.width = unit(1.3, "cm"),
+      legend.key.size = unit(0.75, "cm"),
+      legend.text = element_text(size = 13),
+      legend.margin = margin(-25, 0, 0, 0)
+    )
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+::: {.fold .o}
+<center>
+
+```{r other-perceptions-curricula-3, fig.width = 10, fig.height = 7}
+if (sum(!is.na(educator_survey$curriculum_sch_dist_1[educator_survey$content_area %!in% c("ELA/Literacy", "Mathematics")])) >= 1) {
+  n_size <- sum(!is.na(educator_survey$curriculum_sch_dist_1[educator_survey$content_area %!in% c("ELA/Literacy", "Mathematics") & !str_detect(educator_survey$curriculum_sch_dist_1, "NA")]))
+
+  educator_survey |>
+    filter(content_area %!in% c("ELA/Literacy", "Mathematics")) |>
+    select(contains("curriculum_sch_dist")) |>
+    pivot_longer(everything()) |>
+    mutate(name = str_replace_all(name, c(
+      "curriculum_sch_dist_1" = "The curriculum materials adopted by my school or district are well-suited to the needs of my students",
+      "curriculum_sch_dist_2" = "The  curriculum materials adopted by my school or district offer students high-quality opportunities to learn.",
+      "curriculum_sch_dist_3" = "The  curriculum materials adopted by my school or district are well-organized and easy to use.",
+      "curriculum_sch_dist_4" = "I like the  curriculum materials adopted by my school or district.",
+      "curriculum_sch_dist_5" = "The  curriculum materials adopted by my school or district will help my students learn.",
+      "curriculum_sch_dist_6" = "The  curriculum materials adopted by my school are too scripted and don't provide me with enough autonomy."
+    ))) |>
+    group_by(name, value) |>
+    count(sort = T) |>
+    ungroup() |>
+    drop_na(value) |>
+    mutate(name = html_wrap(name, 25)) |>
+    group_by(name) |>
+    mutate(
+      Percent = round(100 * n / sum(n), 2),
+      value = factor(value, levels = c(
+        "Strongly disagree",
+        "Disagree",
+        "Neither agree nor disagree",
+        "Agree",
+        "Strongly agree"
+      ))
+    ) |>
+    ggplot(aes(
+      x = fct_reorder(name, Percent, .desc = T),
+      y = Percent,
+      color = value,
+      fill = value
+    )) +
+    geom_col(color = NA, position = position_stack(reverse = TRUE)) +
+    geom_text(
+      aes(
+        color = value,
+        label = if_else(Percent >= 10, paste0(round(Percent), "%"), "")
+      ),
+      position = position_stack(vjust = 0.5, reverse = TRUE),
+      fontface = "bold",
+      size = 8
+    ) +
+    labs(
+      x = "", y = "",
+      title = glue::glue("Teacher perceptions of curriculum (n = {n_size})"),
+      fill = ""
+    ) +
+    scale_fill_manual(values = c(
+      "Strongly disagree" = "#040404",
+      "Disagree" = "#032E3F",
+      "Neither agree nor disagree" = "#02587A",
+      "Agree" = "#0182B4",
+      "Strongly agree" = "#00ACF0"
+    )) +
+    scale_color_manual(values = c(
+      "Strongly disagree" = "white",
+      "Disagree" = "white",
+      "Neither agree nor disagree" = "black",
+      "Agree" = "black",
+      "Strongly agree" = "black"
+    )) +
+    guides(
+      fill = guide_legend(),
+      color = "none"
+    ) +
+    scale_y_continuous(
+      labels = scales::label_percent(scale = 1),
+      expand = c(0.14, 0)
+    ) +
+    coord_flip() +
+    theme_tl(legend = T) +
+    theme(
+      axis.text.y = element_markdown(
+        margin = margin(t = 0, l = 0, r = -40, b = 0),
+        size = 13.5
+      ),
+      axis.text.x = element_blank(),
+      plot.title = element_text(size = 25, face = "bold"),
+      legend.position = "bottom",
+      legend.key.height = unit(1.3, "cm"),
+      legend.key.width = unit(1.3, "cm"),
+      legend.key.size = unit(0.75, "cm"),
+      legend.text = element_text(size = 13),
+      legend.margin = margin(-25, 0, 0, -80)
+    )
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+## Section 3c: Educators' Perceptions of School Culture and Climate
+
+### Teachers' Perceptions of School Leaders and CBPL
+
+Teachers responded to items about their perceptions of school leaders
+and PL environment.
+
+::: {.fold .o}
+<center>
+
+```{r teacher-perceptions-leaders, fig.width = 12, fig.height = 8.5}
+if (sum(!is.na(educator_survey$`ts_perceptions_sl_1`)) >= 1) {
+  n_size <- sum(!is.na(educator_survey$`ts_perceptions_sl_1`))
+
+  educator_survey |>
+    select(contains("ts_perceptions_sl")) |>
+    pivot_longer(everything()) |>
+    mutate(name = str_replace_all(name, c(
+      "ts_perceptions_sl_1" = "My school leaders attend the professional development related to curriculum materials with us",
+      "ts_perceptions_sl_2" = "My school leaders have created a shared vision for instruction that my curriculum-related professional development experiences is helping our school to implement",
+      "ts_perceptions_sl_3" = "My school leaders make sure I have access to all the materials and resources I need to implement our adopted curriculum",
+      "ts_perceptions_sl_4" = "My school leaders press me to implement the ideas I learn in curriculum-related professional development",
+      "ts_perceptions_sl_5" = "My school leaders make time for my curriculum-related professional development.",
+      "ts_perceptions_sl_6" = "Instructional guidance in my school conflicts with the approach taken in curriculum-aligned professional development",
+      "ts_perceptions_sl_7" = "I sometimes feel pressure to teach in ways not aligned with the approach to instruction taken in curriculum-aligned professional development",
+      "ts_perceptions_sl_8" = "Sometimes I feel like my school puts up barriers to implementing the things I learn in curriculum-related PL"
+    ))) |>
+    group_by(name, value) |>
+    count(sort = T) |>
+    ungroup() |>
+    drop_na(value) |>
+    mutate(name = html_wrap(name, 35)) |>
+    group_by(name) |>
+    mutate(
+      Percent = round(100 * n / sum(n), 2),
+      value = factor(value, levels = c(
+        "Not at all",
+        "Rarely",
+        "Sometimes",
+        "Often",
+        "All the time"
+      ))
+    ) |>
+    ggplot(aes(
+      x = fct_reorder(name, Percent, .desc = T),
+      y = Percent,
+      color = value,
+      fill = value
+    )) +
+    geom_col(color = NA, position = position_stack(reverse = TRUE)) +
+    geom_text(
+      aes(
+        label = if_else(Percent >= 10, paste0(round(Percent), "%"), "")
+      ),
+      position = position_stack(vjust = 0.5, reverse = TRUE),
+      fontface = "bold",
+      size = 6
+    ) +
+    labs(
+      x = "", y = "",
+      title = glue::glue("Educators’ Perceptions of School Leaders (n = {n_size})"),
+      fill = ""
+    ) +
+    scale_fill_manual(values = c(
+      "Not at all" = "#040404",
+      "Rarely" = "#032E3F",
+      "Sometimes" = "#02587A",
+      "Often" = "#0182B4",
+      "All the time" = "#00ACF0"
+    )) +
+    scale_color_manual(values = c(
+      "Not at all" = "white",
+      "Rarely" = "white",
+      "Sometimes" = "black",
+      "Often" = "black",
+      "All the time" = "black"
+    )) +
+    guides(
+      fill = guide_legend(),
+      color = "none"
+    ) +
+    scale_y_continuous(
+      labels = scales::label_percent(scale = 1),
+      expand = c(0.14, 0)
+    ) +
+    coord_flip() +
+    theme_tl(legend = T) +
+    theme(
+      axis.text.y = element_markdown(
+        margin = margin(t = 0, l = 0, r = -55, b = 0),
+        size = 14
+      ),
+      axis.text.x = element_blank(),
+      plot.title = element_text(size = 25, face = "bold"),
+      legend.position = "bottom",
+      legend.key.height = unit(1.3, "cm"),
+      legend.key.width = unit(1.3, "cm"),
+      legend.key.size = unit(0.75, "cm"),
+      legend.text = element_text(size = 13),
+      legend.margin = margin(-25, 0, 0, -50)
+    )
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+### Teachers' Perceptions of School Environment
+
+Teachers responded to items about their school environment.
+
+::: {.fold .o}
+<center>
+
+```{r teacher-perceptions-environment, fig.width = 12, fig.height = 6}
+if (sum(!is.na(educator_survey$`school_environment_1`)) >= 1) {
+  n_size <- sum(!is.na(educator_survey$`school_environment_1`))
+
+  educator_survey |>
+    select(contains("school_environment")) |>
+    pivot_longer(everything()) |>
+    mutate(name = str_replace_all(name, c(
+      "school_environment_1" = "I trust my fellow teachers in the school",
+      "school_environment_2" = "I feel connected to my fellow teachers in the school",
+      "school_environment_3" = "I have influence over the professional learning that I receive through my school or district"
+    ))) |>
+    group_by(name, value) |>
+    count(sort = T) |>
+    ungroup() |>
+    drop_na(value) |>
+    mutate(name = html_wrap(name, 25)) |>
+    group_by(name) |>
+    mutate(Percent = round(100 * n / sum(n), 2)) |>
+    ggplot(aes(
+      x = fct_reorder(name, Percent, .desc = T),
+      y = Percent,
+      color = value,
+      fill = value
+    )) +
+    geom_col(color = NA, position = position_stack(reverse = TRUE)) +
+    geom_text(
+      aes(
+        label = if_else(Percent >= 10, paste0(round(Percent), "%"), "")
+      ),
+      position = position_stack(vjust = 0.5, reverse = TRUE),
+      fontface = "bold",
+      size = 6
+    ) +
+    labs(
+      x = "", y = "",
+      title = glue::glue("Educators’ Perceptions of School Culture and Climate (n = {n_size})"),
+      fill = ""
+    ) +
+    scale_fill_manual(values = c(
+      "1 - Strongly disagree" = "#040404",
+      "2 - Disagree" = "#032E3F",
+      "3 - Neither agree nor disagree" = "#02587A",
+      "4 - Agree" = "#0182B4",
+      "5 - Strongly agree" = "#00ACF0"
+    )) +
+    scale_color_manual(values = c(
+      "1 - Strongly disagree" = "white",
+      "2 - Disagree" = "white",
+      "3 - Neither agree nor disagree" = "black",
+      "4 - Agree" = "black",
+      "5 - Strongly agree" = "black"
+    )) +
+    guides(
+      fill = guide_legend(),
+      color = "none"
+    ) +
+    scale_y_continuous(
+      labels = scales::label_percent(scale = 1),
+      expand = c(0.14, 0)
+    ) +
+    coord_flip() +
+    theme_tl(legend = T) +
+    theme(
+      axis.text.y = element_markdown(
+        margin = margin(t = 0, l = 0, r = -55, b = 0),
+        size = 16
+      ),
+      axis.text.x = element_blank(),
+      plot.title = element_text(size = 25, face = "bold"),
+      legend.position = "bottom",
+      legend.key.height = unit(1.3, "cm"),
+      legend.key.width = unit(1.3, "cm"),
+      legend.key.size = unit(0.75, "cm"),
+      legend.text = element_text(size = 13),
+      legend.margin = margin(-25, 0, 0, -150)
+    )
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+# Section 4: School Leaders' Mindsets & Observational Practices
+
+Participants complete Teaching Lab's Educator Survey twice a year: at
+the beginning and end of their participation in PL. The survey collects
+data on school leaders' mindsets and self-reported observational
+practices.
+
+## Section 4a: School Leaders - Mindsets
+
+School leaders responded to several items about mindsets, related to
+recognizing race and culture, the need for remediation, high
+expectations for all students, and growth mindsets on a 5-point Likert
+scale. Composite measures were created for each construct by reverse
+coding some items and then averaging responses across items. In this
+way, higher scores correspond to holding equitable mindsets.
+
+### Overall
+
+::: {.fold .o}
+<center>
+
+```{r school-leaders-mindsets-overall, fig.width = 12, fig.height = 12}
+if (sum(!is.na(educator_survey$`non_ts_mindsets_2`)) >= 1) {
+  n_size <- sum(!is.na(educator_survey$`non_ts_mindsets_2`))
+
+  leader_mindsets <- educator_survey |>
+    select(contains("non_ts_mindsets")) |>
+    mutate(across(everything(), ~ as.character(.x))) |>
+    pivot_longer(everything()) |>
+    drop_na(value) |>
+    mutate(name = str_replace_all(name, c(
+      "non_ts_mindsets_2" = "The gap in the achievement among students of different races is about poverty, not race",
+      "non_ts_mindsets_3" = "I think about my own background and experiences and how those affect my instructional leadership",
+      "non_ts_mindsets_4" = "Teachers should try to keep in mind the limits of students’ ability and give them assignments that they know they can do so that they do not become discouraged",
+      "non_ts_mindsets_5" = "Before students are asked to engage in complex learning tasks, they need to have a solid grasp of basic skills",
+      "non_ts_mindsets_6" = "It is not fair to ask students who are struggling with English to take on challenging academic assignments",
+      "non_ts_mindsets_7" = "Teachers should provide all students the opportunity to work with grade-level texts and tasks",
+      "non_ts_mindsets_8" = "Students of all ethnic or cultural backgrounds can be successful in my school/district",
+      "non_ts_mindsets_9" = "Students of all ethnic or cultural backgrounds are capable of solving problems by using critical thinking in my school/district",
+      "non_ts_mindsets_10" = "Students of all ethnic or cultural backgrounds are able to meet the expectations for higher order skills in my school/district",
+      "non_ts_mindsets_11" = "Grouping students of different levels of achievement for instruction may benefit some students, but it can undermine the progress that could otherwise be made by higher achieving students",
+      "non_ts_mindsets_12" = "Students who come into my school/district behind grade level will have a hard time succeeding",
+      "non_ts_mindsets_13" = "Students have a certain amount of intelligence, and they can’t really do much to change it",
+      "non_ts_mindsets_14" = "Intelligence is something about students that they can’t change very much",
+      "non_ts_mindsets_15" = "Students can learn new things, but they can’t really change their basic intelligence",
+      "non_ts_mindsets_1" = "Teachers should be color blind when it comes to their teaching - they shouldn't think of students in terms of their race or ethnicity"
+    ))) |>
+    group_by(name, value) |>
+    count(sort = T) |>
+    ungroup()
+
+  leader_mindsets |>
+    mutate(
+      pos_neg = case_when(
+        str_detect(name, "race") ~ "negative",
+        name %in% c(
+          "Before students are asked to engage in complex learning tasks, they need to have a solid grasp of basic skills",
+          "Grouping students of different levels of achievement for instruction may benefit some students, but it can undermine the progress that could otherwise be made by higher achieving students",
+          "It is not fair to ask students who are struggling with English to take on challenging academic assignments",
+          "Students who come into my school/district behind grade level will have a hard time succeeding",
+          "Teachers should try to keep in mind the limits of students’ ability and give them assignments that they know they can do so that they do not become discouraged",
+          "Intelligence is something about students that they can’t change very much",
+          "Students can learn new things, but they can’t really change their basic intelligence",
+          "Students have a certain amount of intelligence, and they can’t really do much to change it"
+        ) ~ "negative",
+        TRUE ~ "positive"
+      ),
+      score_multiplier = case_when(
+        value == "1 - Strongly disagree" & pos_neg == "negative" ~ 1,
+        value == "1 - Strongly disagree" & pos_neg == "positive" ~ 0,
+        value == "2 - Disagree" & pos_neg == "negative" ~ 0.75,
+        value == "2 - Disagree" & pos_neg == "positive" ~ 0.25,
+        value == "3 - Neither agree nor disagree" & pos_neg == "negative" ~ 0.5,
+        value == "3 - Neither agree nor disagree" & pos_neg == "positive" ~ 0.5,
+        value == "4 - Agree" & pos_neg == "negative" ~ 0.25,
+        value == "4 - Agree" & pos_neg == "positive" ~ 0.75,
+        value == "5 - Strongly agree" & pos_neg == "negative" ~ 0,
+        value == "5 - Strongly agree" & pos_neg == "positive" ~ 1
+      ),
+      ` ` = case_when(
+        str_detect(name, "race|own background") ~ "Recognition of Race & Culture",
+        name %in% c(
+          "Students of all ethnic or cultural backgrounds are able to meet the expectations for higher order skills in my school/district",
+          "Students of all ethnic or cultural backgrounds are capable of solving problems by using critical thinking in my school/district",
+          "Students of all ethnic or cultural backgrounds can be successful in my school/district",
+          "Students who come into my school/district behind grade level will have a hard time succeeding"
+        ) ~ "Need for Remediation",
+        name %in% c(
+          "Teachers should try to keep in mind the limits of students’ ability and give them assignments that they know they can do so that they do not become discouraged",
+          "Before students are asked to engage in complex learning tasks, they need to have a solid grasp of basic skills",
+          "Grouping students of different levels of achievement for instruction may benefit some students, but it can undermine the progress that could otherwise be made by higher achieving students",
+          "It is not fair to ask students who are struggling with English to take on challenging academic assignments",
+          "Teachers should provide all students the opportunity to work with grade-level texts and tasks"
+        ) ~ "High Expectations",
+        name %in% c(
+          "Intelligence is something about students that they can’t change very much",
+          "Students can learn new things, but they can’t really change their basic intelligence",
+          "Students have a certain amount of intelligence, and they can’t really do much to change it"
+        ) ~ "Growth Mindsets"
+      )
+    ) |>
+    filter(` ` != "Need for Remediation") |>
+    group_by(name) |>
+    mutate(score = (n * score_multiplier) / sum(n)) |>
+    summarise(
+      score = sum(score),
+      ` ` = min(` `)
+    ) |>
+    ungroup() |>
+    mutate(` ` = factor(` `, levels = c(
+      "Recognition of Race & Culture",
+      "Need for Remediation",
+      "High Expectations",
+      "Growth Mindsets"
+    ))) |>
+    group_by(` `) |>
+    summarise(Score = mean(score)) %>%
+    add_row(` ` = "<b>Overall score</b>", !!!colMeans(.[-1]), .before = 1) |>
+    gt::gt() |>
+    gt::fmt_percent(Score,
+      scale_values = TRUE
+    ) |>
+    gt::fmt_markdown(` `) |>
+    gt::data_color(
+      columns = Score,
+      colors = scales::col_bin(
+        palette = c(
+          TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+        ),
+        domain = c(0, 1),
+        bins = c(0, 0.39, 0.79, 1)
+      )
+    ) |>
+    TeachingLab::gt_theme_tl(align = "left") |>
+    gt::tab_footnote(footnote = paste0("n = ", n_size)) |>
+    gtsave(here::here("images/report_images/tab_admin_mindsets_overall.png"))
+
+  knitr::include_graphics(here::here("images/report_images/tab_admin_mindsets_overall.png"))
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+### Recognition of Race & Culture
+
+::: {.fold .o}
+<center>
+
+```{r school-leaders-mindsets-1, fig.width = 12, fig.height = 12}
+if (sum(!is.na(educator_survey$`non_ts_mindsets_2`)) >= 1) {
+  n_size <- sum(!is.na(educator_survey$`non_ts_mindsets_2`))
+
+  leader_mindsets |>
+    filter(str_detect(name, "color blind|own background|in the achievement")) |>
+    mutate(
+      pos_neg = case_when(
+        str_detect(name, "race") ~ "negative",
+        TRUE ~ "positive"
+      ),
+      score_multiplier = case_when(
+        value == "1 - Strongly disagree" & pos_neg == "negative" ~ 1,
+        value == "1 - Strongly disagree" & pos_neg == "positive" ~ 0,
+        value == "2 - Disagree" & pos_neg == "negative" ~ 0.75,
+        value == "2 - Disagree" & pos_neg == "positive" ~ 0.25,
+        value == "3 - Neither agree nor disagree" & pos_neg == "negative" ~ 0.5,
+        value == "3 - Neither agree nor disagree" & pos_neg == "positive" ~ 0.5,
+        value == "4 - Agree" & pos_neg == "negative" ~ 0.25,
+        value == "4 - Agree" & pos_neg == "positive" ~ 0.75,
+        value == "5 - Strongly agree" & pos_neg == "negative" ~ 0,
+        value == "5 - Strongly agree" & pos_neg == "positive" ~ 1
+      ),
+      name = if_else(pos_neg == "negative", paste0("<p style='color:red;'>", name, "</p>"), name)
+    ) |>
+    group_by(name) |>
+    mutate(score = (n * score_multiplier) / sum(n)) |>
+    summarise(score = sum(score)) |>
+    rename(` ` = name, Score = score) %>%
+    add_row(` ` = "<b>Overall score</b>", !!!colMeans(.[-1]), .before = 1) |>
+    gt::gt() |>
+    gt::fmt_percent(Score,
+      scale_values = TRUE
+    ) |>
+    gt::fmt_markdown(` `) |>
+    gt::data_color(
+      columns = Score,
+      colors = scales::col_bin(
+        palette = c(
+          TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+        ),
+        domain = c(0, 1),
+        bins = c(0, 0.39, 0.79, 1)
+      )
+    ) |>
+    TeachingLab::gt_theme_tl(align = "left") |>
+    gt::tab_footnote(footnote = paste0("n = ", n_size)) |>
+    gtsave(here::here("images/report_images/tab_admin_mindsets_1.png"))
+
+  knitr::include_graphics(here::here("images/report_images/tab_admin_mindsets_1.png"))
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+### High Expectations
+
+::: {.fold .o}
+<center>
+
+```{r school-leaders-mindsets-3, fig.width = 12, fig.height = 12}
+if (sum(!is.na(educator_survey$`non_ts_mindsets_2`)) >= 1) {
+  leader_mindsets |>
+    filter(name %in% c(
+      "Teachers should provide all students the opportunity to work with grade-level texts and tasks",
+      "Before students are asked to engage in complex learning tasks, they need to have a solid grasp of basic skills",
+      "Teachers should try to keep in mind the limits of students’ ability and give them assignments that they know they can do so that they do not become discouraged",
+      "It is not fair to ask students who are struggling with English to take on challenging academic assignments",
+      "Grouping students of different levels of achievement for instruction may benefit some students, but it can undermine the progress that could otherwise be made by higher achieving students"
+    )) |>
+    mutate(
+      pos_neg = if_else(name != "Teachers should provide all students the opportunity to work with grade-level texts and tasks", "negative", "positive"),
+      score_multiplier = case_when(
+        value == "1 - Strongly disagree" & pos_neg == "negative" ~ 1,
+        value == "1 - Strongly disagree" & pos_neg == "positive" ~ 0,
+        value == "2 - Disagree" & pos_neg == "negative" ~ 0.75,
+        value == "2 - Disagree" & pos_neg == "positive" ~ 0.25,
+        value == "3 - Neither agree nor disagree" & pos_neg == "negative" ~ 0.5,
+        value == "3 - Neither agree nor disagree" & pos_neg == "positive" ~ 0.5,
+        value == "4 - Agree" & pos_neg == "negative" ~ 0.25,
+        value == "4 - Agree" & pos_neg == "positive" ~ 0.75,
+        value == "5 - Strongly agree" & pos_neg == "negative" ~ 0,
+        value == "5 - Strongly agree" & pos_neg == "positive" ~ 1
+      ),
+      name = if_else(pos_neg == "negative", paste0("<p style='color:red;'>", name, "</p>"), name)
+    ) |>
+    group_by(name) |>
+    mutate(score = (n * score_multiplier) / sum(n)) |>
+    summarise(score = sum(score)) |>
+    rename(` ` = name, Score = score) %>%
+    add_row(` ` = "<b>Overall score</b>", !!!colMeans(.[-1]), .before = 1) |>
+    gt::gt() |>
+    gt::fmt_percent(Score,
+      scale_values = TRUE
+    ) |>
+    gt::fmt_markdown(` `) |>
+    gt::data_color(
+      columns = Score,
+      colors = scales::col_bin(
+        palette = c(
+          TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+        ),
+        domain = c(0, 1),
+        bins = c(0, 0.39, 0.79, 1)
+      )
+    ) |>
+    TeachingLab::gt_theme_tl(align = "left") |>
+    gt::tab_footnote(footnote = paste0("n = ", n_size)) |>
+    gtsave(here::here("images/report_images/tab_admin_mindsets_3.png"))
+
+  knitr::include_graphics(here::here("images/report_images/tab_admin_mindsets_3.png"))
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+### Growth Mindsets
+
+::: {.fold .o}
+<center>
+
+```{r school-leaders-mindsets-4, fig.width = 12, fig.height = 12}
+if (sum(!is.na(educator_survey$`non_ts_mindsets_14`)) >= 1) {
+  leader_mindsets |>
+    filter(name %in% c(
+      "Intelligence is something about students that they can’t change very much",
+      "Students can learn new things, but they can’t really change their basic intelligence",
+      "Students have a certain amount of intelligence, and they can’t really do much to change it"
+    )) |>
+    mutate(
+      pos_neg = "negative",
+      score_multiplier = case_when(
+        value == "1 - Strongly disagree" & pos_neg == "negative" ~ 1,
+        value == "1 - Strongly disagree" & pos_neg == "positive" ~ 0,
+        value == "2 - Disagree" & pos_neg == "negative" ~ 0.75,
+        value == "2 - Disagree" & pos_neg == "positive" ~ 0.25,
+        value == "3 - Neither agree nor disagree" & pos_neg == "negative" ~ 0.5,
+        value == "3 - Neither agree nor disagree" & pos_neg == "positive" ~ 0.5,
+        value == "4 - Agree" & pos_neg == "negative" ~ 0.25,
+        value == "4 - Agree" & pos_neg == "positive" ~ 0.75,
+        value == "5 - Strongly agree" & pos_neg == "negative" ~ 0,
+        value == "5 - Strongly agree" & pos_neg == "positive" ~ 1
+      ),
+      name = if_else(pos_neg == "negative", paste0("<p style='color:red;'>", name, "</p>"), name)
+    ) |>
+    group_by(name) |>
+    mutate(score = (n * score_multiplier) / sum(n)) |>
+    summarise(score = sum(score)) |>
+    rename(` ` = name, Score = score) %>%
+    add_row(` ` = "<b>Overall score</b>", !!!colMeans(.[-1]), .before = 1) |>
+    gt::gt() |>
+    gt::fmt_percent(Score,
+      scale_values = TRUE
+    ) |>
+    gt::fmt_markdown(` `) |>
+    gt::data_color(
+      columns = Score,
+      colors = scales::col_bin(
+        palette = c(
+          TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+        ),
+        domain = c(0, 1),
+        bins = c(0, 0.39, 0.79, 1)
+      )
+    ) |>
+    TeachingLab::gt_theme_tl(align = "left") |>
+    gt::tab_footnote(footnote = paste0("n = ", n_size)) |>
+    gtsave(here::here("images/report_images/tab_admin_mindsets_4.png"))
+
+  knitr::include_graphics(here::here("images/report_images/tab_admin_mindsets_4.png"))
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+## Section 4b: School Leaders - Observational Practices
+
+School leaders responded to items about the focus of their observational
+practices.
+
+::: {.fold .o}
+<center>
+
+```{r school-leaders-observation, fig.width = 12, fig.height = 7}
+if (sum(!is.na(educator_survey$`observation_practice_1`)) >= 1) {
+  n_size <- sum(!is.na(educator_survey$`observation_practice_1`))
+
+  educator_survey |>
+    select(contains("observation_practice")) |>
+    pivot_longer(everything()) |>
+    mutate(name = str_replace_all(name, c(
+      "observation_practice_1" = "Whether the lesson is focused on a high-quality text or task",
+      "observation_practice_2" = "Whether the questions and tasks address the analytical thinking required by the grade-level standards",
+      "observation_practice_3" = "Whether all students have opportunities to engage in the work of the lesson"
+    ))) |>
+    filter(value != "N/A - I do not observe teachers in my role.") |>
+    group_by(name, value) |>
+    count(sort = T) |>
+    ungroup() |>
+    drop_na(value) |>
+    mutate(name = html_wrap(name, 25)) |>
+    group_by(name) |>
+    mutate(Percent = round(100 * n / sum(n), 2)) |>
+    ggplot(aes(
+      x = fct_reorder(name, Percent, .desc = T),
+      y = Percent,
+      color = value,
+      fill = value
+    )) +
+    geom_col(color = NA, position = position_stack(reverse = TRUE)) +
+    geom_text(
+      aes(
+        label = if_else(Percent >= 10, paste0(round(Percent), "%"), "")
+      ),
+      position = position_stack(vjust = 0.5, reverse = TRUE),
+      fontface = "bold",
+      size = 6
+    ) +
+    labs(
+      x = "", y = "",
+      title = glue::glue("How often does your teacher practice observation focus on...\n(n = {n_size})"),
+      fill = ""
+    ) +
+    scale_fill_manual(values = c(
+      "1- Almost never" = "#040404",
+      "2 - Rarely" = "#032E3F",
+      "3- Sometimes" = "#02587A",
+      "4 - Very often" = "#0182B4",
+      "5 - Almost always" = "#00ACF0"
+    )) +
+    scale_color_manual(values = c(
+      "1- Almost never" = "white",
+      "2 - Rarely" = "black",
+      "3- Sometimes" = "black",
+      "4 - Very often" = "black",
+      "5 - Almost always" = "black"
+    )) +
+    guides(
+      fill = guide_legend(),
+      color = "none"
+    ) +
+    scale_y_continuous(
+      labels = scales::label_percent(scale = 1),
+      expand = c(0.14, 0)
+    ) +
+    coord_flip() +
+    theme_tl() +
+    theme(
+      axis.text.y = element_markdown(
+        margin = margin(t = 0, l = 0, r = -55, b = 0),
+        size = 17
+      ),
+      axis.text.x = element_blank(),
+      plot.title = element_text(size = 25, face = "bold"),
+      legend.position = "bottom",
+      legend.key.height = unit(1.3, "cm"),
+      legend.key.width = unit(1.3, "cm"),
+      legend.key.size = unit(0.75, "cm"),
+      legend.text = element_text(size = 13),
+      legend.margin = margin(-25, 0, 0, -60)
+    )
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+# Section 5: Teachers' Instructional Practices
+
+Teachers report on their instructional practices in the Educator Survey
+and some are observed by Teaching Lab staff.
+
+## Section 5a: Teachers' CRSE Self-Reported Practices
+
+Participants complete Teaching Lab's Educator Survey twice a year: at
+the beginning and end of their participation in PL. The survey collects
+data on self-reported culturally responsive and sustaining education
+(CRSE) practices.
+
+::: {.fold .o}
+<center>
+
+```{r crse-reported-practices, fig.width = 12, fig.height = 7}
+if (sum(!is.na(educator_survey$`ts_crse_after_7/30_1`)) >= 1) {
+  n_size <- sum(!is.na(educator_survey$`ts_crse_after_7/30_1`))
+
+  educator_survey |>
+    select(contains("ts_crse_after")) |>
+    pivot_longer(everything()) |>
+    mutate(name = str_replace_all(name, c(
+      "ts_crse_after_7/30_1" = "I adapt instruction to meet the needs of my students",
+      "ts_crse_after_7/30_2" = "I identify ways that the school culture (e.g., values, norms, and practices) is different from my students’ home culture",
+      "ts_crse_after_7/30_3" = "I use my students’ prior knowledge to help them make sense of new information",
+      "ts_crse_after_7/30_4" = "I revise instructional material to include a better representation of cultural groups"
+    ))) |>
+    filter(value != "N/A - I do not observe teachers in my role.") |>
+    group_by(name, value) |>
+    count(sort = T) |>
+    ungroup() |>
+    drop_na(value) |>
+    mutate(name = html_wrap(name, 25)) |>
+    group_by(name) |>
+    mutate(Percent = round(100 * n / sum(n), 2)) |>
+    ggplot(aes(
+      x = fct_reorder(name, Percent, .desc = T),
+      y = Percent,
+      color = value,
+      fill = value
+    )) +
+    geom_col(color = NA, position = position_stack(reverse = TRUE)) +
+    geom_text(
+      aes(
+        label = if_else(Percent >= 10, paste0(round(Percent), "%"), "")
+      ),
+      position = position_stack(vjust = 0.5, reverse = TRUE),
+      fontface = "bold",
+      size = 6
+    ) +
+    labs(
+      x = "", y = "",
+      title = glue::glue("Teachers CRSE Self-reported Practices (n = {n_size})"),
+      fill = ""
+    ) +
+    scale_fill_manual(values = c(
+      "1- Never" = "#040404",
+      "2- Rarely" = "#032E3F",
+      "3- Sometimes" = "#02587A",
+      "4- Often" = "#0182B4",
+      "5- Very often" = "#00ACF0"
+    )) +
+    scale_color_manual(values = c(
+      "1- Never" = "white",
+      "2- Rarely" = "black",
+      "3- Sometimes" = "black",
+      "4- Often" = "black",
+      "5- Very often" = "black"
+    )) +
+    guides(
+      fill = guide_legend(),
+      color = "none"
+    ) +
+    scale_y_continuous(
+      labels = scales::label_percent(scale = 1),
+      expand = c(0.14, 0)
+    ) +
+    coord_flip() +
+    theme_tl() +
+    theme(
+      axis.text.y = element_markdown(
+        margin = margin(t = 0, l = 0, r = -55, b = 0),
+        size = 17
+      ),
+      axis.text.x = element_blank(),
+      plot.title = element_text(size = 25, face = "bold"),
+      legend.position = "bottom",
+      legend.key.height = unit(1.3, "cm"),
+      legend.key.width = unit(1.3, "cm"),
+      legend.key.size = unit(0.75, "cm"),
+      legend.text = element_text(size = 13),
+      legend.margin = margin(-25, 0, 0, -40)
+    )
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+## Section 5b: Classroom Observations
+
+Teaching Lab has the opportunity to observe some participants over the
+course of their participation in PL. Below are the results of the
+initial classroom observations conducted using the IPG Math and ELA
+Tools, in addition to the FSOT. Ratings of 3 and 4 on 4-point Likert
+scales and Yes on a Yes/No items were considered positive.
+
+### Overall Positive Indicators
+
+::: {.fold .o}
+<center>
+
+```{r teacher-instructional-practices-1, fig.width = 5, fig.height = 6}
+if (nrow(ipg_forms) >= 1) {
+  ### Idk what scoring since this isn't done ###
+  tn_foundational_skills <- ipg_forms |>
+    filter(Finished == TRUE) |>
+    select(
+      `tn_4_1`, `tn_4_2`, `tn_4_3`, `tn_4_4`, `tn_4_5`, `tn_4_6`,
+      `tn_6`, `tn_7`, `tn_8`, `tn_9`, `tn_10`, `tn_12`, `tn_13`, `tn_14`
+    ) |>
+    mutate(
+      across(everything(), ~ as.character(.x)),
+      across(everything(), ~ na_if(.x, "NA"))
+    ) |>
+    janitor::remove_empty("rows")
+
+  ### Mix of yes-no and 1-4 Scale Scoring ###
+  k_12_math <- ipg_forms |>
+    filter(Finished == TRUE) |>
+    select(
+      k12_m_ca1a, k12_m_ca1b, k12_m_ca1c, # Core Action 1 yes-no
+      k12_m_ca2a, k12_m_ca2b, k12_m_ca2c, k12_m_ca2d, # Core Action 2 1-4
+      k12_m_ca3a, k12_m_ca3b, k12_m_ca3c, k12_m_ca3d, k12_m_ca3e
+    ) |> # Core Action 3 1-4
+    mutate(
+      across(everything(), ~ as.character(.x)),
+      across(everything(), ~ na_if(.x, "NA"))
+    ) |>
+    janitor::remove_empty("rows") |>
+    summarise(
+      across(c(k12_m_ca1a, k12_m_ca1b, k12_m_ca1c), ~ grade_ipg(.x, type = "character")),
+      across(c(
+        k12_m_ca2a, k12_m_ca2b, k12_m_ca2c, k12_m_ca2d,
+        k12_m_ca3a, k12_m_ca3b, k12_m_ca3c, k12_m_ca3d, k12_m_ca3e
+      ), ~ grade_ipg(.x, type = "numeric"))
+    ) |>
+    pivot_longer(everything()) |>
+    mutate(`Core Action` = c(
+      "Core Action 1", "Core Action 1", "Core Action 1",
+      "Core Action 2", "Core Action 2", "Core Action 2", "Core Action 2",
+      "Core Action 3", "Core Action 3", "Core Action 3", "Core Action 3", "Core Action 3"
+    )) |>
+    group_by(`Core Action`) |>
+    summarise(value = mean(value))
+
+  ### Mix of yes-no and 1-4 scoring ###
+  k_12_ela <- ipg_forms |>
+    filter(Finished == TRUE) |>
+    select(
+      k12_ela_ca1a, k12_ela_ca1b, k12_ela_ca1c, # Core Action 1, Yes/No
+      k12_ela_ca2a, k12_ela_ca2b, k12_ela_ca2c, k12_ela_ca2d, # Core Action 2, 1-4
+      k12_ela_ca3a, k12_ela_ca3b, k12_ela_ca3c, k12_ela_ca3d, k12_ela_ca3e, k12_ela_ca3f
+    ) |> # Core Action 3, 1-4
+    mutate(
+      across(everything(), ~ as.character(.x)),
+      across(everything(), ~ na_if(.x, "NA"))
+    ) |>
+    janitor::remove_empty("rows") |>
+    summarise(
+      across(c(k12_ela_ca1a, k12_ela_ca1b, k12_ela_ca1c), ~ grade_ipg(.x, type = "character")),
+      across(c(
+        k12_ela_ca2a, k12_ela_ca2b, k12_ela_ca2c, k12_ela_ca2d,
+        k12_ela_ca3a, k12_ela_ca3b, k12_ela_ca3c, k12_ela_ca3d, k12_ela_ca3e, k12_ela_ca3f
+      ), ~ grade_ipg(.x, type = "numeric"))
+    ) |>
+    pivot_longer(everything()) |>
+    mutate(`Core Action` = c(
+      "Core Action 1", "Core Action 1", "Core Action 1",
+      "Core Action 2", "Core Action 2", "Core Action 2", "Core Action 2",
+      "Core Action 3", "Core Action 3", "Core Action 3", "Core Action 3", "Core Action 3", "Core Action 3"
+    )) |>
+    group_by(`Core Action`) |>
+    summarise(value = mean(value))
+
+  ### Mix of 1-4 and 1-3 scoring ###
+  fsot <- ipg_forms |>
+    filter(Finished == TRUE) |>
+    select(
+      fsot_ac1, fsot_ac2, # AC1/AC2, 1-4, Q69 is not 1-4
+      fsot_td1, fsot_td2, fsot_td3, fsot_td4, # TD, 1-4
+      fsot_sp1, fsot_sp2, fsot_sp3, fsot_sp4, # SP, 1-4
+      fsot_ad1, fsot_ad2
+    ) |> # AD1/AD2, 1-3
+    mutate(
+      across(everything(), ~ as.character(.x)),
+      across(everything(), ~ na_if(.x, "NA"))
+    ) |>
+    janitor::remove_empty("rows") |>
+    summarise(
+      across(c(
+        fsot_ac1, fsot_ac2,
+        fsot_td1, fsot_td2, fsot_td3, fsot_td4,
+        fsot_sp1, fsot_sp2, fsot_sp3, fsot_sp4
+      ), ~ grade_ipg(.x, type = "numeric")),
+      across(c(fsot_ad1, fsot_ad2), ~ grade_ipg(.x, type = "numeric_low"))
+    ) |>
+    pivot_longer(everything()) |>
+    mutate(`Core Action` = c(
+      "Aligned Content", "Aligned Content",
+      "Teacher-Directed\nInstruction", "Teacher-Directed\nInstruction", "Teacher-Directed\nInstruction", "Teacher-Directed\nInstruction",
+      "Student Practice", "Student Practice", "Student Practice", "Student Practice",
+      "Assessment &\nDifferentiation", "Assessment &\nDifferentiation"
+    )) |>
+    group_by(`Core Action`) |>
+    summarise(value = mean(value))
+
+  fsot_n_size <- sum(!is.na(ipg_forms$fsot_ac1[!str_detect(ipg_forms$fsot_ac1, "NA")]))
+  ipg_math_n_size <- sum(!is.na(ipg_forms$k12_m_ca1a[!str_detect(ipg_forms$k12_m_ca1a, "NA")]))
+  ipg_ela_n_size <- sum(!is.na(ipg_forms$k12_ela_ca1a[!str_detect(ipg_forms$k12_ela_ca1a, "NA")]))
+  all_n_size <- sum(c(fsot_n_size, ipg_math_n_size, ipg_ela_n_size), na.rm = T)
+
+  math_plot <- k_12_math %>%
+    add_row(`Core Action` = "Overall", !!!colMeans(.[-1]), .before = 1) |>
+    ggplot(aes(x = `Core Action`, y = value, fill = `Core Action`)) +
+    geom_col() +
+    geom_text(aes(label = paste0(round(value), "%")),
+      fontface = "bold",
+      vjust = -1
+    ) +
+    scale_fill_manual(values = sample(tl_palette(color = "blue", n = 10)[2:9], 4)) +
+    scale_y_continuous(
+      labels = scales::percent_format(scale = 1),
+      limits = c(0, 100)
+    ) +
+    labs(
+      x = "", y = "",
+      title = glue::glue("% Positive Indicators K-12 Math IPG (n = {ipg_math_n_size})")
+    ) +
+    theme_tl()
+
+  ela_plot <- k_12_ela %>%
+    add_row(`Core Action` = "Overall", !!!colMeans(.[-1]), .before = 1) |>
+    ggplot(aes(x = `Core Action`, y = value, fill = `Core Action`)) +
+    geom_col() +
+    geom_text(aes(label = paste0(round(value), "%")),
+      fontface = "bold",
+      vjust = -1
+    ) +
+    scale_fill_manual(values = sample(tl_palette(color = "blue", n = 10)[2:9], 4)) +
+    scale_y_continuous(
+      labels = scales::percent_format(scale = 1),
+      limits = c(0, 100)
+    ) +
+    labs(
+      x = "", y = "",
+      title = glue::glue("% Positive Indicators K-12 ELA IPG (n = {ipg_ela_n_size})")
+    ) +
+    theme_tl()
+
+  fsot_plot <- fsot %>%
+    add_row(`Core Action` = "Overall", !!!colMeans(.[-1]), .before = 1) |>
+    mutate(`Core Action` = factor(`Core Action`, levels = c(
+      "Aligned Content",
+      "Assessment &\nDifferentiation",
+      "Student Practice",
+      "Teacher-Directed\nInstruction",
+      "Overall"
+    ))) |>
+    ggplot(aes(x = `Core Action`, y = value, fill = `Core Action`)) +
+    geom_col() +
+    geom_text(aes(label = paste0(round(value), "%")),
+      fontface = "bold",
+      vjust = -1
+    ) +
+    scale_fill_manual(values = sample(tl_palette(color = "blue", n = 12)[2:11], 5)) +
+    scale_y_continuous(
+      labels = scales::percent_format(scale = 1),
+      limits = c(0, 100)
+    ) +
+    labs(
+      x = "", y = "",
+      title = glue::glue("% Positive Indicators Foundational\nSkills Observational Tool (n = {fsot_n_size})")
+    ) +
+    theme_tl()
+
+  k_12_math |>
+    bind_rows(k_12_ela) |>
+    bind_rows(fsot) |>
+    summarise(value = mean(value, na.rm = T)) |>
+    ggplot(aes(x = 0, y = value)) +
+    geom_col(fill = "#04abeb") +
+    geom_text(aes(label = paste0(round(value), "%")),
+      fontface = "bold",
+      vjust = -1
+    ) +
+    scale_y_continuous(
+      labels = scales::percent_format(scale = 1),
+      limits = c(0, 100)
+    ) +
+    labs(
+      x = "", y = "",
+      title = glue::glue("% Positive Indicators Across\nAll Observation Rubrics (n = {all_n_size})")
+    ) +
+    theme_tl() +
+    theme(axis.text.x = element_blank())
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+### Math
+
+::: {.fold .o}
+<center>
+
+```{r teacher-instructional-practices-2, fig.width = 8, fig.height = 6}
+if (nrow(ipg_forms[ipg_forms$content_area == "Math" & !str_detect(ipg_forms$content_area, "NA"), ]) >= 1) {
+  math_plot
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+### ELA
+
+::: {.fold .o}
+<center>
+
+```{r teacher-instructional-practices-3, fig.width = 8, fig.height = 6}
+if (nrow(ipg_forms[ipg_forms$content_area == "ELA" & !str_detect(ipg_forms$content_area, "NA"), ]) >= 1) {
+  ela_plot
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+### K-2 ELA
+
+::: {.fold .o}
+<center>
+
+```{r teacher-instructional-practices-4, fig.width = 8, fig.height = 6}
+if (nrow(ipg_forms[ipg_forms$content_area == "K-2 Early Literacy (Foundational Skills)" & !str_detect(ipg_forms$content_area, "NA"), ]) >= 1) {
+  fsot_plot
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+
+# Section 6: Student Work
+
+## Section 6a: % On Grade Level
+
+::: {.fold .o}
+<center>
+
+```{r student-work-samples-1, fig.width = 8, fig.height = 6}
+if (student_work_count >= 1) {
+  on_grade_level <- student_work_grades |>
+    dplyr::select(`Submitted Grade/s`, `Student Work File`) |>
+    dplyr::filter(!is.null(`Submitted Grade/s`)) |>
+    dplyr::mutate(`Submitted Grade/s` = str_remove_all(`Submitted Grade/s`, "Not legible, |Task does NOT ask students to explain their mathematical thinking, |Task does NOT ask students to explain their mathematical thinking|Not legible|Not\nlegible|NULL")) |>
+    tidyr::drop_na(`Submitted Grade/s`) |>
+    tidyr::separate_rows(`Submitted Grade/s`, sep = ", ") |>
+    dplyr::mutate(`Grade Level` = if_else(`Submitted Grade/s` == "Not on grade level", 0, 1)) |>
+    dplyr::group_by(`Grade Level`) |>
+    dplyr::count(sort = T) |>
+    dplyr::ungroup() |>
+    dplyr::mutate(`Percent` = round(100 * n / sum(n), 2)) |>
+    suppressWarnings()
+
+  ggplot() +
+    geom_col(
+      data = tibble(x = 1, y = 100, fill = "gray90"),
+      aes(x = x, y = y, fill = fill)
+    ) +
+    geom_col(
+      data = tibble(x = 1, y = on_grade_level$Percent[on_grade_level$`Grade Level` == 1], fill = "#04abeb"),
+      aes(x = x, y = y, fill = fill)
+    ) +
+    annotate("text",
+      label = paste0(on_grade_level$Percent[on_grade_level$`Grade Level` == 1], "%"),
+      family = "Calibri",
+      fontface = "bold",
+      color = "#04abeb",
+      size = 12,
+      x = -2,
+      y = 0
+    ) +
+    labs(title = paste0("% of analyzed student work samples\non Grade Level (n = ", format(sum(on_grade_level$n, na.rm = T), big.mark = ","), ")")) +
+    scale_fill_identity() +
+    coord_polar(theta = "y", direction = 1) +
+    xlim(c(-2, 2)) +
+    theme_void() +
+    theme(plot.title = element_text(
+      hjust = 0.5, family = "Calibri Bold", face = "bold", size = 25,
+      vjust = -3
+    ))
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+
+## Section 6b: Student Performance on Grade-Level Tasks
+
+::: {.fold .o}
+<center>
+
+```{r student-work-samples-2, fig.width = 8, fig.height = 6}
+if (student_work_count >= 1) {
+  
+  grade_breakdown <- student_work_grades |>
+    dplyr::select(`Submitted Grade/s`, `Student Work File`) |>
+    dplyr::filter(!is.null(`Submitted Grade/s`)) |>
+    dplyr::mutate(`Submitted Grade/s` = str_remove_all(`Submitted Grade/s`, "Not legible, |Task does NOT ask students to explain their mathematical thinking, |Not on grade level, |Task does NOT ask students to explain their mathematical thinking|Not legible|Not\nlegible|NULL|NA")) |>
+    tidyr::drop_na(`Submitted Grade/s`) |>
+    tidyr::separate_rows(`Submitted Grade/s`, sep = ", ") |>
+    dplyr::filter(`Submitted Grade/s` != " " & `Submitted Grade/s` != "") |>
+    dplyr::mutate(grade_percent = as.numeric(`Submitted Grade/s`) / 2) |>
+    dplyr::group_by(`Submitted Grade/s`) |>
+    dplyr::count(sort = T) |>
+    dplyr::ungroup() |>
+    dplyr::mutate(percent = round(100 * (n / sum(n)), 2)) |>
+    suppressWarnings()
+  
+  percent_2 <- grade_breakdown$percent[grade_breakdown$`Submitted Grade/s` == '2']
+  if (length(percent_2) == 0) {
+    percent_2 <- 0
+  }
+  percent_1 <- grade_breakdown$percent[grade_breakdown$`Submitted Grade/s` == '1']
+  if (length(percent_1) == 0) {
+    percent_1 <- 0
+  }
+  percent_0 <- grade_breakdown$percent[grade_breakdown$`Submitted Grade/s` == '0']
+  if (length(percent_0) == 0) {
+    percent_0 <- 0
+  }
+
+  grade_breakdown |>
+    ggplot(aes(fill = `Submitted Grade/s`, values = n)) +
+    waffle::geom_waffle(
+      n_rows = 10,
+      size = 1, colour = "white",
+      make_proportional = TRUE,
+      na.rm = TRUE,
+      radius = grid::unit(2, "pt"),
+      height = 0.9,
+      width = 0.9
+    ) +
+    ggplot2::scale_fill_manual(values = c("2" = "#00ACF0",
+                                          "1" = "#02587A",
+                                          "0" = "#040404")) +
+    ggplot2::labs(
+      title = paste0("Student Performance On Grade-Level Tasks", " (n = ", format(sum(grade_breakdown$n, na.rm = TRUE), big.mark = ","), ")"),
+      subtitle = glue::glue("<br>Of on grade-level tasks, <b style='color:#04abeb'>{percent_2}% received a 2,</b> <b style='color:#02587A'>{percent_1}% received a 1</b>, and <b>{percent_0}% received a 0.</b>")
+    ) +
+    ggplot2::theme_void(base_family = "Calibri") +
+    ggplot2::theme(
+      legend.position = "none",
+      plot.title = ggplot2::element_text(hjust = 0.5, face = "bold", size = 20),
+      plot.subtitle = ggtext::element_markdown(
+        hjust = 0.5, face = "italic",
+        lineheight = 1.15,
+        size = 15
+      )
+    )
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::
+
+::: {.fold .o}
+<center>
+
+```{r student-work-samples-3, fig.width = 8, fig.height = 6}
+if (student_work_count >= 1) {
+  # student_work_grade_bands <- googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1JBSL4_86vfiQjZlHyo4bcQva-7CmeNnDA-lekBF4O3M/edit#gid=1194472583",
+  #                           sheet = "Service Delivery - Scheduling & Staffing",
+  #                           skip = 2) |>
+  #   filter(!is.na(`...1`)) |>
+  #   rename(site = `...1`) |>
+  #   select(site, grade_band = `Grade Band`)
+
+  proficiency_grades <- student_work_grades |>
+    dplyr::select(`Submitted Grade/s`, `Student Work File`, `Grade Band`) |>
+    dplyr::filter(!is.null(`Submitted Grade/s`)) |>
+    dplyr::mutate(`Submitted Grade/s` = str_remove_all(`Submitted Grade/s`, "Not legible, |Task does NOT ask students to explain their mathematical thinking, |Not on grade level, |Task does NOT ask students to explain their mathematical thinking|Not legible|NA")) |>
+    tidyr::drop_na(`Submitted Grade/s`) |>
+    tidyr::separate_rows(`Submitted Grade/s`, sep = ", ") |>
+    dplyr::filter(`Submitted Grade/s` != " " & `Submitted Grade/s` != "") |>
+    dplyr::group_by(`Student Work File`, `Grade Band`) |>
+    dplyr::summarise(
+      grade = sum(`Submitted Grade/s` == 2)/length(`Submitted Grade/s`),
+      n = n()
+    ) |>
+    dplyr::ungroup() |>
+    tidyr::drop_na(grade) |>
+    dplyr::group_by(`Grade Band`) |>
+    dplyr::summarise(
+      `% Proficient` = 100 * weighted.mean(grade, n),
+      `N Size` = sum(n)
+    ) |>
+    dplyr::ungroup() |>
+    dplyr::mutate(`Grade Band` = factor(`Grade Band`,
+      levels = c(
+        "<b>Overall</b>",
+        "PK-3", "K-2",
+        "K-3", "K-4",
+        "K-5", "K-6",
+        "1-5", "3-5",
+        "4-5", "6-8",
+        "7-8", "9-11",
+        "5-12"
+      )
+    )) |>
+    dplyr::arrange(`Grade Band`) |>
+    suppressWarnings()
+
+  proficiency_grades |>
+    add_row(
+      `Grade Band` = "<b>Overall</b>",
+      `% Proficient` = weighted.mean(proficiency_grades$`% Proficient`, proficiency_grades$`N Size`),
+      `N Size` = sum(proficiency_grades$`N Size`),
+      .before = 1
+    ) |>
+    gt::gt() |>
+    gt::tab_header(title = md("**Proficiency on Grade Level Tasks**")) |>
+    gt::fmt_markdown(`Grade Band`) |>
+    gt::fmt_percent(
+      columns = `% Proficient`,
+      scale_values = F
+    ) |>
+    gt::data_color(
+      columns = `% Proficient`,
+      colors = scales::col_bin(
+        palette = c(
+          TeachingLab::tl_palette(n = 8, color = "blue") |> magrittr::extract(c(4, 6, 8))
+        ),
+        domain = c(0, 100),
+        bins = c(0, 39.99, 79.99, 100)
+      )
+    ) |>
+    TeachingLab::gt_theme_tl() |>
+    gt::gtsave(here::here("images/report_images/student_work_proficiency_grades.png"))
+
+  knitr::include_graphics(here::here("images/report_images/student_work_proficiency_grades.png"))
+} else {
+  no_data_plot
+}
+```
+
+</center>
+:::

@@ -1,0 +1,487 @@
+---
+title: "Teaching Lab Report"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  TeachingLab::TLDefault:
+    highlight: kate
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+library(qualtRics)
+# devtools::load_all()
+library(TeachingLab)
+library(tidyverse)
+
+student_survey <- TeachingLab::get_student_survey(update = FALSE, year = "22_23")
+
+## Global options
+options(max.print = "75")
+opts_chunk$set(
+  echo = FALSE,
+  cache = TRUE,
+  prompt = FALSE,
+  tidy = TRUE,
+  comment = NA,
+  message = FALSE,
+  warning = FALSE
+)
+opts_knit$set(width = 75)
+```
+
+## Rochester City School District
+
+```{r}
+eic_student_survey_selected <- TeachingLab::get_student_survey() |>
+  filter(Finished == TRUE & eic == TRUE & site == "Rochester City School District") |>
+  janitor::remove_empty("cols")
+
+eic_student_bar_chart <- function(data, col_select, agree_select, string_remove, title,
+                                  legend_position = c(0.8, 0.25)) {
+  ### Makes race column, selects relevant columns and gets percent 
+  ### that selected relevant levels of agreeness
+  eic_renamed_a1_race <- data |>
+    mutate(race = case_when(race == "White" ~ "White",
+                            race == "Black or African American" ~ "Black or African American",
+                            ethnicity == "Yes" ~ "Latino/a",
+                            T ~ NA),
+           race = structure(race, label = "race")) |>
+    drop_na(race) |>
+    select(race, contains(col_select)) |>
+    TeachingLab::relabel_qualtrics_df() |>
+    group_by(race) |>
+    summarise(across(everything(), ~ tl_select_percent(.x, agree_select)))
+
+  ### Reformat dataframe and prep for ggplot2
+  eic_renamed_a1 <- eic_renamed_a1_race |>
+    pivot_longer(!race, names_to = "question", values_to = "percent") |>
+    mutate(
+      question = str_remove_all(question, string_remove),
+      question = str_wrap(question, 25),
+      percent = percent * 100
+    )
+
+  ### Get race counts
+  eic_a1_race_counts <- data |>
+    mutate(race = case_when(race == "White" ~ "White",
+                            race == "Black or African American" ~ "Black or African American",
+                            ethnicity == "Yes" ~ "Latino/a",
+                            T ~ NA)) |>
+    drop_na(race) |>
+    group_by(race) |>
+    count(sort = T)
+
+  subtitle <- if (length(agree_select) > 1) {
+    glue::glue('The following percentages show the % that selected "{agree_select[1]}" or "{agree_select[2]}",<br><b style = "color: #04abeb">White (n = {eic_a1_race_counts$n[eic_a1_race_counts == "White"]})</b>, <b style = "color: #0174A1">Latino/a (n = {eic_a1_race_counts$n[eic_a1_race_counts == "Latino/a"]})</b>, <b style = "color: #023C52">Black or African American (n = {eic_a1_race_counts$n[eic_a1_race_counts == "Black or African American"]})</b>')
+  } else {
+    glue::glue('The following percentages show the % that selected "{agree_select[1]}",<br><b style = "color: #04abeb">White (n = {eic_a1_race_counts$n[eic_a1_race_counts == "White"]})</b>, <b style = "color: #0174A1">Latino/a (n = {eic_a1_race_counts$n[eic_a1_race_counts == "Latino/a"]})</b>, <b style = "color: #00ACF0">Black or African American (n = {eic_a1_race_counts$n[eic_a1_race_counts == "Black or African American"]})</b>')
+  }
+
+  ggplot(eic_renamed_a1, aes(x = question, y = percent, fill = race)) +
+    geom_col(position = position_dodge()) +
+    geom_text(
+      aes(
+        label = paste0(round(percent), "%"),
+        color = race
+      ),
+      position = position_dodge2(width = 1, preserve = "total"),
+      hjust = -0.5,
+      family = "Calibri"
+    ) +
+    labs(
+      x = "", y = "",
+      title = title,
+      subtitle = subtitle,
+      fill = "Race"
+    ) +
+    scale_y_continuous(labels = scales::percent_format(scale = 1), limits = c(0, 100)) +
+    guides(
+      fill = guide_legend(reverse = TRUE),
+      color = "none"
+    ) +
+    coord_flip() +
+    scale_fill_manual(values = tl_palette(color = "blue", n = 4)[2:4]) +
+    scale_color_manual(values = tl_palette(color = "blue", n = 4)[2:4]) +
+    theme_tl() +
+    theme(
+      legend.position = legend_position,
+      # legend.text = element_text(face = "bold"),
+      legend.title = element_text(face = "bold"),
+      plot.title = element_text(family = "Calibri Bold", face = "bold"),
+      plot.subtitle = ggtext::element_markdown(family = "Calibri"),
+      legend.key.size = unit(1.2, "cm"),
+      axis.text.y = element_text(size = 14)
+    )
+}
+
+eic_student_bar_chart(
+  data = eic_student_survey_selected,
+  title = "How much do you agree or disagree with the statements below",
+  col_select = "growth_mindsets_a1",
+  legend_position = c(0.82, 0.25),
+  agree_select = c(
+    "1 - Strongly Disagree",
+    "2 - Disagree"
+  ),
+  string_remove = "How much do you agree or disagree with the statements below\\? - "
+)
+
+ggsave(here::here("images/sy22_23/eic/race_comparison_a1_rochester.png"),
+  bg = "white",
+  height = 10,
+  width = 13
+)
+
+eic_student_bar_chart(
+  data = eic_student_survey_selected,
+  title = "For you personally, how true or not true is the statement below?",
+  col_select = "growth_mindsets_a2",
+  agree_select = c(
+    "Extremely true",
+    "Very true"
+  ),
+  string_remove = "For you personally, how true or not true is the statement below\\? \\(Select one only\\)"
+)
+
+ggsave(here::here("images/sy22_23/eic/race_comparison_a2_rochester.png"),
+  bg = "white",
+  height = 10,
+  width = 13
+)
+
+eic_student_bar_chart(
+  data = eic_student_survey_selected,
+  title = "How much do you agree or disagree with the statement below?",
+  col_select = "growth_mindsets_a3",
+  legend_position = c(0.9, 0.2),
+  agree_select = c(
+    "Agree",
+    "Strongly agree"
+  ),
+  string_remove = "How much do you agree or disagree with the statement below\\? \\(Select one only\\)"
+)
+
+ggsave(here::here("images/sy22_23/eic/race_comparison_a3_rochester.png"),
+  bg = "white",
+  height = 10,
+  width = 13
+)
+
+eic_student_bar_chart(
+  data = eic_student_survey_selected,
+  title = "How much do you agree or disagree with the statement below?",
+  col_select = "self_efficacy_a4",
+  agree_select = c(
+    "5 - Agree",
+    "6 - Strongly agree"
+  ),
+  string_remove = "How much do you agree or disagree with the statements below\\? - "
+)
+
+ggsave(here::here("images/sy22_23/eic/race_comparison_a4_rochester.png"),
+  bg = "white",
+  height = 10,
+  width = 13
+)
+
+### Have to edit subtitle code to make this one work ###
+eic_student_bar_chart(
+  data = eic_student_survey_selected,
+  title = "How much do you agree or disagree with the statements below?",
+  col_select = "math_enjoyment_a5",
+  agree_select = c(
+    "1 - Agree a lot"
+  ),
+  string_remove = "How much do you agree or disagree with the statements below\\? - "
+)
+
+ggsave(here::here("images/sy22_23/eic/race_comparison_a5_rochester.png"),
+  bg = "white",
+  height = 10,
+  width = 13
+)
+
+eic_student_bar_chart(
+  data = eic_student_survey_selected,
+  title = "When reading the following statements, think about your current math class and decide\nhow well the statements describe you",
+  col_select = c("mses_a6_2", "mses_a6_3", "mses_a6_4", "mses_a6_5", "mses_a6_6", "mses_a6_7"),
+  agree_select = c(
+    "5 - Very much like me",
+    "4 - Mostly like me"
+  ),
+  string_remove = "When reading the following statements, think about your current math class and decide how well the statements describe you\\. - "
+)
+
+ggsave(here::here("images/sy22_23/eic/race_comparison_a6_rochester.png"),
+  bg = "white",
+  height = 12,
+  width = 15
+)
+
+eic_student_bar_chart(
+  data = eic_student_survey_selected,
+  title = "When reading the following statements, think about your current math class and decide\nhow well the statements describe you",
+  col_select = c("mses_a6_1", "mses_a6_8", "mses_a6_9"),
+  agree_select = c(
+    "5 - Very much like me",
+    "4 - Mostly like me"
+  ),
+  string_remove = "When reading the following statements, think about your current math class and decide how well the statements describe you\\. - "
+)
+
+ggsave(here::here("images/sy22_23/eic/race_comparison_a6_2_rochester.png"),
+  bg = "white",
+  height = 12,
+  width = 15
+)
+
+eic_student_bar_chart(
+  data = eic_student_survey_selected,
+  title = "How often does your math teacher do each of the following?",
+  col_select = "math_a7",
+  agree_select = c(
+    "4 - Most or all of the time"
+  ),
+  string_remove = "How often does your math teacher do each of the following\\? - ",
+  legend_position = c(0.8, 0.75)
+)
+
+ggsave(here::here("images/sy22_23/eic/race_comparison_a7_rochester.png"),
+  bg = "white",
+  height = 10,
+  width = 13
+)
+```
+
+### NYC District 11
+
+```{r}
+eic_student_survey_selected <- TeachingLab::get_student_survey() |>
+  filter(Finished == TRUE & eic == TRUE & site == "NYC District 11") |>
+  janitor::remove_empty("cols")
+
+eic_student_bar_chart <- function(data, col_select, agree_select, string_remove, title,
+                                  legend_position = c(0.8, 0.25)) {
+  eic_renamed_a1_white <- data |>
+    mutate(race = ifelse(race != "White" | ethnicity == "Yes", "BIPOC", "White")) |>
+    dplyr::filter(race == "White") |>
+    select(contains(col_select)) |>
+    TeachingLab::relabel_qualtrics_df() |>
+    summarise(across(everything(), ~ tl_select_percent(.x, agree_select))) |>
+    mutate(race = "White")
+
+  eic_renamed_a1_poc <- data |>
+    mutate(race = ifelse(race != "White" | ethnicity == "Yes", "BIPOC", "White")) |>
+    dplyr::filter(race == "BIPOC") |>
+    select(contains(col_select)) |>
+    TeachingLab::relabel_qualtrics_df() |>
+    summarise(across(everything(), ~ tl_select_percent(.x, agree_select)), ) |>
+    mutate(race = "BIPOC")
+
+  eic_renamed_a1 <- eic_renamed_a1_white |>
+    full_join(eic_renamed_a1_poc) |>
+    pivot_longer(!race, names_to = "question", values_to = "percent") |>
+    mutate(
+      question = str_remove_all(question, string_remove),
+      question = str_wrap(question, 25),
+      percent = percent * 100
+    )
+
+  eic_a1_race_counts <- data |>
+    mutate(race = ifelse(race != "White" | ethnicity == "Yes", "BIPOC", "White")) |>
+    drop_na(race) |>
+    group_by(race) |>
+    count(sort = T)
+
+  if (length(agree_select) > 1) {
+    subtitle <- glue::glue('The following percentages show the % that selected "{agree_select[1]}" or "{agree_select[2]}", <i style = "color: #04abeb">White (n) = {eic_a1_race_counts$n[eic_a1_race_counts == "White"]}</i>, BIPOC (n) = {eic_a1_race_counts$n[eic_a1_race_counts == "BIPOC"]}')
+  } else {
+    subtitle <- glue::glue('The following percentages show the % that selected "{agree_select[1]}", <i style = "color: #04abeb">White (n) = {eic_a1_race_counts$n[eic_a1_race_counts == "White"]}</i>, BIPOC (n) = {eic_a1_race_counts$n[eic_a1_race_counts == "BIPOC"]}')
+  }
+
+  ggplot(eic_renamed_a1, aes(x = question, y = percent, fill = race)) +
+    geom_col(position = position_dodge()) +
+    geom_text(
+      aes(
+        label = paste0(round(percent), "%"),
+        color = race
+      ),
+      position = position_dodge2(width = 1, preserve = "total"),
+      hjust = -0.5,
+      family = "Calibri"
+    ) +
+    labs(
+      x = "", y = "",
+      title = title,
+      subtitle = subtitle,
+      fill = "Race"
+    ) +
+    scale_y_continuous(labels = scales::percent_format(scale = 1), limits = c(0, 100)) +
+    guides(
+      fill = guide_legend(reverse = TRUE),
+      color = "none"
+    ) +
+    coord_flip() +
+    scale_fill_manual(values = tl_palette(color = "blue", n = 2)) +
+    scale_color_manual(values = tl_palette(color = "blue", n = 2)) +
+    theme_tl() +
+    theme(
+      legend.position = legend_position,
+      plot.title = element_text(family = "Calibri Bold", face = "bold"),
+      plot.subtitle = ggtext::element_markdown(family = "Calibri"),
+      legend.key.size = unit(1.2, "cm"),
+      axis.text.y = element_text(size = 14)
+    )
+}
+
+eic_student_bar_chart(
+  data = eic_student_survey_selected,
+  title = "How much do you agree or disagree with the statements below",
+  col_select = "growth_mindsets_a1",
+  agree_select = c(
+    "1 - Strongly Disagree",
+    "2 - Disagree"
+  ),
+  string_remove = "How much do you agree or disagree with the statements below\\? - "
+)
+
+ggsave(here::here("images/sy22_23/eic/race_comparison_d11_d11.png"),
+  bg = "white",
+  height = 10,
+  width = 13
+)
+
+eic_student_bar_chart(
+  data = eic_student_survey_selected,
+  title = "For you personally, how true or not true is the statement below?",
+  col_select = "growth_mindsets_a2",
+  agree_select = c(
+    "Extremely true",
+    "Very true"
+  ),
+  string_remove = "For you personally, how true or not true is the statement below\\? \\(Select one only\\)"
+)
+
+ggsave(here::here("images/sy22_23/eic/race_comparison_a2_d11.png"),
+  bg = "white",
+  height = 10,
+  width = 13
+)
+
+eic_student_bar_chart(
+  data = eic_student_survey_selected,
+  title = "How much do you agree or disagree with the statement below?",
+  col_select = "growth_mindsets_a3",
+  agree_select = c(
+    "Agree",
+    "Strongly agree"
+  ),
+  string_remove = "How much do you agree or disagree with the statement below\\? \\(Select one only\\)",
+  legend_position = c(0.9, 0.25)
+)
+
+ggsave(here::here("images/sy22_23/eic/race_comparison_a3_d11.png"),
+  bg = "white",
+  height = 10,
+  width = 13
+)
+
+eic_student_bar_chart(
+  data = eic_student_survey_selected,
+  title = "How much do you agree or disagree with the statement below?",
+  col_select = "self_efficacy_a4",
+  agree_select = c(
+    "5 - Agree",
+    "6 - Strongly agree"
+  ),
+  string_remove = "How much do you agree or disagree with the statements below\\? - ",
+  legend_position = c(0.85, 0.3)
+)
+
+ggsave(here::here("images/sy22_23/eic/race_comparison_a4_d11.png"),
+  bg = "white",
+  height = 10,
+  width = 13
+)
+
+### Have to edit subtitle code to make this one work ###
+eic_student_bar_chart(
+  data = eic_student_survey_selected,
+  title = "How much do you agree or disagree with the statements below?",
+  col_select = "math_enjoyment_a5",
+  agree_select = c(
+    "1 - Agree a lot"
+  ),
+  string_remove = "How much do you agree or disagree with the statements below\\? - "
+)
+
+ggsave(here::here("images/sy22_23/eic/race_comparison_a5_d11.png"),
+  bg = "white",
+  height = 10,
+  width = 13
+)
+
+eic_student_bar_chart(
+  data = eic_student_survey_selected,
+  title = "When reading the following statements, think about your current math class and decide\nhow well the statements describe you",
+  col_select = "mses_a6",
+  agree_select = c(
+    "5 - Very much like me",
+    "4 - Mostly like me"
+  ),
+  string_remove = "When reading the following statements, think about your current math class and decide how well the statements describe you\\. - "
+)
+
+ggsave(here::here("images/sy22_23/eic/race_comparison_a6_d11.png"),
+  bg = "white",
+  height = 12,
+  width = 15
+)
+
+eic_student_bar_chart(
+  data = eic_student_survey_selected,
+  title = "How often does your math teacher do each of the following?",
+  col_select = "math_a7",
+  agree_select = c(
+    "4 - Most or all of the time"
+  ),
+  string_remove = "How often does your math teacher do each of the following\\? - ",
+  legend_position = c(0.8, 0.75)
+)
+
+ggsave(here::here("images/sy22_23/eic/race_comparison_a7_d11.png"),
+  bg = "white",
+  height = 10,
+  width = 13
+)
+```
+
+
+
+## Results {.tabset}
+
+### White
+
+Some text
+
+```{r, fig.dim=c(10, 9)}
+TeachingLab::tl_likert(
+  data = eic_renamed_a1_white,
+  title = "How much do you agree or disagree with the statements below?",
+  string_remove = "How much do you agree or disagree with the statements below\\? - ",
+  string_wrap = 25
+)
+```
+
+### BIPOC
+
+Also some text
+
+```{r, fig.dim=c(10, 9)}
+TeachingLab::tl_likert(
+  data = eic_renamed_a1_poc,
+  title = "How much do you agree or disagree with the statements below?",
+  string_remove = "How much do you agree or disagree with the statements below\\? - ",
+  string_wrap = 25
+)
+```

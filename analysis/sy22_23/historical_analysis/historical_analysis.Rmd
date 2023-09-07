@@ -1,0 +1,1622 @@
+---
+title: "Teaching Lab Report"
+output:
+  TeachingLab::TLDefault:
+    highlight: kate
+---
+
+```{r setup, include=FALSE}
+library(googlesheets4)
+library(gt)
+library(knitr)
+library(tidyverse)
+devtools::load_all()
+library(TeachingLab)
+
+### Data Sources ###
+course_survey_22_23 <- get_course_survey(year = "22_23", update = FALSE, write = FALSE) # DO NOT UPDATE
+course_survey_21_22 <- get_course_survey(year = "21_22", update = FALSE, write = FALSE) # DO NOT UPDATE
+course_survey_20_21 <- get_course_survey(year = "20_21", update = FALSE, write = FALSE) # DO NOT UPDATE
+course_survey_19_20 <- get_course_survey(year = "19_20", update = FALSE, write = FALSE) # DO NOT UPDATE
+
+session_survey_22_23 <- get_session_survey(year = "22_23", update = FALSE, write = FALSE) # DO NOT UPDATE
+session_survey_21_22 <- get_session_survey(year = "21_22", update = FALSE, write = FALSE) # DO NOT UPDATE
+session_survey_20_21 <- get_session_survey(year = "20_21", update = FALSE, write = FALSE) # DO NOT UPDATE
+session_survey_19_20 <- get_session_survey(year = "19_20", update = FALSE, write = FALSE) # DO NOT UPDATE
+session_survey_18_19 <- get_session_survey(year = "18_19", update = FALSE, write = FALSE) # DO NOT UPDATE
+
+educator_survey_22_23 <- get_diagnostic_survey(year = "22_23", update = FALSE, write = FALSE)
+followup_educator_22_23 <- get_followup_educator(year = "22_23", update = FALSE, write = FALSE)
+educator_survey_21_22 <- get_diagnostic_survey(year = "21_22", update = FALSE, write = FALSE)
+followup_educator_21_22 <- get_followup_educator(year = "21_22", update = FALSE, write = FALSE)
+educator_survey_20_21 <- get_diagnostic_survey(year = "20_21", update = FALSE, write = FALSE)
+followup_educator_20_21 <- get_followup_educator(year = "20_21", update = FALSE, write = FALSE)
+educator_survey_19_20 <- get_diagnostic_survey(year = "19_20", update = FALSE, write = FALSE)
+# followup_educator_19_20 <- get_followup_educator(year = "19_20", update = FALSE, write = FALSE)
+
+# ipg_forms_22_23 <- get_ipg_forms(year == "22_23", update = FALSE, write = FALSE)
+# ipg_forms_21_22 <- get_ipg_forms(year == "21_22", update = FALSE, write = FALSE)
+# 
+# knowledge_assessments_22_23 <- get_knowledge_assessments(year = "22_23", update = FALSE, write = FALSE)
+# knowledge_assessments_21_22 <- get_knowledge_assessments(year = "21_22", update = FALSE, write = FALSE)
+### 20-21 knowledge assessments can be found at bottom of this form here: https://docs.google.com/forms/d/1G-DTADdqi0d7svLZPus8MIkbNCNDdXccLnyj8NpjXxg/edit ###
+### Function for finding positive scores ###
+pos <- function(x) {
+  x <- x[!is.na(x)]
+  100 * (sum(str_detect(x, "4|5")) / (sum(str_detect(x, "1|2|3")) + sum(str_detect(x, "4|5"))))
+}
+
+### N size counter ###
+n_count <- function(x) {
+  sum(!is.na(x))
+}
+
+## Global options
+options(max.print = "75")
+opts_chunk$set(
+  echo = FALSE,
+  cache = TRUE,
+  prompt = FALSE,
+  tidy = TRUE,
+  comment = NA,
+  message = FALSE,
+  warning = FALSE
+)
+opts_knit$set(width = 75)
+```
+
+## Course Survey
+
+```{r course-survey-merge}
+renamed_course_survey_21_22 <- course_survey_21_22 |>
+  rename(
+    RecordedDate = date_created,
+    site = `Select your site (district, parish, network, or school).`,
+    role = `Select your role.`,
+    content_area = `Select the content area for today's professional learning session.`,
+    course = `Select your course.`,
+    overall_went_well = `Overall, what went well in this course?`,
+    been_better_course = `Overall, what could have been better in this course?`,
+    learning_excited_try = `What is the learning from this course that you are most excited about trying out?`,
+    best_activities = `Which activities best supported your learning in this course?`,
+    course_add_comments = `Feel free to leave us any additional comments, concerns, or questions.`,
+    course_feedback_14 = `How much do you agree with the following statements about this course? - I am satisfied with the overall quality of this course.`,
+    course_feedback_4 = `How much do you agree with the following statements about this course? - I am satisfied with how the course was facilitated.`,
+    course_feedback_3 = `How much do you agree with the following statements about this course? - The independent online work activities were well-designed to help me meet the learning targets.`,
+    course_feedback_7 = `How much do you agree with the following statements about this course? - I felt a sense of community with the other participants in this course.`,
+    course_feedback_9 = `How much do you agree with the following statements about this course? - The strategies I’ve learned in this course will improve my instruction.`,
+    course_feedback_10 = `How much do you agree with the following statements about this course? - The strategies I’ve learned in this course will improve my coaching or supervision of teachers.`,
+    course_feedback_11 = `How much do you agree with the following statements about this course? - The strategies I’ve learned in the course are easy to implement.`,
+    course_feedback_12 = `How much do you agree with the following statements about this course? - I will apply what I have learned in this course to my practice.`,
+    course_feedback_13 = `How much do you agree with the following statements about this course? - This course has supported me in being responsive to students' backgrounds, cultures, and points of view.`,
+    nps = `On a scale of 0-10, how likely are you to recommend this course to a colleague or friend?`
+  ) |>
+  mutate(
+    role = as.character(role),
+    role = str_replace_all(role, c(
+      "School-based coach" = "Coach",
+      "District/network/state-level professional or administrator" = "District leader or administrator",
+      "School-based administrator or supervisor" = "School leader or administrator"
+    )),
+    site = str_replace_all(site, c(c(
+      "Amistad Dual Language, NY" = "NY_NYC AMS Study Schools Bronx_ Channel View School for Research, Amistad Dual Language, and Fannie Lou Hamer",
+      "Calcasieu Parish, LA" = "LA_Calcasieu Parish",
+      "CityYear, NY" = "US_City Year",
+      "Cleveland Metropolitan School District, OH" = "OH_Cleveland Metro School District",
+      "Delaware Department of Education, DE" = "DE_DE DoE",
+      "Jefferson Davis Parish, LA" = "LA_Jefferson Davis Parish",
+      "Kankakee School District, IL" = "IL_Kankakee District 111",
+      "Louisville School District - Jacob Elementary, KY" = "KY_Louisville School District_Jacob Elem.",
+      "Massachusetts Dept of Elementary & Secondary Education" = "MA_DESE",
+      "McNairy County, TN" = "TN_McNairy County Schools",
+      "New Mexico Public Education Department, NM" = "NM_NM PED",
+      "NYC District 10 - PS 386" = "NY_D10",
+      "NYC District 11 - District-wide, NY" = "NY_D11",
+      "NYC District 12 - ESMT-IS 190, NY" = "NY_EMST_IS190",
+      "NYC District 12 - MS 286 Fannie Lou Hamer" = "NY_D11",
+      "NYC District 27 - District-wide, NY" = "NY_D27",
+      "NYC District 6 - MS311, NY" = "NY_D6",
+      "NYC District 9 - District-wide, NY" = "NY_D9",
+      "Open Enrollment, National" = "US_Open Enrollment",
+      "Orleans Central Supervisory Union, VT" = "VT_Orleans Central Supervisory Union",
+      "Pointe Coupee Parish, LA" = "LA_Pointe Coupee Parish",
+      "Rochester City School District - District-wide" = "NY_Rochester City School District",
+      "San Diego Unified School District, CA" = "CA_San Diego",
+      "West Contra Costa USD, CA" = "CA_West Contra Costa_WCCUSD",
+      "Wisconsin Department of Education, WI" = "WI_WI DPI"
+    )))
+  )
+
+renamed_course_survey_20_21 <- course_survey_20_21 |>
+  rename(
+    RecordedDate = Timestamp,
+    selected_date = `Select.the.date.for.the.Zoom.meeting.for.this.course.`,
+    course = `Select.your.course.`,
+    site = `Select.your.site..district..parish..network..or.school..`,
+    role = `Select.the.best.description.for.your.role.`,
+    course_feedback_14 = `I.am.satisfied.with.the.overall.quality.of.this.course.`,
+    course_feedback_8 = `The.topics.for.this.course.were.relevant.for.my.role.`,
+    course_feedback_3 = `The.independent.online.work.activities.were.well.designed.to.help.me.meet.the.learning.targets.`,
+    zoom_activities_learning_targets = `The.Zoom.course.activities.were.well.designed.to.help.me.meet.the.learning.targets.`,
+    course_feedback_7 = `I.felt.a.sense.of.community.with.the.other.participants.in.this.course.even.though.we.were.virtual.`,
+    navigate_learning_covid = `This.course.helped.me.navigate.remote.and.or.hybrid.learning.during.COVID.19.`,
+    how_navigate_covid = `How..if.in.any.way..this.course.helped.you.navigate.remote.and.or.hybrid.learning.during.COVID.19.`,
+    learning_excited_try = `What.is.the.learning.from.this.course.that.you.are.most.excited.about.trying.out.`,
+    course_feedback_12 = `How.likely.are.you.to.apply.this.learning.to.your.practice.in.the.next.4.6.weeks.`,
+    facilitator1 = `Select.the.name.of.your.first.facilitator.`,
+    fac_feedback_2 = `S.he.facilitated.the.content.clearly....16`,
+    fac_feedback_3 = `S.he.effectively.built.a.community.of.learners....17`,
+    second_fac_q = `Did.you.have.a.second.facilitator.`,
+    facilitator2 = `Select.the.name.of.your.second.facilitator.`,
+    fac_feedback_2_2 = `S.he.facilitated.the.content.clearly....20`,
+    fac_feedback_2_3 = `S.he.effectively.built.a.community.of.learners....21`,
+    best_activities = `Which.activities.best.supported.your.learning.`,
+    been_better_course = `What.could.have.improved.your.experience.`,
+    nps = `How.likely.are.you.to.recommend.this.professional.learning.to.a.colleague.or.friend.`,
+    why_this_nps = `Why.did.you.choose.this.rating.`,
+    course_add_comments = `Do.you.have.additional.comments.about.this.course.`,
+    promo_permission = `Do.you.give.us.permission.to.include.your.feedback.in.promotional.materials.`,
+    content_area = `Portfolio.1`
+  ) |>
+  mutate(
+    across(contains("course_feedback"), ~ stringr::str_replace_all(.x, c(
+      "1" = "(1) Strongly disagree",
+      "2" = "(2) Disagree",
+      "3" = "(3) Neither agree nor disagree",
+      "4" = "(4) Agree",
+      "5" = "(5) Strongly agree"
+    ))),
+    across(contains("fac_feedback"), ~ stringr::str_replace_all(.x, c(
+      "1" = "(1) Strongly disagree",
+      "2" = "(2) Disagree",
+      "3" = "(3) Neither agree nor disagree",
+      "4" = "(4) Agree",
+      "5" = "(5) Strongly agree"
+    )))
+  )
+### Don't include Concatcomments because it is just a replica of why_this_nps ###
+
+
+all_time_course_survey <- course_survey_19_20 |>
+  bind_rows(renamed_course_survey_20_21, renamed_course_survey_21_22, course_survey_22_23)
+```
+
+### NPS
+
+```{r course-survey-nps}
+all_time_course_survey |>
+  mutate(month = floor_date(RecordedDate, "month")) |>
+  group_by(month) |>
+  summarise(nps = mean(nps, na.rm = T)) |>
+  ggplot2::ggplot(aes(x = month, y = nps)) +
+  geom_area(fill = "#04abeb", color = "black", alpha = 0.9) +
+  scale_y_continuous(limits = c(0, 10)) +
+  labs(x = NULL, y = "NPS", title = "Teaching Lab NPS Scores on a Rolling Monthly Average") +
+  theme_tl()
+```
+
+### Course Feedback Over Time ###
+
+```{r course-feedback-table}
+all_time_course_survey |>
+  mutate(month = floor_date(RecordedDate, "month")) |>
+  select(month, contains("course_feedback")) |>
+  drop_na(month) |>
+  group_by(month) |>
+  summarise(across(everything(), list(n = n_count, pos = pos))) |>
+  ungroup() |>
+  arrange(desc(month)) |>
+  gt::gt() |>
+  data_color(
+    columns = contains("pos"),
+    method = "numeric",
+    palette = "ggsci::blue_material"
+  ) |>
+  data_color(
+    columns = contains("n"),
+    method = "numeric",
+    palette = "ggsci::red_material"
+  ) |>
+  fmt_percent(
+    columns = contains("pos"),
+    scale_values = F
+  ) |>
+  sub_missing(missing_text = "No data") |>
+  opt_interactive() |>
+  gt_theme_tl()
+```
+
+## Session Survey
+
+```{r session-survey-clean}
+renamed_session_survey_21_22 <- session_survey_21_22 |>
+  rename(
+    facilitator1 = `Facilitator`,
+    RecordedDate = `Date`,
+    site = `Select your site (district, parish, network, or school).`,
+    role = `Select your role.`,
+    content_area = `Select the content area for today’s professional learning session.`,
+    course = `Select your course.`,
+    fac_feedback_1 = `How much do you agree with the following statements about this facilitator today? - They demonstrated  deep knowledge of the content they facilitated.`,
+    fac_feedback_2 = `How much do you agree with the following statements about this facilitator today? - They facilitated the content clearly.`,
+    fac_feedback_3 = `How much do you agree with the following statements about this facilitator today? - They effectively built a safe learning community.`,
+    fac_feedback_4 = `How much do you agree with the following statements about this facilitator today? - They were fully prepared for the session.`,
+    fac_feedback_5 = `How much do you agree with the following statements about this facilitator today? - They responded to the group’s needs.`,
+    fac_add1 = `Facilitation_Feedback`,
+    went_well_today = `What went well in today’s session?`,
+    been_better_today = `What could have been better about today’s session?`,
+    facilitator2 = `Select the name of your facilitator._2`,
+    facilitator_other2 = `Select the name of your facilitator. - Other (please specify)_2`,
+    fac_feedback_2_1 = `How much do you agree with the following statements about this facilitator today? - They demonstrated  deep knowledge of the content they facilitated._2`,
+    fac_feedback_2_2 = `How much do you agree with the following statements about this facilitator today? - They facilitated the content clearly._2`,
+    fac_feedback_2_3 = `How much do you agree with the following statements about this facilitator today? - They effectively built a safe learning community._2`,
+    fac_feedback_2_4 = `How much do you agree with the following statements about this facilitator today? - They were fully prepared for the session._2`,
+    fac_feedback_2_5 = `How much do you agree with the following statements about this facilitator today? - They responded to the group’s needs._2`,
+    grade_level_1 = `What grade(s) do you teach, support, and/or lead? You can select more than one. - K`,
+    grade_level_4 = `What grade(s) do you teach, support, and/or lead? You can select more than one. - 1`,
+    grade_level_5 = `What grade(s) do you teach, support, and/or lead? You can select more than one. - 2`,
+    grade_level_6 = `What grade(s) do you teach, support, and/or lead? You can select more than one. - 3`,
+    grade_level_7 = `What grade(s) do you teach, support, and/or lead? You can select more than one. - 4`,
+    grade_level_8 = `What grade(s) do you teach, support, and/or lead? You can select more than one. - 5`,
+    grade_level_9 = `What grade(s) do you teach, support, and/or lead? You can select more than one. - 6`,
+    grade_level_10 = `What grade(s) do you teach, support, and/or lead? You can select more than one. - 7`,
+    grade_level_11 = `What grade(s) do you teach, support, and/or lead? You can select more than one. - 8`,
+    grade_level_12 = `What grade(s) do you teach, support, and/or lead? You can select more than one. - 9`,
+    grade_level_13 = `What grade(s) do you teach, support, and/or lead? You can select more than one. - 10`,
+    grade_level_14 = `What grade(s) do you teach, support, and/or lead? You can select more than one. - 11`,
+    grade_level_15 = `What grade(s) do you teach, support, and/or lead? You can select more than one. - 12`,
+    grade_level_17 = `What grade(s) do you teach, support, and/or lead? You can select more than one. - Other (please specify)`
+  ) |>
+  mutate(
+    role = as.character(role),
+    content_area = as.character(content_area),
+    course = as.character(course),
+    across(contains("fac_feedback"), ~ as.character(.x))
+  ) |>
+  dplyr::select(-facilitator_other2)
+
+renamed_session_survey_20_21 <- session_survey_20_21 |>
+  rename(RecordedDate = Timestamp, 
+         selected_date = `Select the date for the Zoom meeting for this course.`,
+         course = `Select your course.`,
+         site = `Select your site (district, parish, network, or school).`,
+         role = `Select the best description for your role.`,
+         course_feedback_14 = `I am satisfied with the overall quality of this course.`,
+         course_feedback_8 = `The topics for this course were relevant for my role.`,
+         course_feedback_3 = `The independent online work activities were well-designed to help me meet the learning targets.`,
+         zoom_activities_learning_targets = `The Zoom course activities were well-designed to help me meet the learning targets.`,
+         course_feedback_7 = `I felt a sense of community with the other participants in this course even though we were virtual.`,
+         navigate_learning_covid = `This course helped me navigate remote and/or hybrid learning during COVID-19.`,
+         how_navigate_covid = `How, if in any way, this course helped you navigate remote and/or hybrid learning during COVID-19?`,
+         learning_excited_try = `What is the learning from this course that you are most excited about trying out?`,
+         course_feedback_12 = `How likely are you to apply this learning to your practice in the next 4-6 weeks?`,
+         facilitator1 = `Select the name of your first facilitator.`,
+         fac_feedback_2 = `S/he facilitated the content clearly....16`,
+         fac_feedback_3 = `S/he effectively built a community of learners....17`,
+         second_fac_q = `Did you have a second facilitator?`,
+         facilitator2 = `Select the name of your second facilitator.`,
+         fac_feedback_2_2 = `S/he facilitated the content clearly....20`,
+         fac_feedback_2_3 = `S/he effectively built a community of learners....21`) |>
+  dplyr::select(-c(course_feedback_14, course_feedback_8, course_feedback_3, zoom_activities_learning_targets,
+                   course_feedback_7, navigate_learning_covid, how_navigate_covid, learning_excited_try,
+                   course_feedback_12,
+                   `Overall, what went well in this course?`,
+                   `Which activities best supported your learning?`,
+                  `What could have improved your experience?`,
+                  `How likely are you to recommend this professional learning to a colleague or friend?`,
+                  `Why did you choose this rating?`,
+                  `Do you have additional comments about this course?`,
+                  `Do you give us permission to include your feedback in promotional materials?`,
+                  `Portfolio 1`,
+                  Compare,
+                  Concatcomments)) |>
+  mutate(across(contains("fac_feedback"), ~ str_replace_all(as.character(.x),
+                                                            c("5" = "(5) Strongly agree",
+                                                              "4" = "(4) Agree",
+                                                              "3" = "(3) Neither agree nor disagree",
+                                                              "2" = "(2) Disagree",
+                                                              "1" = "(1) Strongly disagree"))),
+         selected_date = as.character(selected_date))
+
+renamed_session_survey_19_20 <- session_survey_19_20 |>
+  mutate(across(contains("fac_feedback"), ~ str_remove_all(.x, "S/he facilitated the content clearly\\.|S/he effectively built a community of learners\\.")),
+         across(contains("fac_feedback"), ~ str_replace_all(.x, "e0\\(5\\) Strongly agree", "e")),
+         across(contains("fac_feedback"), ~ na_if(.x, ""))) |>
+  dplyr::select(-c(grade, email, promo_permission, focus))
+
+renamed_session_survey_18_19 <- session_survey_18_19 |>
+  mutate(`Date.of.survey` = as.Date(`Date.of.survey`, "%m/%d/%Y")) |>
+  dplyr::select(-c(`Date.2`, `Month.in.SY`)) |>
+  rename(
+    site = Site,
+    content_area = Curriculum,
+    cohort = Cohort,
+    role2 = Audience,
+    course = `Training.Module`,
+    RecordedDate = `Date.of.survey`,
+    session_code = Sessioncode,
+    name = Name,
+    email = Email,
+    grade = Grade,
+    role = `What.is.your.role.`,
+    school = School,
+    course_feedback_14 = `I.am.satisfied.with.the.overall.quality.of.today.s.professional.learning.session.`,
+    course_feedback_8 = `Today.s.topic.was.relevant.for.me.`,
+    course_feedback_3 = `The.activities.from.today.s.sessions.were.well.designed.to.help.me.learn.`,
+    learning_excited_try = `What.was.your.most.important.learning.from.today.`,
+    course_feedback_12 = `How.likely.are.you.to.apply.this.learning.to.your.practice.in.the.next.4.6.weeks.`,
+    more_likely_apply_learning = `What.would.make.it.more.likely.for.you.to.apply.this.learning.`,
+    facilitator_type = `Type.of.facilitator`,
+    facilitator1 = `Who.was.your.facilitator..1`,
+    fac_feedback_2 = `The.facilitator.1.Facilitated.the.content.clearly`,
+    fac_feedback_3 = `The.facilitator.2.Effectively.built.a.community.of.learners.`,
+    facilitator2 = `Who.was.your.facilitator..2`,
+    fac_feedback_2_2 = `The.facilitator.2.Facilitated.the.content.clearly`,
+    fac_feedback_2_3 = `The.facilitator.2.Effectively.built.a.community.of.learners..1`,
+    went_well_today = `what.went.well.in.today.s.professional.learning.session.`,
+    best_activities = `Which.activities.best.supported.your.learning.today.`,
+    been_better_course = `What.could.have.improved.your.experience.in.today.s.professional.learning.session.`,
+    nps = `How.likely.would.you.be.to.recommend.today.s.Teaching.Lab.professional.learning.to.a.colleague.or.friend.`,
+    why_this_nps = `Why.did.you.give.it.this.rating.`,
+    promo_permission = `Do.you.give.us.permission.to.include.your.feedback.about.our.session.in.promotional.materials..Only.your.role.and.site.will.be.included.`,
+    practice_changed = `Do.you.think.your.practice.has.changed.related.to.the.topic.of.this.cycle..If.yes..please.share.how.you.think.your.practice.has.changed.`,
+    changes_student_learning = `X.TEACHERS.ONLY..Have.you.observed.any.changes.in.your.students..learning.related.to.the.topic.of.this.cycle..If.yes..please.share.some.of.the.changes.you.ve.observed.in.your.students.`,
+    changes_teacher_practice = `X.ADMINISTRATORS.only..Have.you.observed.any.changes.in.your.teachers..practice.related.to.the.topic.of.this.cycle..If.yes..please.share.some.of.the.changes.you.ve.observed.in.your.teachers.`,
+    coach_end_feed_8 = `The.coaching.I.received.from.Teaching.Lab.today.was.relevant.to.my.role.and.responsibilities.`,
+    ipg_tool_knowledge = `The.coaching.I.received.from.Teaching.Lab.today.deepened.my.knowledge.of.using.the.IPG.tool.for.teacher.observations.`,
+    content_feedback_teachers = `The.coaching.I.received.from.Teaching.Lab.today.will.help.me.to.provide.content.specific.feedback.to.teachers.`,
+    logistics_feedback_1 = `Do.you.have.any.feedback.on.the.logistics.and.communication.about.today.s.session.`,
+    overall_fac_quality = `How.would.you.rate.the.quality.of.your.facilitator.today.`,
+    impact_support_teachers_students = `I.believe.that.that.material.we.covered.in.today.s.session.will.have.an.impact.on.how.I.teach..support.teachers.and.students`,
+    material_important_to_work = `I.believe.the.material.we.covered.today.will.be.important.to.my.work.supporting.my.students..teachers.and.students`,
+    support_implement_el_gb_colleagues = `I.believe.that.I.can.get.support.from.my.colleagues.as.I.work.to.implement.EL.GB`,
+    support_implement_el_gb_leaders = `I.believe.that.I.can.get.support.from.my.school.leaders.as.I.work.to.implement.ELGB`,
+    areas_fac_well = `In.what.areas.do.you.think.your.facilitator.s..did.well..Check.all.that.apply.`,
+    areas_fac_improve = `In.what.areas.do.you.think.your.facilitator.can.improve.`,
+    went_particularly_well = `Which.part.of.today.s.session.went.particularly.well..Check.all.that.apply.`,
+    could_be_improved = `Which.part.of.today.s.session.could.be.improved..Check.all.that.apply.`,
+    resonated_today = `What.resonated.most.with.you.today..What.impact.does.that.learning.have.on.your.own.knowledge.and.instructional.practice.`,
+    additional_support_resources = `What.additional.support.or.resources.do.you.anticipate.needing.in.order.to.effectively.apply.what.you.have.learned.in.this.training.`,
+    course_feedback_14_2 = `I.am.satisfied.with.the.overall.quality.of.today.s.professional.learning.session..1`,
+    content_quality = `I.am.satisfied.with.the.quality.of.the.content.in.today.s.professional.learning.session.`,
+    fac_feedback_quality = `I.am.satisfied.with.the.quality.of.the.facilitation.in.today.s.professional.learning.session.`,
+    pl_improve_instruction = `I.feel.like.today.s.professional.learning.session.will.improve.my.ability.to.deliver.high.quality.instruction.`,
+    pl_improve_el_lea = `I.feel.like.today.s.professional.learning.session.will.improve.my.ability.to.deliver.EL.Education.s.LEA.curriculum.`,
+    logistics_feedback_2 = `The.logistics.for.today.s.session.were.communicated.effectively.ahead.of.time.`,
+    logistics_feedback_3 = `The.logistics.for.today.s.session.ran.smoothly.`
+    ) |>
+  # dplyr::select(-c(cohort, session_code, school, role2, more_likely_apply_learning, facilitator_type, 
+  #                  best_activities, practice_changed, changes_student_learning, changes_teacher_practice,
+  #                  ipg_tool_knowledge, content_feedback_teachers, logistics_feedback_1, logistics_feedback_2, 
+  #                  logistics_feedback_3, overall_fac_quality, impact_support_teachers_students, 
+  #                  material_important_to_work, support_implement_el_gb_colleagues, support_implement_el_gb_leaders,
+  #                  areas_fac_well, areas_fac_improve, went_particularly_well, could_be_improved, resonated_today,
+  #                  additional_support_resources, content_quality, fac_feedback_quality, pl_improve_instruction,
+  #                  pl_improve_el_lea)) |>
+  dplyr::select(RecordedDate, site, content_area, course, role, 
+                facilitator1, fac_feedback_2, fac_feedback_3, facilitator2, fac_feedback_2_2, fac_feedback_2_3) |>
+  mutate(across(contains("fac_feedback"), ~ str_replace_all(.x, c("Strongly agree" = "(5) Strongly agree",
+                                                                  "Agree" = "(4) Agree",
+                                                                  "Neither agree nor disagree" = "(3) Neither agree nor disagree",
+                                                                  "Disagree" = "(2) Disagree",
+                                                                  "Strongly disagree" = "(1) Strongly disagree"))))
+
+all_time_session_survey <- session_survey_22_23 |>
+      dplyr::select(c("StartDate",
+  "EndDate",
+  "Status",
+  "IPAddress",
+  "Progress",
+  "Duration (in seconds)",
+  "Finished",
+  "RecordedDate",
+  "ResponseId",
+  "RecipientLastName",
+  "RecipientFirstName",
+  "RecipientEmail",
+  "ExternalReference",
+  "LocationLatitude",
+  "LocationLongitude",
+  "DistributionChannel",
+  "UserLanguage",
+  "last_session_or_not",
+  "selected_date",
+  "initials",
+  "dob",
+  "site",
+  "district9",
+  "district11",
+  "district_27",
+  "network4",
+  "network7",
+  "network12",
+  "rochester",
+  "ma_dese",
+  "ar_arkansas_doe",
+  "role",
+  "content_area",
+  "course",
+  "location",
+  "facilitator1",
+  "fac_feedback_1",
+  "fac_feedback_2",
+  "fac_feedback_3",
+  "fac_feedback_4",
+  "fac_feedback_5",
+  "fac_add1",
+  "second_fac_q",
+  "facilitator2",
+  "fac_feedback_2_1",
+  "fac_feedback_2_2",
+  "fac_feedback_2_3",
+  "fac_feedback_2_4",
+  "fac_feedback_2_5",
+  "fac_add_2",
+  "went_well_today",
+  "take_back_class",
+  "been_better_today",
+  "gender",
+  "race_1",
+  "race_2",
+  "race_3",
+  "race_4",
+  "race_5",
+  "race_6",
+  "race_7",
+  "ethnicity",
+  "grade_level_16",
+  "grade_level_1",
+  "grade_level_4",
+  "grade_level_5",
+  "grade_level_6",
+  "grade_level_7",
+  "grade_level_8",
+  "grade_level_9",
+  "grade_level_10",
+  "grade_level_11",
+  "grade_level_12",
+  "grade_level_13",
+  "grade_level_14",
+  "grade_level_15",
+  "grade_level_17")) |>
+  bind_rows(
+    renamed_session_survey_18_19,
+    renamed_session_survey_19_20,
+    renamed_session_survey_20_21,
+    renamed_session_survey_21_22
+  )
+
+all_time_session_survey |>
+  group_by(facilitator1, facilitator2) |>
+  mutate(facilitator = ids::adjective_animal()) |>
+  ungroup() |>
+  dplyr::select(-facilitator1, -facilitator2) |>
+  arrange(desc(RecordedDate)) |>
+  filter(RecordedDate >= as.Date("2022-07-01")) |>
+  write_csv("~/Downloads/session_survey_censored.csv")
+```
+
+### Session Survey Feedback Over Time
+
+```{r session-survey-feedback}
+all_time_session_survey |>
+  mutate(month = floor_date(RecordedDate, "month")) |>
+  select(month, contains("fac_feedback")) |>
+  drop_na(month) |>
+  group_by(month) |>
+  summarise(across(everything(), list(n = n_count, pos = pos))) |>
+  arrange(desc(month)) |>
+  gt::gt() |>
+  data_color(
+    columns = contains("pos"),
+    method = "numeric",
+    palette = "ggsci::blue_material"
+  ) |>
+  data_color(
+    columns = contains("n"),
+    method = "numeric",
+    palette = "ggsci::red_material"
+  ) |>
+  fmt_percent(
+    columns = contains("pos"),
+    scale_values = F
+  ) |>
+  sub_missing(missing_text = "No data") |>
+  opt_interactive() |>
+  gt_theme_tl()
+```
+
+
+## Educator Survey
+
+```{r educator-survey-clean, eval = F}
+### Needed to manipulate last year's data to work in end of year report ###
+# educator_23_24_switch <- qualtRics::fetch_survey(
+#   surveyID = "SV_8vrKtPDtqQFbiBM",
+#   verbose = FALSE,
+#   include_display_order = FALSE,
+#   force_request = FALSE
+# ) |>
+#   dplyr::filter(RecordedDate <= as.Date("2023-07-01") & Finished == TRUE) |>
+#   dplyr::mutate(id = paste0(tolower(initials), dob)) |>
+#   dplyr::group_by(id) |>
+#   dplyr::filter(dplyr::row_number() == 1) |>
+#   dplyr::ungroup() |>
+#   dplyr::select(initials, dob, id, RecordedDate, non_ts_mindsets_16, non_ts_mindsets_17, non_ts_mindsets_18)
+#
+# educator_survey_22_23_test <- educator_survey_22_23 |>
+#   filter(Finished == TRUE) |>
+#   select(
+#     -contains("DO"),
+#     -non_ts_mindsets_2, -non_ts_mindsets_3, -non_ts_mindsets_4
+#   ) |>
+#   left_join(educator_23_24_switch, by = c("initials", "RecordedDate")) |>
+#   rename(
+#     non_ts_mindsets_2 = non_ts_mindsets_5,
+#     non_ts_mindsets_3 = non_ts_mindsets_6,
+#     non_ts_mindsets_4 = non_ts_mindsets_7,
+#     non_ts_mindsets_5 = non_ts_mindsets_8,
+#     non_ts_mindsets_6 = non_ts_mindsets_9,
+#     non_ts_mindsets_7 = non_ts_mindsets_10,
+#     non_ts_mindsets_8 = non_ts_mindsets_16,
+#     non_ts_mindsets_9 = non_ts_mindsets_17,
+#     non_ts_mindsets_10 = non_ts_mindsets_18,
+#     # non_ts_mindsets_11 = non_ts_mindsets_11,
+#     non_ts_mindsets_12 = non_ts_mindsets_15,
+#     non_ts_mindsets_13 = non_ts_mindsets_12,
+#     non_ts_mindsets_14 = non_ts_mindsets_13,
+#     non_ts_mindsets_15 = non_ts_mindsets_14
+#   )
+#
+# followup_educator_22_23_test <- followup_educator_22_23 |>
+#   filter(Finished == TRUE) |>
+#   select(
+#     -contains("DO"),
+#     -non_ts_mindsets_2, -non_ts_mindsets_3, -non_ts_mindsets_4
+#   ) |>
+#   rename(
+#     non_ts_mindsets_2 = non_ts_mindsets_5,
+#     non_ts_mindsets_3 = non_ts_mindsets_6,
+#     non_ts_mindsets_4 = non_ts_mindsets_7,
+#     non_ts_mindsets_5 = non_ts_mindsets_8,
+#     non_ts_mindsets_6 = non_ts_mindsets_9,
+#     non_ts_mindsets_7 = non_ts_mindsets_10,
+#     non_ts_mindsets_8 = non_ts_mindsets_16,
+#     non_ts_mindsets_9 = non_ts_mindsets_17,
+#     non_ts_mindsets_10 = non_ts_mindsets_18,
+#     # non_ts_mindsets_11 = non_ts_mindsets_11,
+#     non_ts_mindsets_12 = non_ts_mindsets_15,
+#     non_ts_mindsets_13 = non_ts_mindsets_12,
+#     non_ts_mindsets_14 = non_ts_mindsets_13,
+#     non_ts_mindsets_15 = non_ts_mindsets_14
+#   )
+#
+# followup_23_24_switch <- qualtRics::fetch_survey(
+#   surveyID = "SV_8vrKtPDtqQFbiBM",
+#   verbose = FALSE,
+#   include_display_order = FALSE,
+#   force_request = FALSE
+# ) |>
+#   mutate(future_location = as.character(future_location)) |>
+#   dplyr::filter((RecordedDate <= as.Date("2023-07-01") & Finished == TRUE & !is.na(future_location)) |
+#     (RecordedDate >= as.Date("2022-11-01") & Finished == TRUE & site == "TX_RAISE Rice University") |
+#     (RecordedDate >= as.Date("2023-04-15") & Finished == TRUE & site == "AR_Arkansas DOE")) |>
+#   dplyr::select(initials, dob, RecordedDate)
+#
+# followup_educator_22_23_test <- followup_educator |>
+#   left_join(followup_23_24_switch, by = c("initials", "RecordedDate")) |>
+#   mutate(id = paste0(tolower(initials), dob))
+#
+# write_csv(followup_educator_22_23_test, "data/sy22_23/followup_educator.csv")
+#
+# nm_diagnostic <- qualtRics::fetch_survey(
+#   surveyID = "SV_3a2OM4f9j85EuyO",
+#   verbose = FALSE,
+#   include_display_order = FALSE,
+#   force_request = FALSE
+# ) |>
+#   dplyr::filter(Finished == TRUE) |>
+#   dplyr::mutate(dplyr::across(dplyr::where(is.factor), ~ dplyr::na_if(as.character(.x), "NA")),
+#     email = tolower(email),
+#     prepost = "Pre",
+#     prepost = factor(prepost, levels = c("Pre", "Post")),
+#     site = "NM_NM Public Education Department",
+#     teaching_experience = dplyr::case_when(
+#       teaching_experience <= 10 ~ "1-10",
+#       teaching_experience > 10 & teaching_experience <= 19 ~ "11-20",
+#       teaching_experience > 19 & teaching_experience <= 29 ~ "21-30",
+#       teaching_experience > 29 & teaching_experience <= 39 ~ "31-40",
+#       teaching_experience > 39 & teaching_experience <= 49 ~ "41-50"
+#     ),
+#     teaching_experience = as.character(teaching_experience)
+#   ) |>
+#   dplyr::group_by(email) |>
+#   dplyr::filter(dplyr::row_number() == 1) |>
+#   dplyr::ungroup()
+#
+# others <- qualtRics::fetch_survey(
+#   surveyID = "SV_8vrKtPDtqQFbiBM",
+#   verbose = FALSE,
+#   include_display_order = FALSE,
+#   force_request = FALSE
+# ) |>
+#   dplyr::filter((RecordedDate >= as.Date("2022-11-01") & site == "TX_RAISE Rice University") |
+#     (RecordedDate >= as.Date("2023-04-15") & site == "AR_Arkansas DOE") & Finished == TRUE)
+#
+# educator_23_24_switch <- qualtRics::fetch_survey(
+#   surveyID = "SV_8vrKtPDtqQFbiBM",
+#   verbose = FALSE,
+#   include_display_order = FALSE,
+#   force_request = FALSE
+# ) |>
+#   dplyr::mutate(future_location = as.character(future_location)) |>
+#   dplyr::filter(RecordedDate <= as.Date("2023-07-01") & is.na(future_location) & Finished == TRUE) |>
+#   dplyr::mutate(id = paste0(tolower(initials), dob)) |>
+#   dplyr::group_by(id) |>
+#   dplyr::filter(dplyr::row_number() == 1) |>
+#   dplyr::ungroup() |>
+#   dplyr::bind_rows(others, nm_diagnostic) |>
+#   dplyr::mutate(id = ifelse(is.na(id), paste0(tolower(initials), dob), id))
+#
+# educator_survey_test <- educator_23_24_switch |>
+#   mutate(across(where(is.factor), ~ as.character(.x)),
+#     across(where(is.character), ~ na_if(.x, "NA")),
+#     prepost = factor(c("Pre"), levels = c("Pre", "Post"))
+#   ) |>
+#   select(
+#     -contains("DO"),
+#     -non_ts_mindsets_2, -non_ts_mindsets_3, -non_ts_mindsets_4
+#   ) |>
+#   rename(
+#     non_ts_mindsets_2 = non_ts_mindsets_5,
+#     non_ts_mindsets_3 = non_ts_mindsets_6,
+#     non_ts_mindsets_4 = non_ts_mindsets_7,
+#     non_ts_mindsets_5 = non_ts_mindsets_8,
+#     non_ts_mindsets_6 = non_ts_mindsets_9,
+#     non_ts_mindsets_7 = non_ts_mindsets_10,
+#     non_ts_mindsets_8 = non_ts_mindsets_16,
+#     non_ts_mindsets_9 = non_ts_mindsets_17,
+#     non_ts_mindsets_10 = non_ts_mindsets_18,
+#     # non_ts_mindsets_11 = non_ts_mindsets_11,
+#     non_ts_mindsets_12 = non_ts_mindsets_15,
+#     non_ts_mindsets_13 = non_ts_mindsets_12,
+#     non_ts_mindsets_14 = non_ts_mindsets_13,
+#     non_ts_mindsets_15 = non_ts_mindsets_14
+#   )
+#
+#
+# educator_survey_test |>
+#   write_csv(here::here("data/sy22_23/educator_survey.csv"))
+```
+
+### Educator Survey SY22-23
+
+Methodologies:
+
+- Mindsets are scored on a weighted basis, with 100% being given to fully correct answers, 75% to partially correct,
+50% to noncommittal, 25% to partially incorrect, and 0% to fully incorrect.
+- CRSE questions are scored as a % that selected agree or strongly agree on a 1-5 scale
+- School environment questions are scored as a % that agree or strongly agree on a 1-5 scale
+- Admin observation practice questions are scored as a % that agree or strongly agree on a 1-5 scale
+- Curriculum use & belief questions are scored as a % that agree or strongly agree on a 1-5 scale
+
+All standard deviations are calculated as the standard deviation of responses within the relevant group. N sizes may vary due to survey changes during intake, and are noted as such when that occurs.
+
+```{r educator-survey-clean-2}
+quick_score <- function(x, rev = FALSE) {
+  if (rev == FALSE) {
+    score <- case_when(
+      x == 5 ~ 1,
+      x == 4 ~ 0.75,
+      x == 3 ~ 0.5,
+      x == 2 ~ 0.25,
+      x == 1 ~ 0
+    )
+  } else {
+    score <- case_when(
+      x == 5 ~ 0,
+      x == 4 ~ 0.25,
+      x == 3 ~ 0.5,
+      x == 2 ~ 0.75,
+      x == 1 ~ 1
+    )
+  }
+
+  100 * mean(score, na.rm = T)
+}
+
+educator_follow_survey_22_23 <- educator_survey_22_23 |>
+  bind_rows(followup_educator_22_23)
+
+sd_pre_mindsets_22_23 <- educator_follow_survey_22_23 |>
+  filter(prepost == "Pre") |>
+  dplyr::select(contains("mindsets_ts")) |>
+  pivot_longer(everything()) |>
+  mutate(value = readr::parse_number(value)) |>
+  drop_na(value) |>
+  summarise(x = sd(value)) |>
+  pull(x)
+sd_post_mindsets_22_23 <- educator_follow_survey_22_23 |>
+  filter(prepost == "Post") |>
+  dplyr::select(contains("mindsets_ts")) |>
+  pivot_longer(everything()) |>
+  mutate(value = readr::parse_number(value)) |>
+  drop_na(value) |>
+  summarise(x = sd(value)) |>
+  pull(x)
+n_size_pre_mindsets_22_23 <- educator_follow_survey_22_23 |>
+  filter(prepost == "Pre") |>
+  dplyr::select(contains("mindsets_ts")) |>
+  pivot_longer(everything()) |>
+  drop_na(value) |>
+  group_by(name) |>
+  count(sort = T) |>
+  pull(n) |>
+  unique() |>
+  sort() |>
+  paste0(collapse = ", ")
+
+n_size_post_mindsets_22_23 <- educator_follow_survey_22_23 |>
+  filter(prepost == "Post") |>
+  dplyr::select(contains("mindsets_ts")) |>
+  pivot_longer(everything()) |>
+  drop_na(value) |>
+  group_by(name) |>
+  count(sort = T) |>
+  pull(n) |>
+  unique() |>
+  sort() |>
+  paste0(collapse = ", ")
+
+mindsets_22_23 <- educator_follow_survey_22_23 |>
+  dplyr::select(prepost, contains("mindsets_ts")) |>
+  pivot_longer(!prepost, names_to = "name", values_to = "value") |>
+  mutate(name = str_replace_all(name, c(
+    "mindsets_ts_1_2" = "The gap in the achievement among students of different races is about poverty, not race",
+    "mindsets_ts_1_3" = "I think about my own background and experiences and how those affect my instruction",
+    "mindsets_ts_1_4" = "I try to keep in mind the limits of my students’ ability and give them assignments that I know they can do so that they do not become discouraged",
+    "mindsets_ts_1_5" = "Before students are asked to engage in complex learning tasks, they need to have a solid grasp of basic skills",
+    "mindsets_ts_1_6" = "It is not fair to ask students who are struggling with English to take on challenging academic assignments",
+    "mindsets_ts_1_7" = "Teachers should provide all students the opportunity to work with grade-level texts and tasks",
+    "mindsets_ts_1_8" = "Students of all ethnic or cultural backgrounds can be successful in my classroom",
+    "mindsets_ts_1_9" = "Students of all ethnic or cultural backgrounds are capable of solving problems by using critical thinking in my classroom",
+    "mindsets_ts_1_10" = "Students of all ethnic or cultural backgrounds are able to meet the expectations for higher order skills in my classroom",
+    "mindsets_ts_1_11" = "Grouping students of different levels of achievement for instruction may benefit some students, but it can undermine the progress that could otherwise be made by higher achieving students",
+    "mindsets_ts_1_12" = "Students who come into my classroom behind grade level will have a hard time succeeding",
+    "mindsets_ts_1_13" = "Students have a certain amount of intelligence, and they can’t really do much to change it",
+    "mindsets_ts_1_14" = "Intelligence is something about students that they can’t change very much",
+    "mindsets_ts_1_15" = "Students can learn new things, but they can’t really change their basic intelligence",
+    "mindsets_ts_1_1" = "I am color blind when it comes to my teaching - I don’t think of my students in terms of their race or ethnicity"
+  ))) |>
+  drop_na(value) |>
+  mutate(
+    rev = case_when(
+      str_detect(name, "race") ~ TRUE,
+      name %in% c(
+        "Before students are asked to engage in complex learning tasks, they need to have a solid grasp of basic skills",
+        "Grouping students of different levels of achievement for instruction may benefit some students, but it can undermine the progress that could otherwise be made by higher achieving students",
+        "I try to keep in mind the limits of my students’ ability and give them assignments that I know they can do so that they do not become discouraged",
+        "It is not fair to ask students who are struggling with English to take on challenging academic assignments",
+        "Students who come into my classroom behind grade level will have a hard time succeeding",
+        "Students can learn new things, but they can’t really change their basic intelligence",
+        "Students have a certain amount of intelligence, and they can’t really do much to change it",
+        "Intelligence is something about students that they can’t change very much"
+      ) ~ TRUE,
+      TRUE ~ FALSE
+    ),
+    Group = case_when(
+      str_detect(name, "race|own background") ~ "Recognition of Race & Culture",
+      name %in% c(
+        "Students of all ethnic or cultural backgrounds can be successful in my classroom",
+        "Students of all ethnic or cultural backgrounds are capable of solving problems by using critical thinking in my classroom",
+        "Students of all ethnic or cultural backgrounds are able to meet the expectations for higher order skills in my classroom",
+        "Students who come into my classroom behind grade level will have a hard time succeeding"
+      ) ~ "Need for Remediation",
+      name %in% c(
+        "Before students are asked to engage in complex learning tasks, they need to have a solid grasp of basic skills",
+        "Grouping students of different levels of achievement for instruction may benefit some students, but it can undermine the progress that could otherwise be made by higher achieving students",
+        "I try to keep in mind the limits of my students’ ability and give them assignments that I know they can do so that they do not become discouraged",
+        "It is not fair to ask students who are struggling with English to take on challenging academic assignments",
+        "Teachers should provide all students the opportunity to work with grade-level texts and tasks"
+      ) ~ "High Expectations",
+      name %in% c(
+        "Students can learn new things, but they can’t really change their basic intelligence",
+        "Students have a certain amount of intelligence, and they can’t really do much to change it",
+        "Intelligence is something about students that they can’t change very much"
+      ) ~ "Growth Mindsets"
+    ),
+    numeric_value = readr::parse_number(value),
+    prepost = tolower(prepost)
+  ) |>
+  group_by(name, prepost) |>
+  summarise(
+    score = quick_score(numeric_value, rev = first(rev)),
+    sd_in_response = sd(numeric_value),
+    n = n(),
+    Group = first(Group)
+  ) |>
+  ungroup() |>
+  group_by(Group, prepost) |>
+  summarise(
+    score = mean(score),
+    n = toString(unique(n)),
+    sd_in_response = mean(sd_in_response)
+  ) |>
+  ungroup() |>
+  pivot_wider(names_from = prepost, values_from = c(score, sd_in_response, n)) |>
+  relocate(score_pre, .before = score_post) |>
+  relocate(sd_in_response_post, .after = sd_in_response_pre) |>
+  relocate(n_post, .after = n_pre) |>
+  (\(.) add_row(.,
+    Group = "**Overall Mindsets**", !!!colMeans(.[2]), !!!colMeans(.[3]),
+    .before = 1
+  ))()
+mindsets_22_23$sd_in_response_pre[1] <- sd_pre_mindsets_22_23
+mindsets_22_23$sd_in_response_post[1] <- sd_post_mindsets_22_23
+mindsets_22_23$n_pre[1] <- n_size_pre_mindsets_22_23
+mindsets_22_23$n_post[1] <- n_size_post_mindsets_22_23
+
+additional_data_crse <- educator_follow_survey_22_23 |>
+  dplyr::select(prepost,
+    `ts_crse_after_7/30_5` = `ts_crse_before_7/30_5`,
+    `ts_crse_after_7/30_6` = `ts_crse_before_7/30_6`,
+    `ts_crse_after_7/30_7` = `ts_crse_before_7/30_7`,
+    `ts_crse_after_7/30_8` = `ts_crse_before_7/30_8`
+  )
+
+crse_22_23 <- educator_follow_survey_22_23 |>
+  dplyr::select(prepost, contains("ts_crse_after")) |>
+  bind_rows(additional_data_crse) |>
+  pivot_longer(!prepost, names_to = "name", values_to = "value") |>
+  mutate(
+    name = str_replace_all(name, c(
+      "ts_crse_after_7/30_1" = "I adapt instruction to meet the needs of my students",
+      "ts_crse_after_7/30_2" = "I identify ways that the school culture (e.g., values, norms, and practices) is different from my students’ home culture",
+      "ts_crse_after_7/30_3" = "I use my students’ prior knowledge to help them make sense of new information",
+      "ts_crse_after_7/30_4" = "I revise instructional material to include a better representation of cultural groups",
+      "ts_crse_after_7/30_5" = "Use my students’ cultural background to help make learning meaningful.",
+      "ts_crse_after_7/30_6" = "Use examples that are familiar to students from diverse cultural backgrounds.",
+      "ts_crse_after_7/30_7" = "Take time to learn about the cultures represented by students in my classroom.",
+      "ts_crse_after_7/30_8" = "Teach the curriculum to students with unfinished learning",
+      "ts_crse_after_7/30_9" = "Teach the curriculum to students who are from historically marginalized groups"
+    )),
+    numeric_value = readr::parse_number(value),
+    score = ifelse(numeric_value %in% c(4, 5), TRUE, FALSE),
+    prepost = tolower(prepost)
+  ) |>
+  filter(value != "N/A - I do not observe teachers in my role.") |>
+  drop_na(numeric_value) |>
+  group_by(name, prepost) |>
+  summarise(score = 100 * sum(score) / sum(!is.na(score)),
+            n = n(),
+            sd_in_response = sd(numeric_value)) |>
+  ungroup() |>
+  pivot_wider(names_from = prepost, values_from = c(score, sd_in_response, n)) |>
+  dplyr::select(-name) |>
+  slice(1:4) |> ### Only takes first 4 CRSE questions, no new mexico ###
+  summarise(across(where(is.numeric), ~ mean(.x, na.rm = T))) |>
+  mutate(Group = "CRSE") |>
+  relocate(score_pre, .before = score_post) |>
+  relocate(sd_in_response_post, .after = sd_in_response_pre) |>
+  relocate(n_post, .after = n_pre) |>
+  mutate(across(c(n_pre, n_post), ~ as.character(.x)))
+
+school_environment_22_23 <- educator_follow_survey_22_23 |>
+  dplyr::select(prepost, contains("school_environment")) |>
+  pivot_longer(!prepost, names_to = "name", values_to = "value") |>
+  mutate(name = str_replace_all(name, c(
+    "school_environment_1" = "I trust my fellow teachers in the school",
+    "school_environment_2" = "I feel connected to my fellow teachers in the school",
+    "school_environment_3" = "I have influence over the professional learning that I receive through my school or district",
+    "school_environment_4" = "I collaborate with my fellow teachers regularly."
+  )),
+    numeric_value = readr::parse_number(value),
+    score = ifelse(numeric_value %in% c(4, 5), TRUE, FALSE),
+    prepost = tolower(prepost)) |>
+  drop_na(numeric_value) |>
+  group_by(name, prepost) |>
+  summarise(score = 100 * sum(score) / sum(!is.na(score)),
+            n = n(),
+            sd_in_response = sd(numeric_value)) |>
+  ungroup() |>
+  pivot_wider(names_from = prepost, values_from = c(score, sd_in_response, n)) |>
+  dplyr::select(-name) |>
+  summarise(across(where(is.numeric), ~ mean(.x, na.rm = T))) |>
+  mutate(Group = "School Environment") |>
+  relocate(score_pre, .before = score_post) |>
+  relocate(sd_in_response_post, .after = sd_in_response_pre) |>
+  mutate(across(c(n_pre, n_post), ~ as.character(.x)))
+
+admin_observations_22_23 <- educator_follow_survey_22_23 |>
+  dplyr::select(prepost, contains("observation_practice")) |>
+  pivot_longer(!prepost, names_to = "name", values_to = "value") |>
+  mutate(name = str_replace_all(name, c(
+    "observation_practice_1" = "Whether the lesson is focused on a high-quality text or task",
+    "observation_practice_2" = "Whether the questions and tasks address the analytical thinking required by the grade-level standards",
+    "observation_practice_3" = "Whether all students have opportunities to engage in the work of the lesson"
+  )),
+    numeric_value = readr::parse_number(value),
+    score = ifelse(numeric_value %in% c(4, 5), TRUE, FALSE),
+    prepost = tolower(prepost)) |>
+  drop_na(numeric_value) |>
+  group_by(name, prepost) |>
+  summarise(score = 100 * sum(score) / sum(!is.na(score)),
+            n = n(),
+            sd_in_response = sd(numeric_value)) |>
+  ungroup() |>
+  pivot_wider(names_from = prepost, values_from = c(score, sd_in_response, n)) |>
+  dplyr::select(-name) |>
+  summarise(across(where(is.numeric), ~ mean(.x, na.rm = T))) |>
+  mutate(Group = "Admin Observation Practices") |>
+  relocate(score_pre, .before = score_post) |>
+  relocate(sd_in_response_post, .after = sd_in_response_pre) |>
+  relocate(n_post, .after = n_pre) |>
+  mutate(across(c(n_pre, n_post), ~ as.character(.x)))
+
+curr_use_belief_22_23 <- educator_follow_survey_22_23 |>
+  dplyr::select(prepost, contains("curriculum_sch_dist")) |>
+  pivot_longer(!prepost, names_to = "name", values_to = "value") |>
+  mutate(name = str_replace_all(name, c(
+    "curriculum_sch_dist_1" = "The curriculum materials adopted by my school or district are well-suited to the needs of my students",
+    "curriculum_sch_dist_2" = "The  curriculum materials adopted by my school or district offer students high-quality opportunities to learn.",
+    "curriculum_sch_dist_3" = "The  curriculum materials adopted by my school or district are well-organized and easy to use.",
+    "curriculum_sch_dist_4" = "I like the  curriculum materials adopted by my school or district.",
+    "curriculum_sch_dist_5" = "The  curriculum materials adopted by my school or district will help my students learn.",
+    "curriculum_sch_dist_6" = "The  curriculum materials adopted by my school are too scripted and don't provide me with enough autonomy."
+  )),
+    numeric_value = case_when(value == "Strongly agree" ~ 5,
+                              value == "Agree" ~ 4,
+                              value == "Neither agree nor disagree" ~ 3,
+                              value == "Disagree" ~ 2,
+                              value == "Strongly disagree" ~ 1),
+    score = ifelse(numeric_value %in% c(4, 5), TRUE, FALSE),
+    prepost = tolower(prepost)) |>
+  drop_na(numeric_value) |>
+  group_by(name, prepost) |>
+  summarise(score = 100 * sum(score) / sum(!is.na(score)),
+            n = n(),
+            sd_in_response = sd(numeric_value)) |>
+  ungroup() |>
+  pivot_wider(names_from = prepost, values_from = c(score, sd_in_response, n)) |>
+  dplyr::select(-name) |>
+  summarise(across(where(is.numeric), ~ mean(.x, na.rm = T))) |>
+  mutate(Group = "Curriculum Use & Beliefs") |>
+  relocate(score_pre, .before = score_post) |>
+  relocate(sd_in_response_post, .after = sd_in_response_pre) |>
+  relocate(n_post, .after = n_pre) |>
+  mutate(across(c(n_pre, n_post), ~ as.character(.x)))
+
+
+mindsets_22_23 |>
+  bind_rows(
+    crse_22_23,
+    school_environment_22_23,
+    admin_observations_22_23,
+    curr_use_belief_22_23
+  ) |>
+  mutate(
+    sd_in_response_pre = round(sd_in_response_pre, 2),
+    sd_in_response_post = round(sd_in_response_post, 2)
+  ) |>
+  relocate(Group, .before = score_pre) |>
+  gt::gt() |>
+  tab_header(md("**SY22-23 Year Results**")) |>
+  fmt_percent(
+    columns = c(score_pre, score_post),
+    scale_values = F
+  ) |>
+  fmt_markdown(Group) |>
+  data_color(
+    columns = c(score_pre, score_post),
+    method = "numeric",
+    palette = "ggsci::blue_material",
+    domain = c(0, 100)
+  ) |>
+  opt_interactive() |>
+  gt_theme_tl()
+```
+
+### Educator Survey SY21-22
+
+Methodologies:
+
+- Mindsets are scored on a weighted basis, with 100% being given to fully correct answers, 75% to partially correct,
+50% to noncommittal, 25% to partially incorrect, and 0% to fully incorrect.
+- CRSE is scored as a percent that selected agree or strongly agree, in this case that is rated as a 6 or higher since this year's survey asked on a scale of 10
+- School environment is scored as a % that agree or strongly agree on a 1-5 scale
+- Admin observation practices are scored as a % that agree or strongly agree on a 1-5 scale
+- Curriculum use & beliefs are scored as a % that agree or strongly agree on a 1-5 scale
+
+```{r educator-survey-3}
+teacher_mindsets <- c(
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_am_color_blind_when_it_comes_to_my_teaching_i_don_t_think_of_my_students_in_terms_of_their_race_or_ethnicity",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_the_gap_in_the_achievement_among_students_of_different_races_is_about_poverty_not_race",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_think_about_my_own_background_and_experiences_and_how_those_affect_my_instruction",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_try_to_keep_in_mind_the_limits_of_my_students_ability_and_give_them_assignments_that_i_know_they_can_do_so_that_they_do_not_become_discouraged",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_before_students_are_asked_to_engage_in_complex_learning_tasks_they_need_to_have_a_solid_grasp_of_basic_skills",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_it_is_not_fair_to_ask_students_who_are_struggling_with_english_to_take_on_challenging_academic_assignments",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_teachers_should_provide_all_students_the_opportunity_to_work_with_grade_level_texts_and_tasks",
+  "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_adapt_instruction_to_meet_the_needs_of_my_students",
+  "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_identify_ways_that_the_school_culture_e_g_values_norms_and_practices_is_different_from_my_students_home_culture",
+  "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_use_my_students_prior_knowledge_to_help_them_make_sense_of_new_information",
+  "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_revise_instructional_material_to_include_a_better_representation_of_cultural_groups",
+  "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_teach_the_curriculum_to_students_with_unfinished_learning",
+  "please_rate_your_confidence_on_the_following_items_br_i_am_able_to_teach_the_curriculum_to_students_who_are_from_historically_marginalized_groups"
+)
+
+teacher_mindsets_2 <- c("To what extent do you agree or disagree with the following statements? - I am color blind when it comes to my teaching - I don’t think of my students in terms of their race or ethnicity.",
+  "To what extent do you agree or disagree with the following statements? - The gap in the achievement among students of different races is about poverty, not race.",
+  "To what extent do you agree or disagree with the following statements? - I think about my own background and experiences and how those affect my instruction.",
+  "To what extent do you agree or disagree with the following statements? - I try to keep in mind the limits of my students’ ability and give them assignments that I know they can do so that they do not become discouraged.",
+  "To what extent do you agree or disagree with the following statements? - Before students are asked to engage in complex learning tasks, they need to have a solid grasp of basic skills.",
+  "To what extent do you agree or disagree with the following statements? - It is not fair to ask students who are struggling with English to take on challenging academic assignments.",
+  "To what extent do you agree or disagree with the following statements? - Teachers should provide all students the opportunity to work with grade-level texts and tasks.",
+  "To what extent do you agree or disagree with the following statements? - I take time to learn about the cultures represented by students in my classroom.",
+  "To what extent do you agree or disagree with the following statements? - I communicate with parents of my students in positive ways, not just when there is a problem.",
+  "To what extent do you agree or disagree with the following statements? - I know my students and build positive working relationships with them.",
+  "To what extent do you agree or disagree with the following statements? - Creating a sense of community in my classroom is key to student success.",
+  "Please rate your confidence on the following items. <br>I am able to... - Adapt instruction to meet the needs of my students",
+  "Please rate your confidence on the following items. <br>I am able to... - Identify ways that the school culture (e.g., values, norms, and practices) is different from my students’ home culture",
+  "Please rate your confidence on the following items. <br>I am able to... - Use my students’ prior knowledge to help them make sense of new information",
+  "Please rate your confidence on the following items. <br>I am able to... - Revise instructional material to include a better representation of cultural groups",
+  "Please rate your confidence on the following items. <br>I am able to... - Teach the curriculum to students with unfinished learning",
+  "Please rate your confidence on the following items. <br>I am able to... - Teach the curriculum to students who are from historically marginalized groups")
+
+quick_score_crse <- function(x, rev = FALSE, group = "CRSE") {
+  if (rev == FALSE & group != "CRSE") {
+    score <- case_when(
+      x == 5 ~ 1,
+      x == 4 ~ 0.75,
+      x == 3 ~ 0.5,
+      x == 2 ~ 0.25,
+      x == 1 ~ 0
+    )
+  } else if (group != "CRSE" & rev == TRUE) {
+    score <- case_when(
+      x == 5 ~ 0,
+      x == 4 ~ 0.25,
+      x == 3 ~ 0.5,
+      x == 2 ~ 0.75,
+      x == 1 ~ 1
+    )
+  }
+  
+  if (group == "CRSE") {
+    score <- case_when(
+      x == 10 ~ 1,
+      x == 9 ~ 1,
+      x == 8 ~ 1,
+      x == 7 ~ 0,
+      x == 6 ~ 0,
+      x == 5 ~ 0,
+      x == 4 ~ 0,
+      x == 3 ~ 0,
+      x == 2 ~ 0,
+      x == 1 ~ 0
+    )
+  }
+
+  100 * mean(score, na.rm = T)
+}
+
+mindsets_data_1 <- educator_survey_21_22 |>
+  dplyr::select(all_of(teacher_mindsets), site = your_site_district_parish_network_or_school_br_br)
+
+mindsets_data_1 <- educator_survey_21_22 |>
+  dplyr::select(all_of(teacher_mindsets)) |>
+  pivot_longer(everything()) |>
+  drop_na(value) |>
+  mutate(numeric_value = readr::parse_number(as.character(value)),
+         rev = case_when(str_detect(name, "color_blind|gap_in|limits_of|asked_to_engage|struggling_with") ~ TRUE,
+                         TRUE ~ FALSE),
+         Group = case_when(str_detect(name, "color_blind|gap_in|background_and_experiences") ~ "Recognition of Race & Culture",
+                           str_detect(name, "limits_of|engage_in|struggling_with|opportunity_to_work") ~ "High Expectations",
+                           TRUE ~ "CRSE")) |>
+  group_by(name) |>
+  summarise(
+    score = quick_score_crse(numeric_value, rev = first(rev), group = first(Group)),
+    sd_in_response = sd(numeric_value),
+    n = n(),
+    Group = first(Group)
+  ) |>
+  ungroup() |>
+  group_by(Group) |>
+  summarise(
+    score = mean(score),
+    n = toString(unique(n)),
+    sd_in_response = mean(sd_in_response)
+  ) |>
+  ungroup() |>
+  mutate(prepost = "pre")
+
+mindsets_data_2 <- followup_educator_21_22 |>
+  dplyr::select(all_of(teacher_mindsets_2)) |>
+  pivot_longer(everything()) |>
+  drop_na(value) |>
+  mutate(numeric_value = readr::parse_number(as.character(value)),
+         rev = case_when(str_detect(name, "color blind|gap in|limits of|asked to engage|struggling with") ~ TRUE,
+                         TRUE ~ FALSE),
+         Group = case_when(str_detect(name, "color blind|gap in|background and experience") ~ "Recognition of Race & Culture",
+                           str_detect(name, "limits of|engage in|struggling with|opportunity to work") ~ "High Expectations",
+                           TRUE ~ "CRSE")) |>
+  group_by(name) |>
+  summarise(
+    score = quick_score_crse(numeric_value, rev = first(rev), group = first(Group)),
+    sd_in_response = sd(numeric_value),
+    n = n(),
+    Group = first(Group)
+  ) |>
+  ungroup() |>
+  group_by(Group) |>
+  summarise(
+    score = mean(score),
+    n = toString(unique(n)),
+    sd_in_response = mean(sd_in_response)
+  ) |>
+  ungroup() |>
+  mutate(prepost = "post")
+
+mindsets_21_22 <- mindsets_data_1 |>
+  bind_rows(mindsets_data_2) |>
+  pivot_wider(names_from = "prepost", values_from = c("score", "n", "sd_in_response"))
+
+teacher_school_environment <- c(
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_trust_my_fellow_teachers_in_the_school",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_feel_connected_to_my_fellow_teachers_in_the_school",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_have_influence_over_the_professional_learning_that_i_receive_through_my_school_or_district",
+  "to_what_extent_do_you_agree_or_disagree_with_the_following_statements_i_am_confident_that_i_am_implementing_the_curriculum_in_a_way_that_maximizes_positive_impact_for_student_learning_br_note_we_are_referring_to_the_curriculum_that_teaching_lab_will_provide_support_on_only"
+)
+
+teacher_school_environment_2 <- c(
+  "To what extent do you agree or disagree with the following statements? - I trust my fellow teachers in the school.",
+  "To what extent do you agree or disagree with the following statements? - I feel connected to my fellow teachers in the school.",
+  "To what extent do you agree or disagree with the following statements? - I have influence over the professional learning that I receive through my school or district.",
+  "To what extent do you agree or disagree with the following statements? - I am confident that I am implementing the curriculum in a way that maximizes positive impact for student learning. <br>Note: We are referring to the curriculum that Teaching Lab will provide support on only."
+)
+
+plot_data_1 <- educator_survey_21_22 |>
+  dplyr::select(all_of(teacher_school_environment)) |>
+  pivot_longer(everything()) |>
+  drop_na(value) |>
+  mutate(numeric_value = parse_number(as.character(value)),
+         score = ifelse(numeric_value %in% c(4, 5), TRUE, FALSE)) |> 
+  tidyr::drop_na(value) |>
+  group_by(name) |> 
+  summarise(score = 100 * sum(score) / sum(!is.na(score)),
+            n = n(),
+            sd_in_response = sd(numeric_value)) |>
+  ungroup() |>
+  dplyr::select(-name) |>
+  summarise(across(where(is.numeric), ~ mean(.x, na.rm = T))) |>
+  mutate(Group = "School Environment",
+         prepost = "pre")
+
+plot_data_2 <- followup_educator_21_22 |>
+  dplyr::select(all_of(teacher_school_environment_2)) |>
+  pivot_longer(everything()) |>
+  drop_na(value) |>
+  mutate(numeric_value = parse_number(as.character(value)),
+         score = ifelse(numeric_value %in% c(4, 5), TRUE, FALSE)) |> 
+  tidyr::drop_na(value) |>
+  group_by(name) |> 
+  summarise(score = 100 * sum(score) / sum(!is.na(score)),
+            n = n(),
+            sd_in_response = sd(numeric_value)) |>
+  ungroup() |>
+  dplyr::select(-name) |>
+  summarise(across(where(is.numeric), ~ mean(.x, na.rm = T))) |>
+  mutate(Group = "School Environment",
+         prepost = "post")
+
+school_environment_21_22 <- plot_data_1 |>
+  bind_rows(plot_data_2) |>
+  pivot_wider(names_from = "prepost", values_from = c("score", "n", "sd_in_response"))
+
+administrator_observational_practices <- c(
+  "how_often_does_your_observation_of_teacher_practice_focus_on_the_following_whether_the_lesson_is_focused_on_a_high_quality_text_or_task",
+  "how_often_does_your_observation_of_teacher_practice_focus_on_the_following_whether_the_questions_and_tasks_address_the_analytical_thinking_required_by_the_grade_level_standards",
+  "how_often_does_your_observation_of_teacher_practice_focus_on_the_following_whether_all_students_have_opportunities_to_engage_in_the_work_of_the_lesson"
+)
+
+administrator_observational_practices_2 <- c(
+  "How often does your observation of teacher practice focus on the following? - Whether the lesson is focused on a high-quality text or task.",
+  "How often does your observation of teacher practice focus on the following? - Whether the questions and tasks address the analytical thinking required by the grade-level standards.",
+  "How often does your observation of teacher practice focus on the following? - Whether all students have opportunities to engage in the work of the lesson."
+)
+
+plot_data_1 <- educator_survey_21_22 |>
+  dplyr::select(all_of(administrator_observational_practices)) |>
+  pivot_longer(everything()) |>
+  drop_na(value) |>
+  mutate(numeric_value = parse_number(as.character(value)),
+         score = ifelse(numeric_value %in% c(4, 5), TRUE, FALSE)) |> 
+  tidyr::drop_na(value) |>
+  group_by(name) |> 
+  summarise(score = 100 * sum(score) / sum(!is.na(score)),
+            n = n(),
+            sd_in_response = sd(numeric_value)) |>
+  ungroup() |>
+  dplyr::select(-name) |>
+  summarise(across(where(is.numeric), ~ mean(.x, na.rm = T))) |>
+  mutate(Group = "Admin Observation Practices",
+         prepost = "pre")
+
+plot_data_2 <- followup_educator_21_22 |>
+  dplyr::select(all_of(administrator_observational_practices_2)) |>
+  pivot_longer(everything()) |>
+  drop_na(value) |>
+  mutate(numeric_value = parse_number(as.character(value)),
+         score = ifelse(numeric_value %in% c(4, 5), TRUE, FALSE)) |> 
+  tidyr::drop_na(value) |>
+  group_by(name) |> 
+  summarise(score = 100 * sum(score) / sum(!is.na(score)),
+            n = n(),
+            sd_in_response = sd(numeric_value)) |>
+  ungroup() |>
+  dplyr::select(-name) |>
+  summarise(across(where(is.numeric), ~ mean(.x, na.rm = T))) |>
+  mutate(Group = "Admin Observation Practices",
+         prepost = "post")
+
+admin_observations_21_22 <- plot_data_1 |>
+  bind_rows(plot_data_2) |>
+  pivot_wider(names_from = "prepost", values_from = c("score", "n", "sd_in_response")) |>
+  mutate(across(c(n_pre, n_post), ~ as.character(.x)))
+  
+
+mindsets_21_22 |>
+  mutate(across(c(n_pre, n_post), ~ as.character(.x))) |>
+  bind_rows(
+    school_environment_21_22 |>
+  mutate(across(c(n_pre, n_post), ~ as.character(.x))),
+    admin_observations_21_22 |>
+  mutate(across(c(n_pre, n_post), ~ as.character(.x)))
+  ) |>
+  mutate(across(c(sd_in_response_pre, sd_in_response_post), ~ round(.x, 2))) |>
+  gt::gt() |>
+  tab_header(md("**SY21-22 Year Results**")) |>
+  fmt_percent(
+    columns = c(score_pre, score_post),
+    scale_values = F
+  ) |>
+  fmt_markdown(Group) |>
+  data_color(
+    columns = c(score_pre, score_post),
+    method = "numeric",
+    palette = "ggsci::blue_material",
+    domain = c(0, 100)
+  ) |>
+  opt_interactive() |>
+  gt_theme_tl()
+```
+
+### Educator Survey SY20-21
+
+Methodologies:
+
+- Mindsets are scored on a weighted basis, with 100% being given to fully correct answers, 75% to partially correct,
+50% to noncommittal, 25% to partially incorrect, and 0% to fully incorrect. It is on a 1-5 scale.
+- School environment is scored as a % that agree or strongly agree on a 1-5 scale
+- Admin observation practices are scored as a % that agree or strongly agree on a 1-4 scale only for the post
+
+```{r educator-survey-4}
+mindsets_pre <- c("prerace1", "prerace2", "prehigh2", "prehigh3", "prehigh4", "prehigh1", "pregrowth1", "pregrowth2", "preacc1", "preacc2", "preacc3")
+
+mindsets_20_21_pre <- educator_survey_20_21 |>
+  dplyr::select(all_of(mindsets_pre)) |>
+  janitor::remove_empty("rows") |>
+  pivot_longer(everything(), names_to = "question", values_to = "response") |>
+  mutate(rev = ifelse(question %in% c("prehigh1", "preacc1", "preacc2", "preacc3"), FALSE, TRUE)) |>
+  group_by(question) |>
+  summarise(
+    score = quick_score(response, rev = first(rev)),
+    sd_in_response = sd(response),
+    n = n()
+  ) |>
+  mutate(Group = case_when(
+    str_detect(question, "race") ~ "Race & Ethnicity",
+    str_detect(question, "high") ~ "High expectations",
+    str_detect(question, "growth") ~ "Growth Mindsets",
+    str_detect(question, "acc") ~ "Accountability"
+  )) |>
+  group_by(Group) |>
+  summarise(score = mean(score), sd_in_response = mean(sd_in_response), n = mean(n)) |>
+  ungroup() |>
+  mutate(prepost = "pre")
+mindsets_20_21_post <- followup_educator_20_21 |>
+  dplyr::select(all_of(str_replace_all(mindsets_pre, c("pre" = "post")))) |>
+  janitor::remove_empty("rows") |>
+  pivot_longer(everything(), names_to = "question", values_to = "response") |>
+  mutate(rev = ifelse(question %in% c("posthigh1", "postacc1", "postacc2", "postacc3"), FALSE, TRUE)) |>
+  group_by(question) |>
+  summarise(
+    score = quick_score(response, rev = first(rev)),
+    sd_in_response = sd(response),
+    n = n()
+  ) |>
+  mutate(Group = case_when(
+    str_detect(question, "race") ~ "Race & Ethnicity",
+    str_detect(question, "high") ~ "High expectations",
+    str_detect(question, "growth") ~ "Growth Mindsets",
+    str_detect(question, "acc") ~ "Accountability"
+  )) |>
+  group_by(Group) |>
+  summarise(score = mean(score), sd_in_response = mean(sd_in_response), n = mean(n)) |>
+  ungroup() |>
+  mutate(prepost = "post")
+
+mindsets_20_21 <- mindsets_20_21_pre |>
+  bind_rows(mindsets_20_21_post) |>
+  pivot_wider(names_from = "prepost", values_from = c("score", "sd_in_response", "n"))
+
+school_environment_pre <- c(
+  "preschool1", "preschool2", "preschool3", "preschool4", "preobs1",
+  "preobs2", "preobs3"
+)
+
+school_environment_20_21_pre <- educator_survey_20_21 |>
+  dplyr::select(all_of(school_environment_pre)) |>
+  janitor::remove_empty("rows") |>
+  pivot_longer(everything(), names_to = "question", values_to = "response") |>
+  group_by(question) |>
+  summarise(
+    score = quick_score(response, rev = FALSE),
+    sd_in_response = sd(response, na.rm = T),
+    n = n()
+  ) |>
+  mutate(Group = "School Environment") |>
+  group_by(Group) |>
+  summarise(score = mean(score), sd_in_response = mean(sd_in_response), n = mean(n)) |>
+  ungroup() |>
+  mutate(prepost = "pre")
+
+school_environment_post <- c(
+  "postschool1", "postschool2", "postschool3", "postschool4", "postobs1",
+  "postobs2", "postobs3", "postadmin1", "postadmin2", "postadmin3",
+  "postadmin4", "postadmin5", "postadmin6"
+)
+
+school_environment_20_21_post <- followup_educator_20_21 |>
+  dplyr::select(all_of(school_environment_post)) |>
+  janitor::remove_empty("rows") |>
+  mutate(across(c(
+    "postadmin1", "postadmin2", "postadmin3",
+    "postadmin4", "postadmin5", "postadmin6"
+  ), ~ as.numeric(str_replace_all(.x, c(
+    "Almost always" = "5",
+    "Often" = "4",
+    "Sometimes" = "3",
+    "Almost never" = "1"
+  ))))) |>
+  pivot_longer(everything(), names_to = "question", values_to = "response") |>
+  group_by(question) |>
+  summarise(
+    score = quick_score(response, rev = FALSE),
+    sd_in_response = sd(response, na.rm = T),
+    n = n()
+  ) |>
+  mutate(Group = ifelse(!str_detect(question, "admin"), "School Environment", "Admin Observation Practices")) |>
+  group_by(Group) |>
+  summarise(score = mean(score), sd_in_response = mean(sd_in_response), n = mean(n)) |>
+  ungroup() |>
+  mutate(prepost = "post")
+
+school_environment_20_21 <- school_environment_20_21_pre |>
+  bind_rows(school_environment_20_21_post) |>
+  pivot_wider(names_from = "prepost", values_from = c("score", "sd_in_response", "n"))
+
+mindsets_20_21 |>
+  bind_rows(
+    school_environment_20_21
+  ) |>
+  mutate(
+    sd_in_response_pre = round(sd_in_response_pre, 2),
+    sd_in_response_post = round(sd_in_response_post, 2)
+  ) |>
+  gt::gt() |>
+  tab_header(md("**SY20-21 Year Results**")) |>
+  fmt_percent(
+    columns = c(score_pre, score_post),
+    scale_values = F
+  ) |>
+  data_color(
+    columns = c(score_pre, score_post),
+    method = "numeric",
+    palette = "ggsci::blue_material",
+    domain = c(0, 100)
+  ) |>
+  opt_interactive() |>
+  gt_theme_tl()
+```
+
+### Educator Survey SY19-20
+
+```{r educator-survey-5}
+quick_score2 <- function(x, rev = FALSE) {
+  if (rev == FALSE) {
+    score <- case_when(
+      x == 6 ~ 1,
+      x == 5 ~ 0.8,
+      x == 4 ~ 0.6,
+      x == 3 ~ 0.4,
+      x == 2 ~ 0.2,
+      x == 1 ~ 0
+    )
+  } else {
+    score <- case_when(
+      x == 6 ~ 0,
+      x == 5 ~ 0.2,
+      x == 4 ~ 0.4,
+      x == 3 ~ 0.6,
+      x == 2 ~ 0.8,
+      x == 1 ~ 1
+    )
+  }
+
+  100 * mean(score, na.rm = T)
+}
+
+quick_score3 <- function(x, rev = FALSE) {
+  if (rev == FALSE) {
+    score <- case_when(
+      x == 4 ~ 1,
+      x == 3 ~ 0.67,
+      x == 2 ~ 0.33,
+      x == 1 ~ 0
+    )
+  } else {
+    score <- case_when(
+      x == 4 ~ 0,
+      x == 3 ~ 0.33,
+      x == 2 ~ 0.67,
+      x == 1 ~ 1
+    )
+  }
+
+  100 * mean(score, na.rm = T)
+}
+
+mindsets_pre_post <- c(
+  "pre1", "pre2", "pre3", "pre4", "pre5", "pre6", "pre7", "pre8", "pre9",
+  "post1", "post2", "post3", "post4", "post5", "post6", "post7", "post8", "post9"
+)
+
+mindsets_19_20 <- educator_survey_19_20 |>
+  dplyr::select(all_of(mindsets_pre_post)) |>
+  mutate(across(everything(), ~ as.numeric(str_replace_all(.x, c(
+    "Very true" = "6",
+    "True" = "5",
+    "Somewhat true" = "4",
+    "Somewhat untrue" = "3",
+    "Untrue" = "2",
+    "Very untrue" = "1"
+  ))))) |>
+  janitor::remove_empty("rows") |>
+  pivot_longer(everything(), names_to = "question", values_to = "response") |>
+  drop_na(response) |>
+  mutate(rev = ifelse(question %in% c(
+    "pre1", "pre3", "pre4", "pre8", "pre9",
+    "post1", "post3", "post4", "post8", "post9"
+  ), TRUE, FALSE)) |>
+  group_by(question) |>
+  summarise(
+    score = quick_score2(response, rev = first(rev)),
+    sd_in_response = sd(response),
+    n = n()
+  ) |>
+  mutate(Group = case_when(
+    str_detect(question, "pre1|pre2|post1|post2") ~ "Race & Ethnicity",
+    str_detect(question, "pre5|pre6|pre7|pre8|pre9|post5|post6|post7|post8|post9") ~ "High expectations",
+    str_detect(question, "pre3|pre4|post3|post4") ~ "Growth Mindsets"
+  )) |>
+  rename(prepost = question) |>
+  mutate(prepost = str_remove_all(prepost, "[0-9]")) |>
+  group_by(Group, prepost) |>
+  summarise(score = mean(score), sd_in_response = mean(sd_in_response), n = round(mean(n))) |>
+  ungroup() |>
+  pivot_wider(names_from = "prepost", values_from = c("score", "sd_in_response", "n")) |>
+  relocate(score_pre, .before = score_post) |>
+  relocate(sd_in_response_post, .after = sd_in_response_pre) |>
+  relocate(n_post, .after = n_pre)
+
+school_environment_19_20 <- educator_survey_19_20 |>
+  dplyr::select(all_of(c(
+    "pre35", "pre36", "pre37", "pre38",
+    "post35", "post36", "post37", "post38"
+  ))) |>
+  mutate(across(everything(), ~ as.numeric(str_replace_all(.x, c(
+    "Strongly agree" = "6",
+    "Agree" = "5",
+    "Somewhat agree" = "4",
+    "Somewhat disagree" = "3",
+    "Disagree" = "2",
+    "Strongly disagree" = "1"
+  ))))) |>
+  pivot_longer(everything(), names_to = "question", values_to = "response") |>
+  drop_na(response) |>
+  group_by(question) |>
+  summarise(
+    score = quick_score2(response, rev = FALSE),
+    sd_in_response = sd(response),
+    n = n()
+  ) |>
+  mutate(Group = "School Environment") |>
+  rename(prepost = question) |>
+  mutate(prepost = str_remove_all(prepost, "[0-9]")) |>
+  group_by(Group, prepost) |>
+  summarise(score = mean(score), sd_in_response = mean(sd_in_response), n = round(mean(n))) |>
+  ungroup() |>
+  pivot_wider(names_from = "prepost", values_from = c("score", "sd_in_response", "n")) |>
+  relocate(score_pre, .before = score_post) |>
+  relocate(sd_in_response_post, .after = sd_in_response_pre) |>
+  relocate(n_post, .after = n_pre)
+
+admin_obs_19_20 <- educator_survey_19_20 |>
+  dplyr::select(all_of(c(
+    "pre47", "pre48", "pre49", "pre50", "pre51", "pre52",
+    "post47", "post48", "post49", "post50", "post51", "post52"
+  ))) |>
+  mutate(across(everything(), ~ as.numeric(str_replace_all(.x, c(
+    "Almost always" = "4",
+    "Often" = "3",
+    "Sometimes" = "2",
+    "Almost never" = "1"
+  ))))) |>
+  pivot_longer(everything(), names_to = "question", values_to = "response") |>
+  drop_na(response) |>
+  group_by(question) |>
+  summarise(
+    score = quick_score3(response, rev = FALSE),
+    sd_in_response = sd(response),
+    n = n()
+  ) |>
+  mutate(Group = "Admin Observation Practice") |>
+  rename(prepost = question) |>
+  mutate(prepost = str_remove_all(prepost, "[0-9]")) |>
+  group_by(Group, prepost) |>
+  summarise(score = mean(score), sd_in_response = mean(sd_in_response), n = round(mean(n))) |>
+  ungroup() |>
+  pivot_wider(names_from = "prepost", values_from = c("score", "sd_in_response", "n")) |>
+  relocate(score_pre, .before = score_post) |>
+  relocate(sd_in_response_post, .after = sd_in_response_pre) |>
+  relocate(n_post, .after = n_pre)
+
+mindsets_19_20 |>
+  bind_rows(
+    school_environment_19_20,
+    admin_obs_19_20
+  ) |>
+  mutate(
+    sd_in_response_pre = round(sd_in_response_pre, 2),
+    sd_in_response_post = round(sd_in_response_post, 2)
+  ) |>
+  gt::gt() |>
+  tab_header(md("**SY19-20 Year Results**")) |>
+  fmt_percent(
+    columns = c(score_pre, score_post),
+    scale_values = F
+  ) |>
+  data_color(
+    columns = c(score_pre, score_post),
+    method = "numeric",
+    palette = "ggsci::blue_material",
+    domain = c(0, 100)
+  ) |>
+  opt_interactive() |>
+  gt_theme_tl()
+```
+
+
+## Knowledge Assessments
+
+Analysis ongoing
+
+```{r knowledge-assessments-clean}
+```
+
+## IPG Forms ##
+
+Analysis ongoing
+
+```{r ipg-forms-clean}
+```

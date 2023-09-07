@@ -1,0 +1,243 @@
+---
+title: End of Session CKLA Report
+author: Teaching Lab 
+date: \today
+params:
+  logo: teachinglab_logo.png
+  cover: cover.png
+  iblue: 04abeb
+  igray: d4dbde
+  filter: 
+  partner: "All Partners"
+documentclass: article
+fontsize: 10
+papersize: a4paper
+output: 
+  IReports::businessReport:
+    keep_tex: TRUE
+    latex_engine: xelatex
+    resetStyleFiles: FALSE
+header-includes: 
+  - \newcommand{\logo}{`r gsub("_", "\\_", params$logo)`}
+  - \newcommand{\cover}{`r gsub("_", "\\_", params$cover)`}
+  - \newcommand{\iblue}{`r params$iblue`}
+  - \newcommand{\igray}{`r params$igray`}
+include-before:
+  - \renewcommand{\contentsname}{Table of Contents}
+  - \renewcommand{\pagename}{Page}
+---
+
+
+
+```{r setup, include = FALSE}
+# packages
+library(gt)
+library(knitr)
+library(lubridate)
+library(TeachingLab)
+library(tidyverse)
+library(scales)
+
+# data
+final_session_survey_df <- readr::read_rds(here::here("data/SY22_23/end_of_session_survey_22_23.rds")) |>
+  dplyr::filter(!!!params$filter) |>
+  TeachingLab::neg_cond_filter(
+    if_not_this = "All Partners",
+    filter_this = params$partner,
+    dat_filter = Site
+  ) |>
+  dplyr::filter(stringr::str_detect(Course, "CKLA"))
+
+# settings
+knitr::opts_chunk$set(
+  echo = FALSE, message = FALSE, warning = FALSE, dev = "cairo_pdf",
+  fig.width = 7, fig.height = 9.15, fig.align = "center", cache = FALSE
+)
+na_df <- TeachingLab::na_df
+
+no_data_plot <- ggplot(tibble(text = "There was no data\nfor this site here.", x = 0, y = 0)) +
+  geom_text(aes(label = text, x, y), fontface = "bold", family = "Calibri Bold", size = 10) +
+  theme_void()
+```
+
+\maketitle
+\tableofcontents
+\addcontentsline{toc}{section}{Contents}
+<!-- \clearpage -->
+
+
+\section{Facilitation Reviews}
+
+
+```{r}
+plot_data <- final_session_survey_df |>
+  select(
+    `They demonstrated deep knowledge of the content they facilitated`,
+    `They facilitated the content clearly`,
+    `They effectively built a safe learning community`,
+    `They were fully prepared for the session`,
+    `They responded to the group’s needs`
+  ) |>
+  pivot_longer(everything(), names_to = "Question", values_to = "Response") |>
+  drop_na(Response) |>
+  dplyr::group_by(Question, Response) |>
+  dplyr::count(sort = T) |>
+  dplyr::ungroup() |>
+  dplyr::group_by(Question) |>
+  dplyr::mutate(
+    Percent = 100 * n / sum(n),
+    Question = str_wrap(Question, 30)
+  )
+
+if (exists("plot_data")) {
+  fully_prepared <- plot_data |> TeachingLab::agree_strongly_agree(question = "They were fully prepared for\nthe session")
+  responded_needs <- plot_data |> TeachingLab::agree_strongly_agree(question = "They responded to the group’s\nneeds")
+  facilitated_clearly <- plot_data |> TeachingLab::agree_strongly_agree(question = "They facilitated the content\nclearly")
+  effectively_built <- plot_data |> TeachingLab::agree_strongly_agree(question = "They effectively built a safe\nlearning community")
+  demonstrated_knowledge <- plot_data |> TeachingLab::agree_strongly_agree(question = "They demonstrated deep\nknowledge of the content they\nfacilitated")
+} else {
+  fully_prepared <- "There is no data to show the % that"
+  responded_needs <- "There is no data to show the % that"
+  facilitated_clearly <- "There is no data to show the % that"
+  effectively_built <- "There is no data to show the % that"
+  demonstrated_knowledge <- "There is no data to show the % that"
+}
+
+plot_data |>
+  ggplot(aes(x = Question, y = Percent, fill = Response)) +
+  geom_col(position = position_stack(reverse = T)) +
+  geom_text(aes(label = ifelse(Percent >= 5, paste0(round(Percent), "%"), "")),
+    position = position_stack(reverse = T, vjust = 0.5),
+    family = "Calibri Bold",
+    fontface = "bold",
+    size = 6.5
+  ) +
+  coord_flip() +
+  labs(x = "", y = "", title = "% Responses to Each Question") +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  scale_fill_manual(values = c(
+    "(5) Strongly agree" = "#04ABEB",
+    "(4) Agree" = "#0182B4", "(3) Neither agree nor disagree" = "#02587A",
+    "(2) Disagree" = "#032E3F", "(1) Strongly disagree" = "#040404"
+  )) +
+  TeachingLab::theme_tl() +
+  theme(legend.position = "bottom")
+```
+
+
+
+\subsection{Percent Agree and Strongly Agree}
+
+
+
+
+In summary, we see the following % agree or strongly agree with the above statements:
+
+
+- `r fully_prepared` strongly agree or agree that the facilitators were fully prepared for the session.
+- `r responded_needs` strongly agree or agree that the facilitators responded to the group’s needs.
+- `r facilitated_clearly` strongly agree or agree that the facilitators facilitated the content clearly.
+- `r effectively_built` strongly agree or agree that the facilitators effectively built a safe learning community.
+- `r demonstrated_knowledge` strongly agree or agree that the facilitators demonstrated deep knowledge of the content they facilitated.
+
+
+\section{Qualitative End of Session Participant Feedback}
+
+Finally responses to the following questions are presented below:
+
+- What is one thing from today's learning that you plan to take back to your classroom?
+
+- What went well in today's session?
+
+- What could have been better about today’s session?
+
+- Any additional feedback
+
+\subsection{What is one thing from today's learning that you plan to take back to your classroom?}
+
+```{r echo = F}
+if (sum(!is.na(final_session_survey_df$`What is one thing from today's learning that you plan to take back to your classroom?`)) >= 1) {
+  final_session_survey_df |>
+    select(`What is one thing from today's learning that you plan to take back to your classroom?`) |>
+    TeachingLab::quote_viz(
+      text_col = c(
+        "What is one thing from today's learning that you plan to take back to your classroom?"
+      ),
+      print = F,
+      width = 80
+    )
+} else {
+  no_data_plot
+}
+```
+
+```{r }
+# knitr::include_graphics(here::here("Images/2021-2022/Mathematica/img1.png"))
+```
+
+\subsection{What went well in today's session?}
+
+```{r echo = F}
+if (sum(!is.na(final_session_survey_df$`What went well in today’s session?`)) >= 1) {
+  final_session_survey_df |>
+    select(`What went well in today’s session?`) |>
+    TeachingLab::quote_viz(
+      text_col = c(
+        "What went well in today’s session?"
+      ),
+      print = F,
+      width = 80
+    )
+} else {
+  no_data_plot
+}
+```
+
+```{r }
+# knitr::include_graphics(here::here("Images/2021-2022/Mathematica/img2.png"))
+```
+
+\subsection{What is the learning from this course that you are most excited about trying out?}
+
+```{r echo = F}
+if (sum(!is.na(final_session_survey_df$`What could have been better about today’s session?`)) >= 1) {
+  final_session_survey_df |>
+    select(`What could have been better about today’s session?`) |>
+    TeachingLab::quote_viz(
+      text_col = c(
+        "What could have been better about today’s session?"
+      ),
+      print = F,
+      width = 80
+    )
+} else {
+  no_data_plot
+}
+```
+
+```{r }
+# knitr::include_graphics(here::here("Images/2021-2022/Mathematica/img3.png"))
+```
+
+
+\subsection{Any additional feedback}
+
+```{r echo = F}
+if (sum(!is.na(final_session_survey_df$additional_feedback)) >= 1) {
+  final_session_survey_df |>
+    select(`Additional feedback` = additional_feedback) |>
+    TeachingLab::quote_viz(
+      text_col = c(
+        "Additional feedback"
+      ),
+      print = F,
+      width = 80
+    )
+} else {
+  no_data_plot
+}
+```
+
+```{r }
+# knitr::include_graphics(here::here("Images/2021-2022/Mathematica/img4.png"))
+```

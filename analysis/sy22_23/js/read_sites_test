@@ -1,0 +1,10 @@
+var spreadsheetID = "1vukA4tIbsA43N3L5QXLDaqfWLMgP2AkYWjH_oGfPp-8";
+var url = "https://sheets.googleapis.com/v4/spreadsheets/" + spreadsheetID + "/values/Sheet1";
+var apiKey = "AIzaSyAFfUuo_oOxTzmdJs5D1OuHet738TruydA";
+
+$.getJSON(url, function(data) {                  
+    var entry = data.feed.entry;              
+    $(entry).each(function(){
+      alert(this.gsx$propertyid.$t); //or whatever action of using the value
+    });                 
+});

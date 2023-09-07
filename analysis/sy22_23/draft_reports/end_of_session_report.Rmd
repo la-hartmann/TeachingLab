@@ -1,0 +1,282 @@
+---
+params:
+  partner: "IL_Kankakee District 111"
+title: "`r paste0('Teaching Lab ', params$partner, ' Report')`"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  TeachingLab::TLDefault:
+    css: styles.css
+    fontawesome: false
+    self_contained: true
+    thumbnails: false
+    lightbox: true
+    gallery: false
+    highlight: kate # Also can do tango
+    number_sections: false
+    includes:
+      in_header: header.html
+      after_body: footer.html
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+library(dplyr)
+library(ggplot2)
+library(gt)
+library(knitr)
+library(scales)
+library(stringr)
+library(tidyr)
+library(TeachingLab)
+
+## Global options
+opts_chunk$set(
+  echo = FALSE,
+  cache = FALSE,
+  prompt = FALSE,
+  tidy = TRUE,
+  comment = NA,
+  message = FALSE,
+  warning = FALSE
+)
+
+final_session_survey_df <- readr::read_rds(here::here("data/SY22_23/end_of_session_survey_22_23.rds")) |>
+  TeachingLab::neg_cond_filter(
+    if_not_this = "All Partners",
+    filter_this = params$partner,
+    dat_filter = Site
+  )
+
+no_data_plot <- ggplot(tibble(text = "There was no data\nfor this site here.", x = 0, y = 0)) +
+  geom_text(aes(label = text, x, y), fontface = "bold", family = "Calibri Bold", size = 10) +
+  theme_void()
+```
+
+```{=html}
+<script src="js/hideOutput.js"></script>
+```
+
+## Gender
+
+<center>
+
+```{r gender-summary}
+gt_percent_n(
+  df = final_session_survey_df,
+  column = "Gender",
+  custom_column_name = "Gender Identity", viz_type = sample(c("waffle", "pie", "treemap"),
+    size = 1
+  )
+)
+```
+
+</center>
+
+## Ethnicity
+
+<center>
+
+```{r ethnicity-summary}
+gt_percent_n(
+  df = final_session_survey_df,
+  column = "Ethnicity",
+  custom_column_name = "Ethnicity", viz_type = sample(c("waffle", "pie", "treemap"),
+    size = 1
+  )
+)
+```
+
+</center>
+
+## Content area
+
+<center>
+
+```{r content-area-summary}
+gt_percent_n(
+  df = final_session_survey_df,
+  column = "Content area",
+  custom_column_name = "Content area", viz_type = sample(c("waffle", "pie", "treemap"),
+    size = 1
+  )
+)
+```
+
+</center>
+
+## Race
+
+<center>
+
+```{r race-summary}
+gt_percent_n(
+  df = final_session_survey_df,
+  column = "Race",
+  custom_column_name = "Race", viz_type = sample(c("waffle", "pie", "treemap"),
+    size = 1
+  )
+)
+```
+
+</center>
+
+## Facilitator Quantitative Feedback
+
+<center>
+
+```{r quantitative-feedback}
+plot_data <- final_session_survey_df |>
+  select(
+    `They demonstrated deep knowledge of the content they facilitated`,
+    `They facilitated the content clearly`,
+    `They effectively built a safe learning community`,
+    `They were fully prepared for the session`,
+    `They responded to the group’s needs`
+  ) |>
+  pivot_longer(everything(), names_to = "Question", values_to = "Response") |>
+  drop_na(Response) |>
+  dplyr::group_by(Question, Response) |>
+  dplyr::count(sort = T) |>
+  dplyr::ungroup() |>
+  dplyr::group_by(Question) |>
+  dplyr::mutate(
+    Percent = 100 * n / sum(n),
+    Question = str_wrap(Question, 30)
+  )
+
+if (exists("plot_data")) {
+  fully_prepared <- plot_data |> TeachingLab::agree_strongly_agree(question = "They were fully prepared for\nthe session")
+  responded_needs <- plot_data |> TeachingLab::agree_strongly_agree(question = "They responded to the group’s\nneeds")
+  facilitated_clearly <- plot_data |> TeachingLab::agree_strongly_agree(question = "They facilitated the content\nclearly")
+  effectively_built <- plot_data |> TeachingLab::agree_strongly_agree(question = "They effectively built a safe\nlearning community")
+  demonstrated_knowledge <- plot_data |> TeachingLab::agree_strongly_agree(question = "They demonstrated deep\nknowledge of the content they\nfacilitated")
+} else {
+  fully_prepared <- "There is no data to show the % that"
+  responded_needs <- "There is no data to show the % that"
+  facilitated_clearly <- "There is no data to show the % that"
+  effectively_built <- "There is no data to show the % that"
+  demonstrated_knowledge <- "There is no data to show the % that"
+}
+
+plot_data |>
+  ggplot(aes(x = Question, y = Percent, fill = Response)) +
+  geom_col(position = position_stack(reverse = T)) +
+  geom_text(aes(label = ifelse(Percent >= 5, paste0(round(Percent), "%"), "")),
+    position = position_stack(reverse = T, vjust = 0.5),
+    family = "Calibri Bold",
+    fontface = "bold",
+    size = 6.5
+  ) +
+  coord_flip() +
+  labs(x = "", y = "", title = "% Responses to Each Question") +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  scale_fill_manual(values = c(
+    "(5) Strongly agree" = "#04ABEB",
+    "(4) Agree" = "#0182B4", "(3) Neither agree nor disagree" = "#02587A",
+    "(2) Disagree" = "#032E3F", "(1) Strongly disagree" = "#040404"
+  )) +
+  TeachingLab::theme_tl() +
+  theme(legend.position = "bottom",
+        )
+```
+
+</center>
+
+- `r fully_prepared` strongly agree or agree that the facilitators were fully prepared for the session.
+- `r responded_needs` strongly agree or agree that the facilitators responded to the group’s needs.
+- `r facilitated_clearly` strongly agree or agree that the facilitators facilitated the content clearly.
+- `r effectively_built` strongly agree or agree that the facilitators effectively built a safe learning community.
+- `r demonstrated_knowledge` strongly agree or agree that the facilitators demonstrated deep knowledge of the content they facilitated.
+
+## Facilitator Qualitative Feedback
+
+### What is one thing from today's learning that you plan to take back to your classroom?
+
+<center>
+
+```{r qualitative-feedback-1}
+if (sum(!is.na(final_session_survey_df$`What is one thing from today's learning that you plan to take back to your classroom?`)) >= 1) {
+  final_session_survey_df |>
+    select(`What is one thing from today's learning that you plan to take back to your classroom?`
+    ) |>
+    TeachingLab::quote_viz(
+      text_col = c(
+        "What is one thing from today's learning that you plan to take back to your classroom?"
+      ),
+      print = F,
+      width = 80
+    )
+} else {
+  no_data_plot
+}
+```
+
+</center>
+
+### What went well in today’s session?
+
+<center>
+
+```{r qualitative-feedback-2}
+if (sum(!is.na(final_session_survey_df$`What went well in today’s session?`)) >= 1) {
+  final_session_survey_df |>
+    select(`What went well in today’s session?`) |>
+    TeachingLab::quote_viz(
+      text_col = c(
+        "What went well in today’s session?"
+      ),
+      print = F,
+      width = 80
+    )
+} else {
+  no_data_plot
+}
+```
+
+</center>
+
+### What could have been better about today’s session?
+
+<center>
+
+```{r qualitative-feedback-3}
+if (sum(!is.na(final_session_survey_df$`What could have been better about today’s session?`)) >= 1) {
+  final_session_survey_df |>
+    select(`What could have been better about today’s session?`) |>
+    TeachingLab::quote_viz(
+      text_col = c(
+        "What could have been better about today’s session?"
+      ),
+      print = F,
+      width = 80
+    )
+} else {
+  no_data_plot
+}
+```
+
+</center>
+
+### Additional Feedback
+
+<center>
+
+```{r qualitative-feedback-4}
+if (sum(!is.na(final_session_survey_df$additional_feedback)) >= 1) {
+  final_session_survey_df |>
+    select(`Additional feedback` = additional_feedback) |>
+    TeachingLab::quote_viz(
+      text_col = c(
+        "Additional feedback"
+      ),
+      print = F,
+      width = 80
+    )
+} else {
+  no_data_plot
+}
+```
+
+</center>

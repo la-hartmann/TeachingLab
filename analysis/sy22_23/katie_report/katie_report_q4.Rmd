@@ -1,0 +1,2081 @@
+---
+title: "Teaching Lab Annual Goals Progress Monitoring"
+subtitle: "FY23 Quarter Four: April 1st - July 1st 2023"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  TeachingLab::TLDefault:
+    theme: null
+    mathjax: null
+    css: styles.css
+    fontawesome: true
+    self_contained: false
+    thumbnails: false
+    lightbox: true
+    gallery: false
+    highlight: kate # Also can do tango
+    number_sections: false
+    includes:
+      in_header: header.html
+      after_body: footer.html
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+### Changes: Include changes from last observation - don't include any at risk in the visual ###
+### Bring everyone together in Q3 to decide highlighting for at risk, on pace, etc. ###
+library(geomtextpath)
+library(gganimate)
+library(ggforce)
+library(ggiraph)
+library(ggtext)
+library(glue)
+library(gt)
+library(here)
+library(knitr)
+library(lubridate)
+library(patchwork)
+library(rmdformats)
+library(scales)
+library(TeachingLab)
+library(tidyverse)
+
+###################################################################################################
+
+no_data_plot <- ggplot(tibble(text = "No data here - yet!", x = 0, y = 0)) +
+  geom_text(aes(label = text, x, y), fontface = "bold", family = "Calibri Bold", size = 10) +
+  theme_void()
+
+improvement_plot <- function(y_axis_title = "", plot_title = "", pre = 50, post = 60,
+                             lim1 = 25, lim2 = 75, curr_improve = 55) {
+  data <- tibble::tibble(
+    site = c(
+      rep(y_axis_title, 2)
+    ),
+    prepost = c("Pre", "Post"),
+    percent = c(pre, post),
+  ) |>
+    dplyr::mutate(
+      color = ifelse(prepost == "Pre",
+        "#040404",
+        "#04ABEB"
+      ),
+      improve = curr_improve
+    )
+
+  data_pivot <- data |>
+    tidyr::pivot_wider(id_cols = !color, names_from = "prepost", values_from = "percent") |>
+    dplyr::mutate(color = "#04abeb")
+
+  data |>
+    ggplot2::ggplot(aes(x = percent, y = factor(site), color = prepost)) +
+    ggplot2::geom_text(aes(label = paste0(ifelse(prepost == "Pre", "BoY: ", "EoY: "), percent, "%")),
+      color = data$color,
+      nudge_y = 0.1,
+      size = 5
+    ) +
+    ggforce::geom_link(
+      data = data_pivot,
+      aes(
+        x = Pre + 0.1, 
+        xend = ifelse(data_pivot$Pre < data_pivot$Post, Post - 0.15, Post), 
+        y = site, yend = site,
+        color = color, alpha = after_stat(index) / 2, 
+        linewidth = after_stat(index)
+      ),
+      color = "#04abeb",
+      lineend = "round",
+      show.legend = F
+    ) +
+    ggplot2::geom_point(color = data$color, size = ifelse(data$color == "#040404", 3.5, 10)) +
+    ggplot2::labs(title = plot_title) +
+    ggplot2::scale_x_continuous(labels = scales::percent_format(scale = 1), limits = c(lim1, lim2)) +
+    ggplot2::scale_y_discrete() +
+    TeachingLab::theme_tl() +
+    ggplot2::theme(
+      axis.title.x = ggplot2::element_blank(),
+      axis.title.y = ggplot2::element_blank(),
+      axis.text.y = ggplot2::element_text(size = 18),
+      legend.position = "bottom",
+      plot.title = element_text(face = "bold")
+    )
+}
+
+big_number_donut_plot <- function(value, font_family, highlight_color) {
+  # Wrangle data to get a data frame in the format we need it in to make our donut chart
+  df <- tibble(x = 1, y = value) %>%
+    mutate(y_negative = 1 - y) %>%
+    pivot_longer(cols = -x)
+
+  # Create a nicely formatted big number to go in the donut hole
+  big_number_text_label <- value
+
+  # Create our plot
+  ggplot(
+    df,
+    aes(
+      x = x,
+      y = value,
+      fill = name
+    )
+  ) +
+
+    # Add a bar, but don't add the legend
+    geom_col(show.legend = FALSE) +
+
+    # A pie/donut chart is a bar chart with polar coordinates
+    # Add polar coordinates and set the direction to -1
+    # so the filled in part starts at the top and goes clockwise
+    coord_polar(
+      theta = "y",
+      direction = -1
+    ) +
+
+
+    # Set the limits, which is important for adding the hole
+    xlim(c(-2, 2)) +
+
+    # Set a color scale with the highlighted section in whatever color
+    # is chosen with the highlight_color argument and the rest in a light gray
+    scale_fill_manual(values = c(highlight_color, "grey90")) +
+
+    # Set theme_void() to remove grid lines and everything else from the plot
+    theme_void() +
+
+    # Add the big number in the center of the hole
+    annotate("text",
+      label = big_number_text_label,
+      family = "Calibri",
+      fontface = "bold",
+      color = highlight_color,
+      size = 12,
+      x = -2,
+      y = 0
+    )
+}
+
+na_df <- TeachingLab::na_df
+
+## Global options
+options(max.print = "75", width = 1000)
+opts_chunk$set(
+  echo = FALSE,
+  cache = FALSE,
+  prompt = FALSE,
+  tidy = TRUE,
+  comment = NA,
+  message = FALSE,
+  warning = FALSE
+)
+```
+
+```{=html}
+<script src="js/hideOutput.js"></script>
+```
+### Why:
+
+At Teaching Lab, we set annual organizational goals to ensure we're
+strategically and effectively pursuing our mission to fundamentally
+shift the paradigm of professional learning for educational equity. Our
+organizational goals are a statement of our priorities and our values,
+so it's important that, as a team, we keep them close to our hearts and
+our work. It's also important that we hold ourselves accountable for
+making progress toward them or adjusting course if our progress has
+stalled. To that end, with the help of leaders across our organization,
+we collect data quarterly about our progress toward our annual
+organizational goals. In a spirit of transparency and good stewardship,
+we commit to sharing the state of our progress regularly with our
+Teaching Lab community and with the stakeholders and communities with
+whom we collaborate in the work of educational justice.
+
+### What:
+
+At Teaching Lab, we measure our goals through different inputs -
+financial data, participant feedback, and qualitative marketing and
+communications progress - and this results in a variety of forms of
+data. The variety of data demands that, for this report, we create a
+variety of visuals that we hope can sufficiently communicate our goals
+and our progress. The data displayed in the following data
+visualizations are an attempt at both enumerating and envisioning the
+change our organization seeks to achieve. In coordination with teams
+across Teaching Lab, we have leveraged our ongoing tracking of
+organizational goals to produce the following quarterly report. As we
+built the report, we've measured all that we can quantitatively and
+translated that data to visuals, adding narrative where quantitative
+measurement is not indicated.
+
+### How:
+
+This layered visualization and narrative description of our progress
+toward our organizational goals is organized by organizational goal
+area. Every goal area's data visualization or narrative is unique based
+upon the progress metrics and measurements that are most appropriate to
+that goal. For every goal, in addition to providing progress data, the
+functional leader for that goal area has offered their assessment of
+whether or not we are on track to reaching the goal before the end of
+the fiscal year.
+
+Taken individually, the goal area visualizations enable targeted
+exploration of our progress in different functional areas. Taken
+together, the measurement of these goals and progress measurements can
+provide an overall assessment of Teaching Lab's progress meeting the
+annual organizational goals that bring us closer to our mission of
+fundamentally shifting the paradigm of professional learning for
+educational equity.
+
+# Goal 1: Expand Reach
+
+> **Goal: 10,000 educators reached, serving over 700,000 students**
+
+We **exceeded** our FY23 reach goals, reaching 11,189 educators and
+701,905 students.
+
+<center>
+
+```{r student-reach, fig.dim = c(4, 2), fig.show = "hold", out.width = "50%"}
+student_reach <- tibble::tibble(
+  goal = rep(c(10000, 700000), 4),
+  achieved = c(10719, 648725, 9537, 553955, 11189, 701905, 11189, 701905),
+  labels = rep(c("10,000 educators", "700,000 students"), 4),
+  group = c(rep(1, 2), rep(2, 2), rep(3, 2), rep(4, 2))
+) |>
+  mutate(
+    percent = paste0(round(100 * (achieved / goal), 2), "% Achieved"),
+    to_goal = prettyNum(goal - achieved, big.mark = ",", scientific = FALSE)
+  )
+
+student_reach_plot_1 <- ggplot(student_reach[c(1, 3, 5, 7), ]) +
+  geom_col(aes(x = labels, y = goal), fill = "gray", width = 0.5) +
+  geom_col(aes(x = labels, y = achieved), fill = "#04abeb", alpha = 0.75, width = 0.5) +
+  geom_text(
+    aes(
+      x = labels, y = goal,
+      label = paste0("Goal: ", prettyNum(goal, big.mark = ",", scientific = FALSE))
+    ),
+    size = 6,
+    color = "gray40",
+    vjust = -0.65,
+    fontface = "bold"
+  ) +
+  geom_text(
+    aes(
+      x = labels, y = achieved,
+      label = paste0("Achieved (Q", group, ") : ", prettyNum(achieved, big.mark = ",", scientific = FALSE))
+    ),
+    size = 6,
+    color = "#04abeb",
+    vjust = -0.5,
+    fontface = "bold"
+  ) +
+  scale_y_continuous(limits = c(0, 13000)) +
+  theme_void() +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(face = "bold", color = "black", vjust = 1.5, size = 20)
+  )
+
+student_animation_1 <- student_reach_plot_1 +
+  transition_states(states = group, transition_length = 2)
+
+anim_save(student_animation_1,
+  filename = here::here("analysis/sy22_23/katie_report/images/student_gif1.gif"),
+  height = 6, width = 5,
+  units = "in", res = 150
+)
+
+student_reach_plot_2 <- ggplot(student_reach[c(2, 4, 6, 8), ]) +
+  geom_col(aes(x = labels, y = goal), fill = "gray", width = 0.5) +
+  geom_col(aes(x = labels, y = achieved), fill = "#04abeb", alpha = 0.75, width = 0.5) +
+  geom_text(
+    aes(
+      x = labels, y = goal,
+      label = paste0("Goal: ", prettyNum(goal, big.mark = ",", scientific = FALSE))
+    ),
+    size = 6,
+    color = "gray40",
+    vjust = -0.65,
+    fontface = "bold"
+  ) +
+  geom_text(
+    aes(
+      x = labels, y = achieved,
+      label = paste0("Achieved (Q", group, ") : ", prettyNum(achieved, big.mark = ",", scientific = FALSE))
+    ),
+    size = 6,
+    color = "#04abeb",
+    vjust = ifelse(student_reach[c(2, 4, 6, 8), ]$achieved == 701905, -1.75, -0.5),
+    fontface = "bold"
+  ) +
+  scale_y_continuous(limits = c(0, 800000)) +
+  theme_void() +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(face = "bold", color = "black", vjust = 1.5, size = 20)
+  )
+
+student_animation_2 <- student_reach_plot_2 +
+  transition_states(states = group, transition_length = 2)
+
+anim_save(student_animation_2,
+  filename = here::here("analysis/sy22_23/katie_report/images/student_gif2.gif"),
+  height = 6, width = 5,
+  units = "in", res = 150
+)
+
+knitr::include_graphics(c(
+  here::here("analysis/sy22_23/katie_report/images/student_gif1.gif"),
+  here::here("analysis/sy22_23/katie_report/images/student_gif2.gif")
+))
+```
+
+</center>
+
+# Goal 2 and 3: Advance Educational Equity: Increasing Student Teacher and Student Learning
+
+> **Goal: 10% improvement between beginning and end of year in teacher
+> content knowledge**
+
+We **exceeded** this learning goal, increasing our improvement rate in
+Q4 to 70% from a baseline of 57%.
+
+<center>
+
+```{r increase-teacher-student-learning-1, fig.dim = c(7, 4)}
+improvement_plot(
+  y_axis_title = "", plot_title = "13% improvement between beginning and\nend of year in teacher content knowledge",
+  pre = 57, post = 70, lim1 = 50, lim2 = 80
+)
+```
+
+</center>
+
+> **Goal: 10% improvement between beginning and end of year in teacher
+> practice**
+
+We **exceeded** this learning goal, increasing our improvement rate in
+Q4 to 80% from a baseline of 50%.
+
+<center>
+
+```{r increase-teacher-student-learning-2, fig.dim = c(7, 4)}
+improvement_plot(
+  y_axis_title = "", plot_title = "30% improvement from beginning of year\nteacher practices to end of year",
+  pre = 50, post = 80, lim1 = 45, lim2 = 90
+)
+```
+
+</center>
+
+> **Goal: 10% improvement between beginning and end of year in student
+> learning**
+
+We **exceeded** this learning goal, increasing our improvement rate in
+Q4 to 42% proficiency in student work samples from a baseline of 29%.
+
+<center>
+
+```{r increase-teacher-student-learning-3, fig.dim = c(7, 4)}
+improvement_plot(
+  y_axis_title = "", plot_title = "13% improvement between beginning and\nend of year in student learning",
+  pre = 29, post = 42, lim1 = 20, lim2 = 50
+)
+```
+
+We also **nearly met** this learning goal on student surveys, increasing
+our positive learning experience ratings in Q4 to 63% from a baseline of
+54%.
+
+</center>
+
+::: myFooter
+
+Note: Teaching Lab is currently running a correlational analysis on teacher mindset data to determine which mindsets lead to the largest improvements in teacher practice and student learning and will include the mindset data in subsequent analyses.
+
+:::
+
+# Goal 4: Generate Revenue
+
+> **Goal: Earned revenue: \$6M**
+
+We **exceeded** our FY23 earned revenue goal, earning \$7.8M in revenue.
+
+> **Goal: Philanthropy for internal operations: \$6.5M**
+
+We **did not meet** our FY23 philanthropic goal for internal operations,
+earning \$2.8M in philanthropy.
+
+> **Goal: Philanthropy for programmatic delivery: \$2M**
+
+We **exceeded** our FY23 philanthropic goal for programmatic delivery,
+earning \$6.5M in philanthropy.
+
+> **Goal: Total Programmatic Delivery Revenue: \$8M**
+
+We **exceeded** our FY23 total programmatic revenue goal, earning
+\$14.3M in programmatic revenue.
+
+> **Goal: Total Revenue: \$14.5M**
+
+We **exceeded** our FY23 total revenue goal with a total revenue of
+\$17.5M.
+
+<center>
+
+```{r generate-revenue, fig.dim = c(8, 5)}
+gen_rev <- tibble::tibble(
+  goal = c(rep(6, 4), rep(6.5, 4), rep(2, 4), rep(14.5, 4), rep(8, 4)),
+  achieved = c(
+    5.199, 6.087, 7.6, 7.8,
+    2.394, 4.293, 4.1, 2.8,
+    5.585, 5.268, 5.4, 6.5,
+    13.183, 15.648, 12.3, 17.5,
+    10.785, 10.706, 17.1, 14.3
+  ),
+  labels = c(
+    rep("Earned revenue", 4),
+    rep("Philanthropy for internal operations", 4),
+    rep("Philanthropy for programmatic delivery", 4),
+    rep("Total Revenue", 4),
+    rep("Total Programmatic Delivery Revenue", 4)
+  ),
+  state = rep(c(1, 2, 3, 4), 5)
+) |>
+  mutate(
+    labels = str_wrap(labels, width = 20) # ,
+    # labels = factor(labels, levels = labels)
+  )
+
+gen_rev_plot <- ggplot(gen_rev) +
+  geom_col(aes(x = labels, y = goal), fill = "gray") +
+  geom_col(aes(x = labels, y = achieved), fill = "#04abeb", alpha = 0.75) +
+  geom_text(
+    aes(
+      x = labels, y = goal,
+      label = paste0("Goal: $", goal, "M")
+    ),
+    color = "gray40",
+    vjust = -0.65,
+    fontface = "bold",
+    size = 3
+  ) +
+  geom_text(
+    aes(
+      x = labels, y = achieved,
+      label = paste0("Achieved (Q", state, ") : $", achieved, "M")
+    ),
+    color = "#04abeb",
+    hjust = ifelse(gen_rev$achieved == 6.087, 0, 0.5),
+    vjust = ifelse(gen_rev$achieved == 6.087, -1.45, -0.65),
+    fontface = "bold",
+    size = 3
+  ) +
+  theme_void() +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(face = "bold", color = "black", vjust = 1)
+  )
+
+gen_rev_plot +
+  transition_states(states = state, transition_length = 2)
+```
+
+</center>
+
+# Goal 5: Be Responsive to Educators
+
+## Teachers and Coaches
+
+------------------------------------------------------------------------
+
+Note on NPS
+
+::: myFooter
+~***Bain & Company, a global management consulting firm, created the Net Promoter System to help companies measure and manage customer loyalty. They categorize NPS into three broad ranges to assess customer loyalty:***~
+
+1.  ~***Good: NPS scores falling within the range of 0 to +30 are often considered "good."***~
+
+2.  ~***Very Good: NPS scores within the range of +31 to +70 are generally considered "very good."***~
+
+3.  ~***Excellent: NPS scores of +71 and above are typically considered "excellent."***~
+:::
+
+> **Goal: Teacher NPS \> 50**
+
+We **did not meet** our FY23 teacher NPS goal, with cumulative NPS
+scores of 27 for professional learning and 41 for coaching.
+
+<center>
+
+```{r responsive-educators, fig.dim = c(3.12, 1.5)}
+nps_fake_data <- tibble::tibble(
+  x = rep(0, 4),
+  x2 = rep(2.1, 4),
+  y = rep(0, 4),
+  r = rep(1, 4),
+  label = c("Teacher Q1 NPS\n28", "Teacher Q2 NPS\n29", "Teacher Q3 NPS\n23", "Teacher Q4 NPS\n43"),
+  label2 = c("Coach Q1 NPS\n28", "Coach Q2 NPS\n13", "Coach Q3 NPS\n42", "Coach Q4 NPS\n47"),
+  color = tl_palette(n = 4, color = "blue")
+)
+
+nps_plot_2 <- ggplot() +
+  geom_circle(
+    data = nps_fake_data,
+    aes(
+      x0 = x, y0 = y, r = r,
+      size = 5,
+      color = color
+    )
+  ) +
+  geom_text(
+    data = nps_fake_data,
+    aes(x = x, y = y, label = label, color = color),
+    fontface = "bold", size = 3.95
+  ) +
+  geom_circle(
+    data = nps_fake_data,
+    aes(
+      x0 = x2, y0 = y, r = r,
+      size = 5,
+      color = color
+    )
+  ) +
+  geom_text(
+    data = nps_fake_data,
+    aes(x = x2, y = y, label = label2, color = color),
+    fontface = "bold", size = 4
+  ) +
+  # xlim(c(-2.75, 2.75)) +
+  scale_color_manual(values = rev(tl_palette(n = 4, color = "blue"))) +
+  theme_void() +
+  theme(legend.position = "none")
+
+nps_plot_2 +
+  transition_states(label,
+    transition_length = 1,
+    state_length = 1
+  ) +
+  ease_aes("cubic-in-out")
+```
+
+</center>
+
+## Non-Teachers
+
+> **Goal: Non-teacher NPS \> 50**
+
+We **did not meet** our FY23 non-teacher/other educator NPS goal, with
+cumulative NPS scores of 34 for professional learning and 28 for
+coaching.
+
+<center>
+
+```{r responsive-educators-2, fig.dim = c(3.03, 1.45)}
+nps_fake_data <- tibble::tibble(
+  x = rep(0, 4),
+  x2 = rep(2.1, 4),
+  y = rep(0, 4),
+  r = rep(1, 4),
+  label = c("Non-Teacher\nQ1 NPS: 55", "Non-Teacher\nQ2 NPS: 60", "Non-Teacher\nQ3 NPS: 49", "Non-Teacher\nQ4 NPS: 34"),
+  label2 = c("Coaching Q1:\nDid not\ncollect data", "Coaching Q2\nNPS: 33", "Coaching Q3\nNPS: 86", "Coaching Q4\nNPS: 19"),
+  color = tl_palette(n = 4, color = "blue")
+)
+
+nps_plot_2 <- ggplot() +
+  geom_circle(
+    data = nps_fake_data,
+    aes(
+      x0 = x, y0 = y, r = r,
+      size = 5,
+      color = color
+    )
+  ) +
+  geom_text(
+    data = nps_fake_data,
+    aes(x = x, y = y, label = label, color = color),
+    fontface = "bold", size = 4
+  ) +
+   geom_circle(
+    data = nps_fake_data,
+    aes(
+      x0 = x2, y0 = y, r = r,
+      size = 5,
+      color = color
+    )
+  ) +
+  geom_text(
+    data = nps_fake_data,
+    aes(x = x2, y = y, label = label2, color = color),
+    fontface = "bold", size = 4
+  ) +
+  scale_color_manual(values = rev(tl_palette(n = 4, color = "blue"))) +
+  theme_void() +
+  theme(legend.position = "none")
+
+nps_plot_2 +
+  transition_states(label,
+    transition_length = 1,
+    state_length = 1
+  ) +
+  ease_aes("cubic-in-out")
+```
+
+</center>
+
+## Client NPS
+
+> **Goal: Client NPS \> 50**
+
+<center>
+
+```{r responsive-educators-3, fig.dim = c(1.35, 1.4)}
+nps_fake_data <- tibble::tibble(
+  x = rep(0, 3),
+  y = rep(0, 3),
+  r = rep(1, 3),
+  label = c("Q2 NPS\n33", "Q3 NPS\n48", "Q4 NPS\n62"),
+  color = tl_palette(n = 3, color = "blue")
+)
+
+nps_plot_2 <- ggplot() +
+  geom_circle(
+    data = nps_fake_data,
+    aes(
+      x0 = x, y0 = y, r = r,
+      size = 5,
+      color = color
+    )
+  ) +
+  geom_text(
+    data = nps_fake_data,
+    aes(x = x, y = y, label = label, color = color),
+    fontface = "bold", size = 4
+  ) +
+  scale_color_manual(values = rev(tl_palette(n = 3, color = "blue"))) +
+  theme_void() +
+  theme(legend.position = "none")
+
+nps_plot_2 +
+  transition_states(label,
+    transition_length = 1,
+    state_length = 1
+  ) +
+  ease_aes("cubic-in-out")
+```
+
+</center>
+
+## Renewal rate
+
+> **Goal: Renewal rate \> 90%**
+
+<center>
+
+```{r renewal-rate, fig.dim = c(7, 3)}
+fake_data <- tibble::tibble(x1 = c(0, 0), x2 = c(1, 1), achieve = c(0, 54), goal = c(0, 90), y = c(0, 0))
+ggplot() +
+  geom_rect(data = fake_data, aes(xmin = x1, xmax = x2, ymin = y, ymax = goal)) +
+  geom_rect(data = fake_data, aes(xmin = x1, xmax = x2, ymin = y, ymax = achieve), fill = "#04abeb", alpha = 0.8) +
+  geom_text(aes(x = 0.5, y = 65, label = "Achieved:\n54%"), color = "#04abeb", fontface = "bold", size = 6) +
+  # geom_text(aes(x = 0, y = 80, label = "Goal: 80%"), vjust = 1.5, family = "Calibri", fontface = "bold", size = 6) +
+  # geom_segment(aes(x = 0, xend = 1, y = 80, yend = 80), linetype = "dashed") +
+  scale_y_continuous(limits = c(0, 100)) +
+  labs(title = "Goal of renewal rate > 90%") +
+  coord_flip() +
+  theme_void() +
+  theme(plot.title = element_text(size = 20, face = "bold", family = "Calibri", hjust = 0.5, vjust = -1))
+```
+
+</center>
+
+We **did not** meet our goal with a renewal rate of 54%.
+
+## Contracted services
+
+> **Goal: 95% of contracted services or equivalent are delivered**
+
+We **met** this FY23 contracted services delivery goal, delivering 95%
+of our contracted services.
+
+<center>
+
+```{r responsive-educators-4, fig.dim = c(11.5, 7)}
+contracted_services <- tibble::tibble(
+  goal = rep(95, 4),
+  achieved = c(NA, 88, 94, 95),
+  labels = c("Did not collect data", "88", "94", "95"),
+  quarter = c("Q1", "Q2", "Q3", "Q4")
+)
+
+ggplot(contracted_services) +
+  geom_col(aes(x = quarter, y = goal), fill = "gray") +
+  geom_col(aes(x = quarter, y = achieved), fill = "#04abeb", alpha = 0.75) +
+  geom_text(
+    aes(
+      x = quarter, y = goal,
+      label = paste0("Goal: ", goal, "%")
+    ),
+    color = "gray40",
+    vjust = -0.65,
+    fontface = "bold",
+    size = 6.5
+  ) +
+  geom_text(
+    aes(
+      x = quarter, y = achieved,
+      label = paste0("Achieved (", quarter, ") : ", labels, "%")
+    ),
+    color = "#04abeb",
+    vjust = ifelse(contracted_services$quarter %in% c("Q3", "Q4"), -2.75, -0.5),
+    fontface = "bold",
+    size = 6.5
+  ) +
+  annotate("text", x = "Q1", y = 50, angle = 90, label = "Did not collect data", fontface = 2, family = "Calibri", size = 14) +
+  ylim(c(0, 110)) +
+  labs(title = "% of contracted services or equivalent\nare delivered") +
+  theme_void() +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(
+      hjust = 0.5, family = "Calibri Bold", face = "bold",
+      size = 23
+    ),
+    axis.text.x = element_text(face = "bold", color = "black", vjust = 1.5, size = 12)
+  )
+```
+
+</center>
+
+## Goal Advancement
+
+> **Goal:** 80% of clients surveyed say, "Teaching Lab helped us advance
+> our goals."
+
+We **exceeded** this FY23 client perception goal with 92% of clients
+agreeing that "Teaching Lab helped us advance our goals."
+
+<center>
+
+```{r responsive-educators-5, fig.dim = c(11, 7)}
+client_advancement <- tibble::tibble(
+  goal = rep(80, 4),
+  achieved = c(NA, 82, 93.11, 93),
+  labels = c("Did not collect data", "82", "93", "93"),
+  quarter = c("Q1", "Q2", "Q3", "Q4")
+)
+
+ggplot(client_advancement) +
+  geom_col(aes(x = quarter, y = goal), fill = "gray") +
+  geom_col(aes(x = quarter, y = achieved), fill = "#04abeb", alpha = 0.75) +
+  geom_text(
+    aes(
+      x = quarter, y = goal,
+      label = paste0("Goal: ", goal, "%")
+    ),
+    color = "gray40",
+    vjust = -0.65,
+    fontface = "bold",
+    size = 6.5
+  ) +
+  geom_text(
+    aes(
+      x = quarter, y = achieved,
+      label = paste0("Achieved (", quarter, ") : ", labels, "%")
+    ),
+    color = "#04abeb",
+    vjust = ifelse(client_advancement$quarter == "Q2", -1.2, -0.5),
+    fontface = "bold",
+    size = 6.5
+  ) +
+  annotate("text", x = "Q1", y = 40, angle = 90, label = "Did not collect data", fontface = 2, family = "Calibri", size = 15) +
+  labs(title = "% saying goals were advanced") +
+  theme_void() +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(
+      hjust = 0.5, family = "Calibri Bold", face = "bold",
+      size = 20
+    ),
+    axis.text.x = element_text(face = "bold", color = "black", vjust = 1.5)
+  )
+```
+
+</center>
+
+# Goal 6: Scale Front-line Delivery (facilitator/coach) Quality
+
+> **Goal: \>80% of participants say about facilitators/coaches: "They
+> seemed fully prepared for the session."**
+
+We **exceeded** this FY23 participant perception goal with greater than
+90% of participants in PL or coaching agreeing that facilitators/coaches
+"seemed fully prepared for the session."
+
+> **Goal: \>80% of participants say about facilitators/coaches: "They
+> effectively built a safe learning community."**
+
+We **exceeded** this FY23 participant perception goal with greater than
+90% of participants in PL or coaching agreeing that facilitators/coaches
+"effectively built a sage learning community."
+
+> **Goal: \>80% of participants say about facilitators/coaches: "They
+> made adjustments based on participants' needs."**
+
+We **exceeded** this FY23 participant perception goal with greater than
+90% of participants in PL or coaching agreeing that facilitators/coaches
+"made adjustments based on participants' needs."
+
+<center>
+
+```{r front-line-quality, fig.dim = c(7, 7), eval = F}
+df <- tibble::tibble(
+  q1 = 'RecordedDate <= as.Date("2022-09-30")',
+  q2 = 'between(RecordedDate, as.Date("2022-09-30"), as.Date("2023-01-01"))',
+  q3 = 'between(RecordedDate, as.Date("2022-01-01"), as.Date("2023-03-01"))',
+  q4 = 'RecordedDate > as.Date("2023-03-01")'
+)
+
+session_survey <- qualtRics::fetch_survey(
+      surveyID = "SV_djt8w6zgigaNq0C",
+      verbose = FALSE,
+      include_display_order = FALSE,
+      force_request = FALSE
+    ) |>
+      dplyr::filter(last_session_or_not == "Yes - there will be more sessions for this PL course or coaching cycle." & course != "Coaching" & Finished == TRUE)
+
+facilitator_n_size <- function(date_filter, state) {
+  session_survey |>
+    dplyr::filter(eval(parse(text = date_filter))) |>
+    select(
+      `They effectively built a safe learning community` = fac_feedback_3,
+      `They were fully prepared for the session` = fac_feedback_4,
+      `They responded to the group’s needs` = fac_feedback_5
+    ) |>
+    janitor::remove_empty("rows") |>
+    pivot_longer(everything()) |>
+    group_by(name) |>
+    count() |>
+    mutate(state = state)
+}
+
+coach_n_size <- function(date_filter, state) {
+  qualtRics::fetch_survey(
+      surveyID = "SV_djt8w6zgigaNq0C",
+      verbose = FALSE,
+      include_display_order = FALSE,
+      force_request = FALSE
+    ) |>
+      dplyr::filter(last_session_or_not == "Yes - there will be more sessions for this PL course or coaching support." & course == "Coaching" & Finished == TRUE) |>
+    dplyr::filter(eval(parse(text = date_filter))) |>
+    select(
+      `They effectively built a safe learning environment (coaching)` = coach_ongoing_feed_3,
+      `They seem fully prepared for the coaching sessions (coaching)` = coach_ongoing_feed_4,
+      `They made necessary adjustments based on my needs (coaching)` = coach_ongoing_feed_5
+    ) |>
+    janitor::remove_empty("rows") |>
+    pivot_longer(everything()) |>
+    group_by(name) |>
+    count() |>
+    mutate(state = state)
+}
+
+q1_facilitator_ns <- facilitator_n_size(
+  date_filter = df$q1,
+  state = 1
+)
+
+q2_facilitator_ns <- facilitator_n_size(
+  date_filter = df$q2,
+  state = 2
+)
+
+q3_facilitator_ns <- facilitator_n_size(
+  date_filter = df$q3,
+  state = 3
+)
+
+q4_facilitator_ns <- facilitator_n_size(
+  date_filter = df$q4,
+  state = 4
+)
+
+q1_coach_ns <- coach_n_size(date_filter = df$q1, state = 1)
+
+q2_coach_ns <- coach_n_size(date_filter = df$q2, state = 2)
+
+q3_coach_ns <- coach_n_size(date_filter = df$q3, state = 3)
+
+q4_coach_ns <- coach_n_size(date_filter = df$q4, state = 4)
+
+all_n_sizes <- q1_facilitator_ns |>
+  bind_rows(
+    q2_facilitator_ns, q3_facilitator_ns, q4_facilitator_ns,
+    q1_coach_ns, q2_coach_ns, q3_coach_ns, q4_coach_ns
+  ) |>
+  mutate(name = str_wrap(name, 45))
+
+all_fac_reviews <- function(date_filter) {
+  facilitator_one_reviews <- session_survey |>
+    dplyr::filter(eval(parse(text = date_filter))) |>
+    dplyr::select(
+      `They demonstrated deep knowledge of the content they facilitated` = fac_feedback_1,
+      `They facilitated the content clearly` = fac_feedback_2,
+      `They effectively built a safe learning community` = fac_feedback_3,
+      `They were fully prepared for the session` = fac_feedback_4,
+      `They responded to the group’s needs` = fac_feedback_5
+    ) |>
+    dplyr::mutate(dplyr::across(c(1:5), ~ readr::parse_number(.x)))
+
+  ### Just second facilitator reviews ###
+  facilitator_two_reviews <- session_survey |>
+    dplyr::filter(eval(parse(text = date_filter))) |>
+    dplyr::select(
+      `They demonstrated deep knowledge of the content they facilitated` = fac_feedback_2_1,
+      `They facilitated the content clearly` = fac_feedback_2_2,
+      `They effectively built a safe learning community` = fac_feedback_2_3,
+      `They were fully prepared for the session` = fac_feedback_2_4,
+      `They responded to the group’s needs` = fac_feedback_2_5
+    ) |>
+    dplyr::mutate(dplyr::across(c(1:5), ~ readr::parse_number(.x)))
+
+  coach_reviews <- qualtRics::fetch_survey(
+      surveyID = "SV_djt8w6zgigaNq0C",
+      verbose = FALSE,
+      include_display_order = FALSE,
+      force_request = FALSE
+    ) |>
+      dplyr::filter(last_session_or_not == "Yes - there will be more sessions for this PL course or coaching support." & course == "Coaching" & Finished == TRUE) |>
+    dplyr::filter(eval(parse(text = date_filter))) |>
+    dplyr::select(
+      `They demonstrated deep knowledge of the content they coached (coaching)` = coach_ongoing_feed_1,
+      `Their coaching is clear (coaching)` = coach_ongoing_feed_2,
+      `They effectively built a safe learning environment (coaching)` = coach_ongoing_feed_3,
+      `They seem fully prepared for the coaching sessions (coaching)` = coach_ongoing_feed_4,
+      `They made necessary adjustments based on my needs (coaching)` = coach_ongoing_feed_5
+    ) |>
+    dplyr::mutate(dplyr::across(c(1:5), ~ readr::parse_number(.x)))
+
+  ### All facilitator reviews by binding rows together ###
+  all_facilitator_reviews <- facilitator_one_reviews |>
+    dplyr::bind_rows(facilitator_two_reviews, coach_reviews) |>
+    pivot_longer(everything(), names_to = "Question", values_to = "Response") |>
+    drop_na(Response) |>
+    group_by(Question, Response) |>
+    count() |>
+    ungroup() |>
+    group_by(Question) |>
+    mutate(
+      Percent = round(100 * n / sum(n)),
+      Question = str_wrap(Question, width = 45),
+      Response = str_replace_all(as.character(Response), c(
+        "1" = "1 - Strongly disagree",
+        "2" = "2 - Disagree",
+        "3" = "3 - Neither agree nor disagree",
+        "4" = "4 - Agree",
+        "5" = "5 - Strongly agree"
+      ))
+    )
+}
+
+### Q1 Reviews ###
+all_facilitator_reviews <- all_fac_reviews(date_filter = df$q1)
+
+agree_strongly_agree_reviews <- tibble::tibble(
+  achieved = map_chr(
+    unique(all_facilitator_reviews$Question),
+    ~ agree_strongly_agree(data = all_facilitator_reviews, question = .x)
+  ),
+  goal = rep(80, 10),
+  labels = unique(all_facilitator_reviews$Question)
+) |>
+  mutate(achieved = parse_number(achieved))
+
+q1_agree_strongly_agree_reviews <- agree_strongly_agree_reviews |>
+  filter(str_detect(labels, "prepared|safe learning|needs")) |>
+  arrange(str_detect(labels, "coaching")) |>
+  mutate(state = 1)
+
+### Q2 Reviews ###
+all_facilitator_reviews_2 <- all_fac_reviews(date_filter = df$q2)
+
+agree_strongly_agree_reviews_2 <- tibble::tibble(
+  achieved = map_chr(
+    unique(all_facilitator_reviews_2$Question),
+    ~ agree_strongly_agree(data = all_facilitator_reviews_2, question = .x)
+  ),
+  goal = rep(80, 10),
+  labels = unique(all_facilitator_reviews_2$Question)
+) |>
+  mutate(achieved = parse_number(achieved))
+
+q2_agree_strongly_agree_reviews <- agree_strongly_agree_reviews_2 |>
+  filter(str_detect(labels, "prepared|safe learning|needs")) |>
+  arrange(str_detect(labels, "coaching")) |>
+  mutate(state = 2)
+
+### Q3 Reviews ###
+all_facilitator_reviews_3 <- all_fac_reviews(date_filter = df$q3)
+
+agree_strongly_agree_reviews_3 <- tibble::tibble(
+  achieved = map_chr(
+    unique(all_facilitator_reviews_3$Question),
+    ~ agree_strongly_agree(data = all_facilitator_reviews_3, question = .x)
+  ),
+  goal = rep(80, 10),
+  labels = unique(all_facilitator_reviews_3$Question)
+) |>
+  mutate(achieved = parse_number(achieved))
+
+q3_agree_strongly_agree_reviews <- agree_strongly_agree_reviews_3 |>
+  filter(str_detect(labels, "prepared|safe learning|needs")) |>
+  arrange(str_detect(labels, "coaching")) |>
+  mutate(state = 3)
+
+### Q4 Reviews ###
+all_facilitator_reviews_4 <- all_fac_reviews(date_filter = df$q4)
+
+agree_strongly_agree_reviews_4 <- tibble::tibble(
+  achieved = map_chr(
+    unique(all_facilitator_reviews_4$Question),
+    ~ agree_strongly_agree(data = all_facilitator_reviews_4, question = .x)
+  ),
+  goal = rep(80, 10),
+  labels = unique(all_facilitator_reviews_4$Question)
+) |>
+  mutate(achieved = parse_number(achieved))
+
+q4_agree_strongly_agree_reviews <- agree_strongly_agree_reviews_4 |>
+  filter(str_detect(labels, "prepared|safe learning|needs")) |>
+  arrange(str_detect(labels, "coaching")) |>
+  mutate(state = 4)
+
+
+#### Aggregated Plot ####
+reviews_plot <- q1_agree_strongly_agree_reviews |>
+  bind_rows(
+    q2_agree_strongly_agree_reviews,
+    q3_agree_strongly_agree_reviews,
+    q4_agree_strongly_agree_reviews
+  ) |>
+  left_join(all_n_sizes, by = c(
+    "labels" = "name",
+    "state" = "state"
+  )) |>
+  ggplot() +
+  geom_col(aes(x = labels, y = goal), fill = "gray") +
+  geom_col(aes(x = labels, y = achieved), fill = "#04abeb", alpha = 0.75) +
+  geom_text(
+    aes(
+      x = labels, y = achieved,
+      label = paste0("Exceeded: (Q", state, ") ", achieved, "% (n = ", n, ")")
+    ),
+    color = "black",
+    hjust = "inward",
+    fontface = "bold",
+    size = 5
+  ) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  coord_flip() +
+  theme_tl() +
+  theme(
+    legend.position = "none",
+    axis.text.y = element_text(face = "bold", color = "black"),
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank()
+  )
+
+animation <- reviews_plot +
+  transition_states(states = state, transition_length = 2, state_length = 4)
+
+animation
+```
+
+```{r fig.dim = c(7, 7)}
+knitr::include_graphics(here::here("analysis/sy22_23/katie_report/katie_report_q4_files/front-line-quality-1.gif"))
+```
+
+</center>
+
+# Goal 7: Be a Learning Organization
+
+> **100% of revisions to existing products/services and
+> design/innovation of new products/services are done with user
+> feedback**
+
+We **did not meet** this FY23 user feedback goal; in Q3, 66% of active
+Partnerships gained feedback from at least one active educator on
+revisions; 59% of active Partnerships gained feedback from at least five
+educators on new products/services.
+
+There was no significant amount of content development in Q4.
+
+> **Teaching Lab maintains cost of services at or below
+> \$1,500/teacher/year**
+
+We **met** this FY23 cost of services goal with an annual cost per
+teacher of \$1276.
+
+<center>
+
+```{r learning-organization, fig.dim = c(10, 6)}
+teacher_cost_plot <- function(value, font_family, highlight_color, quarter) {
+  big_number_text_label <- value
+
+  ggplot() +
+    geom_col(
+      data = tibble(x = 1, y = 1500, fill = "gray90"),
+      aes(x = x, y = y, fill = fill)
+    ) +
+    geom_col(
+      data = tibble(x = 1, y = value, fill = "#04abeb"),
+      aes(x = x, y = y, fill = fill)
+    ) +
+    {
+      if (value > 1500) {
+        geom_col(
+          data = tibble(x = 1, y = value - 1500, fill = "#1198ee"),
+          aes(x = x, y = y, fill = fill)
+        )
+      }
+    } +
+    annotate("text",
+      label = paste0(quarter, "\n$", big_number_text_label),
+      family = "Calibri",
+      fontface = "bold",
+      color = highlight_color,
+      size = 12,
+      x = -2,
+      y = 0
+    ) +
+    scale_fill_identity() +
+    coord_polar(theta = "y", direction = 1) +
+    xlim(c(-2, 2)) +
+    theme_void() # +
+  # labs(title = "Goal Annual Cost per Teacher: $1500") +
+  # theme(plot.title = element_text(size = 24, face = "bold", family = "Calibri Bold",
+  #                                 hjust = 0.5, vjust = -5))
+}
+p1 <- teacher_cost_plot(
+  value = 1667, font_family = "Calibri", highlight_color = "#04abeb",
+  quarter = "Q2"
+)
+p2 <- teacher_cost_plot(
+  value = 1094, font_family = "Calibri", highlight_color = "#04abeb",
+  quarter = "Q3"
+)
+p3 <- teacher_cost_plot(
+  value = 1267, font_family = "Calibri", highlight_color = "#04abeb",
+  quarter = "Q4"
+)
+p1 + p2 + p3 +
+  plot_annotation(
+    title = "Goal Annual Cost per Teacher: $1500",
+    theme = theme(plot.title = element_text(
+      size = 24, face = "bold", family = "Calibri Bold",
+      hjust = 0.5, vjust = -5
+    ))
+  )
+```
+
+</center>
+
+> **Teaching Lab innovates new models that improve impact and
+> cost-effectiveness and generate an ROI by Year 3 of initial innovation
+> investment**
+
+The Writing Pathways Project is the flagship initiative of Teaching
+Lab's Innovation Studio. **Their FY23 Initiative was focused on the
+design and integration of writing curriculum and instruction into
+teacher practice.** The following data offers an evaluation of the
+impact of this innovation on teacher practice.
+
+We **exceeded** this FY23 innovation goal, with a positive and
+statistically significant change in treatment teachers' efficacy and
+attitudes about teaching writing from the BOY to EOY under the
+Innovation Studio Initiative: Writing Pathways Project. Treatment
+teachers' mean score on attitudes also increased by .45, and Treatment
+teachers' mean score on efficacy increased by .57. Additionally we saw
+increases in sentence-level writing that was just shy of the goal of 15%
+at 13%, and a massive 40% increase in time devoted to
+argumentative/persuasive writing, exceeding the goal even by 10%.
+
+<center>
+
+```{r new-models, fig.width = 11, fig.height = 8}
+# Part a: Change in treatment teachers' efficacy and attitudes
+data_a <- data.frame(
+  Category = c("Attitudes", "Efficacy"),
+  Change = c(0.45, 0.57),
+  fake_change = c(0.3, 0.4)
+)
+plot_a <- ggplot(data_a, aes(x = Category, y = Change, fill = Category)) +
+  geom_bar(aes(y = fake_change), stat = "identity", width = 0.5) +
+  geom_point(aes(y = Change - 0.14, color = Category), shape = 24, size = 40) +
+  geom_text(aes(label = Change, color = Category), vjust = -1.5, fontface = "bold", family = "Calibri", size = 6) +
+  labs(
+    title = "Increase in Treatment\nTeachers’ Efficacy and Attitudes",
+    y = "Mean Score Change"
+  ) +
+  scale_y_continuous(limits = c(0, 1)) +
+  scale_fill_manual(values = c("#04abeb", "#55BBC7")) +
+  scale_color_manual(values = c("#04abeb", "#55BBC7")) +
+  theme_tl() +
+  theme(
+    plot.title = element_text(face = "bold", family = "Calibri Bold"),
+    axis.text.x = element_text(face = "bold", size = 12),
+    axis.title.x = element_text(face = "bold", size = 14),
+    axis.title.y = element_text(face = "bold", size = 14)
+  )
+# Part b: Sentence-level writing over years
+data_b <- data.frame(
+  Year = c("SY22", "SY23"),
+  Percentage = c(10, 13)
+)
+plot_b <- ggplot(data_b, aes(x = Year, y = Percentage, fill = Year)) +
+  geom_bar(stat = "identity") +
+  labs(
+    title = "Time Devoted to\nSentence-level Writing",
+    y = "Percentage of Time (%)"
+  ) +
+  scale_fill_manual(values = tl_palette(color = "blue", n = 2)) +
+  geom_hline(yintercept = 15, linetype = "dashed", color = tl_palette(n = 3, color = "blue")[2]) +
+  annotate("text", 
+           x = "SY22", 
+           y = 14.5, 
+           label = "Goal: 15%", 
+           color = tl_palette(n = 3, color = "blue")[2],
+           fontface = 2) +
+  theme_tl() +
+  theme(
+    plot.title = element_text(face = "bold", family = "Calibri Bold"),
+    axis.text.x = element_text(face = "bold", size = 12),
+    axis.title.x = element_text(face = "bold", size = 14),
+    axis.title.y = element_text(face = "bold", size = 14)
+  )
+# Part c: Time devoted to argumentative/persuasive writing over years
+data_c <- data.frame(
+  Year = c("SY22", "SY23"),
+  Percentage = c(21, 40)
+)
+plot_c <- ggplot(data_c, aes(x = Year, y = Percentage, fill = Year)) +
+  geom_bar(stat = "identity") +
+  labs(
+    title = "Time Devoted to\nArgumentative/Persuasive\nWriting",
+    y = "Percentage of Time (%)"
+  ) +
+  scale_fill_manual(values = tl_palette(color = "blue", n = 2)) +
+  geom_hline(yintercept = 30, linetype = "dashed", color = tl_palette(n = 3, color = "blue")[2]) +
+  annotate("text", 
+           x = "SY22", 
+           y = 29, 
+           label = "Goal: 30%", 
+           color = tl_palette(n = 3, color = "blue")[2],
+           fontface = 2) +
+  theme_tl() +
+  theme(
+    plot.title = element_text(face = "bold", family = "Calibri Bold"),
+    axis.text.x = element_text(face = "bold", size = 12),
+    axis.title.x = element_text(face = "bold", size = 14),
+    axis.title.y = element_text(face = "bold", size = 14)
+  )
+
+plot_a + plot_b + plot_c +
+  patchwork::plot_annotation(
+    title = "Innovation Studio Initiative: Writing Pathways Project",
+    theme = theme(plot.title = element_text(hjust = 0.5, 
+                                  face = "bold", 
+                                  family = "Calibri Bold",
+                                  size = 24))
+  )
+```
+
+</center>
+
+# Goal 8: Innovate to Improve the Model
+
+> **Goal: 80% of innovations pursued in FY23 have indicators of client
+> satisfaction and impact by the end of the year**
+
+We exceeded this FY23 innovation goal with \>90% of teacher participants
+in the Writing Pathway expressing satisfaction with the learning
+experience.
+
+<center>
+
+```{r innovations-pursued, fig.width = 12, fig.height = 7}
+percent_fulfill <- function(value, font_family, highlight_color, title = NULL) {
+  big_number_text_label <- value
+
+  ggplot() +
+    geom_col(
+      data = tibble(x = 1, y = 100, fill = "gray90"),
+      aes(x = x, y = y, fill = fill)
+    ) +
+    geom_col(
+      data = tibble(x = 1, y = value, fill = "#04abeb"),
+      aes(x = x, y = y, fill = fill)
+    ) +
+    annotate("text",
+      label = paste0(big_number_text_label, "%"),
+      family = "Calibri",
+      fontface = "bold",
+      color = highlight_color,
+      size = 12,
+      x = -2,
+      y = 0
+    ) +
+    scale_fill_identity() +
+    coord_polar(theta = "y", direction = 1) +
+    labs(title = title) +
+    xlim(c(-2, 2)) +
+    theme_void() +
+    theme(plot.title = element_text(family = "Calibri Bold", face = "bold", hjust = 0.5, size = 20),
+          plot.margin=grid::unit(c(-1000,0,-1000,0), "mm"))
+}
+
+p1 <- percent_fulfill(value = 100, font_family = "Calibri", highlight_color = "#04abeb", 
+                      title = str_wrap('100% of Treatment teachers agreed that they were given the opportunity to provide feedback on pathway...', width = 30))
+p2 <- percent_fulfill(value = 92, font_family = "Calibri", highlight_color = "#04abeb",
+                      title = str_wrap('with 92% of those teachers saying they “strongly agreed”...', width = 30))
+p3 <- percent_fulfill(value = 100, font_family = "Calibri", highlight_color = "#04abeb",
+                      title = str_wrap("and 100% of contracted services were delivered", width = 30))
+
+p1 + p2 + p3
+```
+
+</center>
+
+> **Goal: 80% of innovations are on track to generate revenue and a
+> return on investment in FY25**
+
+```{r investment-return}
+
+```
+
+Pathway: a) 100% of Treatment teachers agreed that they were given the
+opportunity to provide feedback on pathway, with 92% of those teachers
+saying they "strongly agreed" b) 100% of contracted services were
+delivered c) Treatment Teacher NPS: 68 *26/38 Treatment teachers
+answered with a 9 or a 10* No Treatment teachers gave a score below 7
+
+Pathway: a) In treatment schools, 89% of teachers completed a daily
+survey at least 60% of the time, exceeding our goal of 80%. b) In
+treatment schools, there was nearly 100% attendance in each round of
+PLCs, with the lowest monthly attendance at 92% in May c) 100% of
+Treatment teachers agreed that they were given the opportunity to
+provide feedback on the pathway, with 92% of those teachers saying they
+"strongly agreed" d) Students' pre/post-tests are being assessed now -
+scores TBD
+
+<center>
+
+```{r improve-model, fig.dim = c(7, 7)}
+```
+
+</center>
+
+# Goal 9: Create a flexible and partnership-driven team structure
+
+> **Goal: By the end of FY23, \>80% of Teaching Lab team members can
+> explain the flexible project team structure**
+
+We **nearly met** this FY23 perception goal with an average of 76.5% of
+team members across quarters saying they can explain the flexible
+project team structure; in Q4, 74% of team members said they could
+explain it.
+
+> **Goal: By the end of FY23, \>80% of Teaching Lab team members say,
+> "the flexible project team structure is an improvement over how we
+> previously organized our work."**
+
+We **did not meet** this FY23 perception goal with an average of 44.75%
+of team members across quarters saying "the flexible project team
+structure is an improvement over how we previously organized our work."
+In Q4, 42% of team members said this.
+
+<center>
+
+```{r create-flexible, fig.dim = c(7, 4)}
+team_struct <- tibble::tibble(
+  x = c(
+    rep("% who say they are able to explain project team structure", 4),
+    rep("% who say structure is an improvement", 4)
+  ),
+  goal = rep(80, 8),
+  achieved = c(73, 74, 85, 73, 49, 40, 48, 42),
+  state = rep(c(1, 2, 3, 4), 2)
+) |>
+  mutate(x = str_wrap(x, width = 30))
+
+team_struct_plot <- ggplot(team_struct) +
+  geom_col(aes(x = x, y = goal), fill = "black") +
+  geom_col(aes(x = x, y = achieved), fill = "#04abeb") +
+  geom_text(
+    aes(
+      x = x, y = goal,
+      label = paste0("Goal: ", goal, "%")
+    ),
+    vjust = -0.7,
+    fontface = "bold",
+    color = "black",
+    size = 4
+  ) +
+  geom_text(
+    aes(
+      x = x, y = achieved,
+      label = paste0("Achieved (Q", state, ") : ", achieved, "%")
+    ),
+    vjust = ifelse(team_struct$state == 3 & team_struct$x == "% who say they are able to\nexplain project team structure", -0.55, -0.75),
+    fontface = "bold",
+    color = "#04abeb",
+    size = 4
+  ) +
+  theme_void() +
+  theme(axis.text.x = element_text(face = "bold", vjust = 6, size = 10))
+
+team_struct_plot +
+  transition_states(states = state, transition_length = 2)
+```
+
+</center>
+
+# Goal 10: Research becomes the way we do our work
+
+> **Goal: 90% of partnerships collect and analyze Educator Surveys 2x/
+> year**
+
+We **exceeded** this FY23 Educator Survey goal with 96% of partnerships
+collecting and analyzing data.
+
+> **Goal: 90% of partnerships collect and analyze student data and
+> teacher practice data relevant to their SOW and aligned to the FY23
+> evaluation plan.**
+
+We **exceeded** this FY23 data collection goal with 93% of partnerships
+collecting and analyzing this data.
+
+<center>
+
+```{r research-becomes, fig.dim = c(7, 7), eval = F}
+nm_diagnostic <- qualtRics::fetch_survey(
+      surveyID = "SV_3a2OM4f9j85EuyO",
+      verbose = FALSE,
+      include_display_order = FALSE,
+      force_request = FALSE
+    ) |>
+      dplyr::filter(Finished == TRUE) |>
+      dplyr::mutate(dplyr::across(dplyr::where(is.factor), ~ dplyr::na_if(as.character(.x), "NA")),
+        email = tolower(email),
+        prepost = "Pre",
+        prepost = factor(prepost, levels = c("Pre", "Post")),
+        site = "NM_NM Public Education Department",
+        teaching_experience = dplyr::case_when(
+          teaching_experience <= 10 ~ "1-10",
+          teaching_experience > 10 & teaching_experience <= 19 ~ "11-20",
+          teaching_experience > 19 & teaching_experience <= 29 ~ "21-30",
+          teaching_experience > 29 & teaching_experience <= 39 ~ "31-40",
+          teaching_experience > 39 & teaching_experience <= 49 ~ "41-50"
+        ),
+        teaching_experience = as.character(teaching_experience)
+      ) |>
+      dplyr::group_by(email) |>
+      dplyr::filter(row_number() == 1) |>
+      dplyr::ungroup()
+
+
+    diagnostic_final <- qualtRics::fetch_survey(
+      surveyID = "SV_8vrKtPDtqQFbiBM",
+      verbose = FALSE,
+      include_display_order = FALSE,
+      force_request = FALSE
+    ) |>
+      suppressWarnings() |>
+      dplyr::mutate(dplyr::across(dplyr::where(is.factor), ~ dplyr::na_if(as.character(.x), "NA")),
+        prepost = "Pre",
+        prepost = factor(prepost, levels = c("Pre", "Post"))
+      ) |>
+      dplyr::filter(Finished == TRUE & is.na(future_location) &
+        !(RecordedDate >= as.Date("2022-11-01") & site == "TX_RAISE Rice University") &
+        !(RecordedDate >= as.Date("2023-04-15") & site == "AR_Arkansas DOE")) |> # last part here gets rid of TX_RAISE follow up from initial and Ar_Arkansas DOE
+      dplyr::bind_rows(nm_diagnostic)
+
+educator_survey <- diagnostic_final |>
+  bind_rows(TeachingLab::get_followup_educator())
+
+educator_survey |>
+  mutate(Quarter = case_when(
+    RecordedDate <= as.Date("2022-09-30") ~ "Q1",
+    between(RecordedDate, as.Date("2022-09-30"), as.Date("2023-01-01")) ~ "Q2",
+    between(RecordedDate, as.Date("2022-01-01"), as.Date("2023-03-31")) ~ "Q3",
+    RecordedDate > as.Date("2023-03-01") ~ "Q4"
+  )) |>
+  group_by(site, Quarter) |>
+  count(sort = T) |>
+  ungroup() |>
+  drop_na() |>
+  tidyr::pivot_wider(names_from = Quarter, values_from = n) |>
+  dplyr::arrange(site) |>
+  relocate(Q4, .after = Q3) |>
+  gt::gt() |>
+  data_color(
+    columns = c(Q1, Q2, Q3, Q4),
+    colors = scales::col_numeric(
+      palette = paletteer::paletteer_d(
+        palette = "ggsci::blue_material"
+      ) |>
+        as.character(),
+      domain = NULL
+    )
+  ) |>
+  gt::sub_missing(missing_text = "Not collected") |>
+  tab_header(title = md("**# of partners completing diagnostic survey data collection by quarter this year**")) |>
+  TeachingLab::gt_theme_tl() #|>
+# gtsave("ed_survey_count.png", path = tempdir(), zoom = 4)
+```
+
+</center>
+
+# Goal 11: Create and sustain enabling conditions
+
+> **Goal: At the end of the year, 80% of partners increase by at least 1
+> rating category on at least 1 enabling condition on the PL Enabling
+> Conditions scorecard**
+
+We **exceeded** this FY23 Enabling Conditions growth goal with 85% of
+partners (whose client project teams have completed both mid and end of
+year enabling conditions rubric) moving at least 1 rating on the rubric.
+
+<!-- NOTE: Insert scorecard -->
+
+<center>
+
+```{r create-enable-conditions, fig.dim = c(7.5, 4)}
+fake_data <- tibble::tibble(x1 = c(0.05, 0.05), x2 = c(1, 1), achieve = c(0, 85), goal = c(0, 80), y = c(0, 0))
+ggplot() +
+  geom_rect(data = fake_data, aes(xmin = x1, xmax = x2, ymin = y, ymax = goal)) +
+  geom_rect(data = fake_data, aes(xmin = x1, xmax = x2, ymin = y, ymax = achieve), fill = "#04abeb", alpha = 0.8) +
+  geom_text(aes(x = 0.5, y = 94, label = "Achieved:\n85%"), color = "#04abeb", fontface = "bold", size = 6) +
+  geom_text(aes(x = 0, y = 80, label = "Goal: 80%"), vjust = 0.5, family = "Calibri", fontface = "bold", size = 6) +
+  geom_segment(aes(x = 0, xend = 1, y = 80, yend = 80), linetype = "dashed") +
+  scale_y_continuous(limits = c(0, 100)) +
+  labs(title = "85% of partners moving at least 1 rating on the rubric") +
+  coord_flip() +
+  theme_void() +
+  theme(plot.title = element_text(size = 20, face = "bold", family = "Calibri", hjust = 0.5, vjust = -1))
+```
+
+</center>
+
+# Goal 12: Continue to become an antiracist organization
+
+> **Goal: 80% of staff members say anti-racism is embedded into my work
+> at Teaching Lab**
+
+We **met** this goal FY23 perception goal in Q4 with 81% of team members
+saying anti-racism is embedded into my work at Teaching Lab; across all
+quarters, an average of 72.75% of team members said they feel this way.
+
+> **Goal: 80% of staff members say they understand Teaching Lab's
+> anti-racism principles and how we live them in our partnership design
+> and service**
+
+We **nearly** **met** this goal FY23 perception goal in Q4 with 79% of
+team members saying they understand Teaching Lab's anti-racism
+principles and how we live them in our partnership design and service;
+across all quarters, an average of 76.5% of team members said they feel
+this way.
+
+> **Goal: "Staff NPS \>40"**
+
+We **met** this FY23 staff NPS goal with an average NPS across quarters
+of 42.5; in Q4, our staff NPS was 35.
+
+<center>
+
+```{r antiracist-organization, fig.dim = c(7, 4)}
+pulse_survey <- tibble::tibble(
+  x = c(
+    rep(">80% of staff members say anti-racism is embedded into my work at Teaching Lab", 4),
+    rep(">80% of staff members say they understand Teaching Lab's anti-racism principles and how we live them in our partnership design and service", 4),
+    rep("Staff NPS > 40", 4)
+  ),
+  achieved = c(62, 77, 71, 81, 73, 83, 71, 79, 30, 52, 53, 35),
+  goal = c(rep(80, 8), rep(40, 4)),
+  state = rep(c(1, 2, 3, 4), 3)
+) |>
+  mutate(x = str_wrap(x, width = 30))
+
+pulse_survey_plot <- ggplot(pulse_survey) +
+  geom_col(aes(x = x, y = goal), fill = "black") +
+  geom_col(aes(x = x, y = achieved), fill = "#04abeb") +
+  geom_text(
+    aes(
+      x = x, y = goal,
+      label = paste0(
+        "Goal: ", goal,
+        ifelse(x != "Staff NPS > 40", "%", "")
+      )
+    ),
+    vjust = -0.5,
+    hjust = case_when(pulse_survey$state == 2 & pulse_survey$x == '>80% of staff members say\nanti-racism is embedded into\nmy work at Teaching Lab' ~ -0.3, 
+                      pulse_survey$state == 4 & pulse_survey$x == '>80% of staff members say\nanti-racism is embedded into\nmy work at Teaching Lab' ~ -0.3, 
+                      pulse_survey$state == 2 & pulse_survey$x == ">80% of staff members say\nthey understand Teaching\nLab's anti-racism principles\nand how we live them in our\npartnership design and service" ~ 1,
+                      pulse_survey$state == 4 & pulse_survey$x == ">80% of staff members say\nthey understand Teaching\nLab's anti-racism principles\nand how we live them in our\npartnership design and service" ~ 1,
+                      T ~ 0.5),
+    fontface = "bold",
+    color = "black",
+    size = 3
+  ) +
+  geom_text(
+    aes(
+      x = x, y = achieved,
+      label = paste0(
+        "Achieved (Q", state, ") : ",
+        achieved,
+        ifelse(x != "Staff NPS > 40", "%", "")
+      )
+    ),
+    vjust = case_when(pulse_survey$state == 2 & pulse_survey$x == '>80% of staff members say\nanti-racism is embedded into\nmy work at Teaching Lab' ~ -2.2, 
+                      pulse_survey$state == 2 & pulse_survey$x == ">80% of staff members say\nthey understand Teaching\nLab's anti-racism principles\nand how we live them in our\npartnership design and service" ~ -0.1,
+                      pulse_survey$state == 4 & pulse_survey$x == ">80% of staff members say\nthey understand Teaching\nLab's anti-racism principles\nand how we live them in our\npartnership design and service" ~ -0.8,
+                      T ~ -0.5),
+    hjust = case_when(pulse_survey$state == 2 & pulse_survey$x == '>80% of staff members say\nanti-racism is embedded into\nmy work at Teaching Lab' ~ 0.85, 
+                      pulse_survey$state == 4 & pulse_survey$x == '>80% of staff members say\nanti-racism is embedded into\nmy work at Teaching Lab' ~ 0.85, 
+                      pulse_survey$state == 2 & pulse_survey$x == ">80% of staff members say\nthey understand Teaching\nLab's anti-racism principles\nand how we live them in our\npartnership design and service" ~ -0.2,
+                      pulse_survey$state == 4 & pulse_survey$x == ">80% of staff members say\nthey understand Teaching\nLab's anti-racism principles\nand how we live them in our\npartnership design and service" ~ -0.2,
+                   T ~ 0.5),
+    fontface = "bold",
+    color = "#04abeb",
+    size = 3
+  ) +
+  theme_void() +
+  theme(axis.text.x = element_text(face = "bold", vjust = 1.08))
+
+pulse_survey_plot +
+  transition_states(states = state, transition_length = 2)
+```
+
+</center>
+
+# Goal 13: Maintain financial sustainability
+
+> **Goal: 80% of invoices are collected within 60 days**
+
+We **exceeded** this FY23 invoice collection goal with 86% of our
+invoices collected within 60 days.
+
+> **Goal: Earned Revenue/philanthropy ratio does not fall below
+> 40%/60%**
+
+We **nearly met** this FY23 ratio goal with a ratio between earned
+revenue and philanthropy of 46%/54%
+
+> **Goal: Profit margin remains at least 6%**
+
+In Q3, Teaching Lab's profit margin was 11%, **exceeding** our goal of
+6%.
+
+> **Goal: 4-6 month cash reserve**
+
+In Q3, Teaching Lab had a 5-month cash reserve, **meeting** our goal of
+a 4-6 months reserve.
+
+> **Goal: Operational overhead cost (administrative and fundraising) is
+> \<25%**
+
+In Q3, Teaching Lab had an operational overhead cost of 27%, **nearly
+meeting** our goal of less than 25%.
+
+<center>
+
+```{r financial-sustainability, fig.dim = c(8, 4)}
+financial_sustainability_1 <- tibble::tibble(
+  x = c(
+    rep("80% of invoices are collected within 60 days", 4),
+    rep("4-6 month cash reserve", 4),
+    rep("Profit margin remains at least 6%", 4),
+    rep("Operational overhead cost (administrative and fundraising) is <25%", 4)
+  ),
+  achieved = c(
+    100, 95, 91, 86,
+    6.23, 6.03, 5, 3.8,
+    51, 25, 11, 10,
+    NA, 25, 27, NA
+  ),
+  goal = c(rep(80, 4), rep(6, 8), NA, rep(25, 2), NA),
+  state = rep(c(1, 2, 3, 4), 4)
+) |>
+  mutate(x = str_wrap(x, width = 20))
+
+fiancial_sustainability_plot <- ggplot(financial_sustainability_1) +
+  geom_col(aes(x = x, y = goal), fill = "black") +
+  geom_col(aes(x = x, y = achieved), fill = "#04abeb", alpha = 0.75) +
+  geom_text(
+    aes(
+      x = x, y = achieved,
+      label = paste0(
+        paste0(
+          "Achieved (Q", state, ") : ",
+          achieved,
+          "%"
+        )
+      )
+    ),
+    vjust = case_when(financial_sustainability_1$achieved %in% c(6.23, 6.03, 5) | 
+                        (financial_sustainability_1$achieved == 25 & financial_sustainability_1$goal == 25) |
+                        financial_sustainability_1$achieved == 27 ~ -3,
+                      financial_sustainability_1$achieved == 3.8 ~ 0,
+                      financial_sustainability_1$achieved == 100 ~ -0.5,
+                      T ~ -0.9),
+    fontface = "bold",
+    color = "#04abeb",
+    size = 4
+  ) +
+  geom_text(
+    aes(
+      x = x, y = goal,
+      label = paste0(
+        "Goal: ", goal,
+        "%"
+      )
+    ),
+    vjust = -0.75,
+    fontface = "bold",
+    color = "black",
+    size = 4
+  ) +
+  theme_void() +
+  theme(axis.text.x = element_text(face = "bold", size = 10, vjust = 1))
+
+fiancial_sustainability_plot +
+  transition_states(states = state, transition_length = 2)
+```
+
+</center>
+
+# Goal 14: Online courses support partnership development
+
+We **did not meet** this FY23 Open Enrollment goal as open enrollment
+courses were paused for potential restructuring in Q4. No classes were
+developed or executed.
+
+# Goal 15: Influence the field
+
+> **Goal: "Teaching Lab engages in at least three (3)"large resource
+> drops" w/ full communications plan focused on: CRSE, Foundational
+> Literacy (k-8), 6-8 Math, and/or innovative PL (including the use of
+> technology) and resources generate \>1,000 downloads"**
+
+We **did not meet** this FY23 influence goal, with 225 downloads across
+quarters. We redesigned drops and have been integrating the promotion of
+those redesigned resources into our broader social media strategy.
+
+<center>
+
+```{r influence-field, fig.dim = c(7, 7)}
+```
+
+</center>
+
+# Goal 16: Team members receive meaningful feedback for growth throughout the year
+
+> **Goal: 80% of projects engage in project report card conversations**
+
+We **nearly met** this FY23 project scorecard goal, with 76.6% of
+program team members engaging in project scorecard conversations across
+quarters 2-4. The percentage of team members having these conversations
+in Q4 was 70%.
+
+> **Goal: 100% of FTEs and PTEs are engaged in all relevant phases of
+> the performance development system (PDS)**
+
+We are **nearly meeting** this FY23 PDS engagement goal with 96% of team
+members engaging in all phases across all quarters. Our engagement in Q4
+was 97%.
+
+Note: Our PDS cycle will now conclude in Q1 of FY24; *summative FY23
+data will be provided in that quarter.*
+
+> **Goal: 80% of FTEs and PTEs who engage in the PDS report, at each
+> phase, that the process is clear and/or valuable**
+
+We **did not yet meet** this perception goal with an average of 68.75%
+of team members across quarters agreeing that the process is clear/and
+or valuable to me. In Q4, 54% agreed.
+
+Note: Our PDS cycle will now conclude in Q1 of FY24; *summative FY23
+data will be provided in that quarter.*
+
+> **Goal: 80% of FTEs and PTEs who engage in the PDS report, at each
+> phase, that the process is clear and/or valuable**
+
+In Q3, 72% of Teaching Lab staff expressed that the PDS process is clear
+and/or valuable across the metrics that measure this sentiment. We will
+need this average to increase to 80% to meet our FY23 goal.
+
+<center>
+
+```{r meaningful-feedback, fig.dim = c(6, 4)}
+meaningful_feedback <- tibble::tibble(
+  x = c(
+    rep("80% of FTEs and PTEs who engage in the PDS report, at each phase, that the process is clear and/or valuable", 4),
+    rep("100% of FTEs and PTEs are engaged in all relevant phases of the performance development system (PDS)", 4),
+    rep("80% of projects engage in project report card conversations", 4)
+  ),
+  achieved = c(
+    73,
+    76,
+    72,
+    54,
+    100,
+    94,
+    93,
+    97,
+    NA,
+    90,
+    70,
+    NA
+  ),
+  goal = c(
+    rep(80, 4),
+    rep(100, 4),
+    NA,
+    rep(80, 2),
+    NA
+  ),
+  state = rep(c(1, 2, 3, 4), 3)
+) |>
+  mutate(x = str_wrap(x, width = 25))
+
+meaningful_feedback_plot <- ggplot(meaningful_feedback) +
+  geom_col(aes(x = x, y = goal), fill = "black") +
+  geom_col(aes(x = x, y = achieved), fill = "#04abeb") +
+  geom_text(
+    aes(
+      x = x, y = goal,
+      label = ifelse(achieved != 100, paste0(
+        "Goal: ", goal,
+        "%"
+      ), ""),
+      color = ifelse(goal == 80, "black", "white")
+    ),
+    vjust = -0.5,
+    fontface = "bold",
+    color = "black",
+    size = 2.75
+  ) +
+  geom_text(
+    aes(
+      x = x, y = achieved,
+      label = ifelse(achieved != 100, paste0(
+        "Achieved (Q", state, ") : ",
+        achieved,
+        "%"
+      ), ""),
+      color = ifelse(goal == 80, "black", "white")
+    ),
+    vjust = -0.5,
+    fontface = "bold",
+    color = "#04abeb",
+    size = 2.75
+  ) +
+  geom_text(
+    aes(
+      x = x, y = achieved,
+      label = ifelse(achieved == 100, paste0(
+        "Achieved (Q", state, ") : ",
+        achieved,
+        "%"
+      ), ""),
+      color = ifelse(goal == 80, "black", "white")
+    ),
+    vjust = -0.5,
+    hjust = 0.7,
+    fontface = "bold",
+    color = "#04abeb",
+    size = 2.75
+  ) +
+  geom_text(
+    aes(
+      x = x, y = goal,
+      label = ifelse(achieved == 100, paste0(
+        "Goal: ",
+        goal,
+        "%"
+      ), "")
+    ),
+    vjust = -0.5,
+    hjust = -0.65,
+    fontface = "bold",
+    color = "black",
+    size = 2.75
+  ) +
+  theme_void() +
+  theme(
+    axis.text.x = element_text(face = "bold", vjust = 1.2, size = 10),
+    legend.position = "none"
+  )
+
+meaningful_feedback_plot +
+  transition_states(states = state, transition_length = 2)
+```
+
+</center>
+
+```{r over-year-meaningful-feedback, fig.width = 10, fig.height = 7}
+# # Normalize the state variable for a circular representation
+# n_states <- length(unique(meaningful_feedback$state))
+# meaningful_feedback$state_norm <- with(meaningful_feedback, 360 / n_states * state)
+# # meaningful_feedback$image <- here::here("images/logo.png")
+# # meaningful_feedback$fake_state <- 100
+# 
+# # Create the radial chart
+# ggplot() +
+#   # geom_image(data = meaningful_feedback, mapping = aes(x = factor(fake_state), y = 0, image = image), size = 0.55) +
+#   geom_col(meaningful_feedback, mapping = aes(x = factor(state_norm), y = goal), fill = "black", alpha = 0.8, width = 1) +
+#   geom_col(meaningful_feedback, mapping = aes(x = factor(state_norm), y = achieved), fill = "#04abeb", width = 0.9) +
+#   geom_textpath(meaningful_feedback,
+#     mapping = aes(
+#       x = factor(state_norm),
+#       label = paste0("Q", state, " Achieved: ", achieved, "%"),
+#       y = achieved
+#     ),
+#     position = position_dodge(width = 8),
+#     size = 3.5,
+#     vjust = 0.5,
+#     hjust = 0,
+#     angle = 90,
+#     fontface = "bold",
+#     family = "Calibri"
+#   ) +
+#   facet_wrap(~x, nrow = 1) +
+#   coord_polar(start = 0, theta = "y") +
+#   labs(y = NULL, x = NULL) +
+#   theme_void() +
+#   theme(
+#     legend.position = "bottom",
+#     strip.text = element_text(face = "bold", family = "Calibri", size = 15),
+#     panel.spacing.x = unit(1, "lines")
+#   )
+```
+
+# Board of Directors Goals:
+
+> Goal: Teaching Lab's Board of Directors is comprised of 9-10 fully
+> onboarded members who reflect the geographic and racial diversity of
+> the communities served by Teaching Lab We met this FY23 board
+> composition goal with 11 full on-boarded members from diverse
+> geographic and racial backgrounds.
+
+We **met** this FY23 board composition goal with 11 full on-boarded
+members from diverse geographic and racial backgrounds.
+
+> Goal: \>80% of Teaching Lab Board members agree that "I understand the
+> mission of Teaching Lab and my role in advancing it." We exceeded this
+> FY23 board member perception goal with 89% of board members agreeing
+> with this statement.
+
+We **exceeded** this FY23 board member perception goal with 89% of board
+members agreeing with this statement.
+
+> Goal: \>80% of Teaching Lab Board members agree that "I understand and
+> believe in our long-range strategic plan." We exceeded this FY23 board
+> member perception goal with 100% of board members agreeing with this
+> statement.
+
+We **exceeded** this FY23 board member perception goal with 100% of
+board members agreeing with this statement.
+
+```{r board-director-goals, fig.dim = c(12, 8)}
+board_goals_1 <- tibble::tibble(
+  goal = rep(80, 2),
+  achieved = c(100, 89),
+  labels = c("100", "89"),
+  quarter = c("% of board members saying \"I understand and believe in our long-range strategic plan.\"",
+              "% of board members saying \"I understand the mission of Teaching Lab and my role in advancing it.\"")
+) |>
+  mutate(quarter = str_wrap(quarter, 25))
+
+p1 <- ggplot(board_goals_1) +
+  geom_col(aes(x = quarter, y = goal), fill = "gray") +
+  geom_col(aes(x = quarter, y = achieved), fill = "#04abeb", alpha = 0.75) +
+  geom_text(
+    aes(
+      x = quarter, y = goal,
+      label = paste0("Goal: ", goal, "%")
+    ),
+    color = "gray40",
+    vjust = -0.65,
+    fontface = "bold",
+    size = 6.5
+  ) +
+  geom_text(
+    aes(
+      x = quarter, y = achieved,
+      label = paste0("Exceeded: ", labels, "%")
+    ),
+    color = "#04abeb",
+    vjust = -0.5,
+    fontface = "bold",
+    size = 6.5
+  ) +
+  theme_void() +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(
+      hjust = 0.5, family = "Calibri Bold", face = "bold",
+      size = 20
+    ),
+    axis.text.x = element_text(face = "bold", color = "black", vjust = 1.5)
+  )
+
+board_goals_2 <- tibble::tibble(goal = 10,
+                                goal_label = "9-10",
+                                achieved = 11,
+                                labels = "11",
+                                quarter = "Teaching Lab’s Board of Directors is comprised of 9-10 fully onboarded members who reflect the geographic and racial diversity of the communities served by Teaching Lab") |>
+  mutate(quarter = str_wrap(quarter, 31))
+
+p2 <- ggplot(board_goals_2) +
+  geom_col(aes(x = quarter, y = goal), fill = "gray", width = 0.75) +
+  geom_col(aes(x = quarter, y = achieved), fill = "#04abeb", alpha = 0.75, width = 0.75) +
+  geom_text(
+    aes(
+      x = quarter, y = goal,
+      label = paste0("Goal: ", goal_label, " members")
+    ),
+    color = "gray40",
+    vjust = -0.65,
+    fontface = "bold",
+    size = 6.5
+  ) +
+  geom_text(
+    aes(
+      x = quarter, y = achieved,
+      label = paste0("Achieved: ", labels, " members")
+    ),
+    color = "#04abeb",
+    vjust = -0.5,
+    fontface = "bold",
+    size = 6.5
+  ) +
+  theme_void() +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(
+      hjust = 0.5, family = "Calibri Bold", face = "bold",
+      size = 20
+    ),
+    axis.text.x = element_text(face = "bold", color = "black", vjust = 1.5)
+  )
+
+p1 + p2 +
+  plot_layout(widths = c(1, 0.5)) +
+  plot_annotation(
+    title = "Board of Directors Goals",
+    theme = theme(plot.title = element_text(
+      size = 24, face = "bold", family = "Calibri Bold",
+      hjust = 0.5, vjust = 0
+    ))
+  )
+```

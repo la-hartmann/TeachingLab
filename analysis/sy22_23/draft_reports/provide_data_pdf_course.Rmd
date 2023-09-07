@@ -1,0 +1,327 @@
+---
+title: End of Course CKLA Report
+author: Teaching Lab 
+date: \today
+params:
+  logo: teachinglab_logo.png
+  cover: cover.png
+  iblue: 04abeb
+  igray: d4dbde
+  filter: 
+  partner: "All Partners"
+documentclass: article
+fontsize: 10
+papersize: a4paper
+output: 
+  IReports::businessReport:
+    keep_tex: TRUE
+    latex_engine: xelatex
+    resetStyleFiles: FALSE
+header-includes: 
+  - \newcommand{\logo}{`r gsub("_", "\\_", params$logo)`}
+  - \newcommand{\cover}{`r gsub("_", "\\_", params$cover)`}
+  - \newcommand{\iblue}{`r params$iblue`}
+  - \newcommand{\igray}{`r params$igray`}
+include-before:
+  - \renewcommand{\contentsname}{Table of Contents}
+  - \renewcommand{\pagename}{Page}
+---
+
+
+
+```{r setup, include = FALSE}
+# packages
+library(ggforce)
+library(ggfx)
+library(gt)
+library(knitr)
+library(lubridate)
+library(TeachingLab)
+library(tidyverse)
+library(scales)
+
+# data
+final_course_survey_df <- readr::read_rds(here::here("data/SY22_23/end_of_course_survey_22_23.rds")) |>
+  dplyr::filter(!!!params$filter) |>
+  TeachingLab::neg_cond_filter(
+    if_not_this = "All Partners",
+    filter_this = params$partner,
+    dat_filter = Site
+  ) |>
+  dplyr::filter(stringr::str_detect(Course, "CKLA"))
+
+# settings
+knitr::opts_chunk$set(
+  echo = FALSE, message = FALSE, warning = FALSE, dev = "cairo_pdf",
+  fig.width = 7, fig.height = 9.15, fig.align = "center", cache = FALSE
+)
+na_df <- TeachingLab::na_df
+
+no_data_plot <- ggplot(tibble(text = "There was no data\nfor this site here.", x = 0, y = 0)) +
+  geom_text(aes(label = text, x, y), fontface = "bold", family = "Calibri Bold", size = 10) +
+  theme_void()
+```
+
+\maketitle
+\tableofcontents
+\addcontentsline{toc}{section}{Contents}
+<!-- \clearpage -->
+
+
+\section{Course Reviews}
+
+
+```{r}
+plot_data <- final_course_survey_df |>
+  select(
+    `I was fully present "minds-on" during these PL sessions.`,
+    `The activities were well-designed to help me meet the learning targets.`,
+    `I am satisfied with how the course was facilitated.`,
+    `This PL was a good use of my time.`,
+    `I talk to other teachers about the things I learned in this PL.`,
+    `I felt a sense of community with the other participants in this course.`,
+    `This course was relevant to my instructional practices.`,
+    `The strategies I’ve learned in this course will improve my instruction.`,
+    `The strategies I’ve learned in this course will improve my coaching or supervision of teachers.`,
+    `The strategies I’ve learned in the course are easy to implement.`,
+    `I have applied or will apply what I have learned in this course to my practice.`,
+    `This course has supported me in being responsive to students' backgrounds, cultures, and points of view.`,
+    `I am satisfied with the overall quality of this course.`
+  ) |>
+  pivot_longer(everything(), names_to = "Question", values_to = "Response") |>
+  drop_na(Response) |>
+  dplyr::group_by(Question, Response) |>
+  dplyr::count(sort = T) |>
+  dplyr::ungroup() |>
+  dplyr::group_by(Question) |>
+  dplyr::mutate(
+    Percent = 100 * n / sum(n),
+    Question = str_wrap(Question, 30)
+  )
+
+if (exists("plot_data")) {
+  good_time <- plot_data |> TeachingLab::agree_strongly_agree(question = "This PL was a good use of my\ntime.")
+  strategies_learned <- plot_data |> TeachingLab::agree_strongly_agree(question = "The strategies I’ve learned\nin this course will improve my\ninstruction.")
+  well_designed <- plot_data |> TeachingLab::agree_strongly_agree(question = "The activities were well-\ndesigned to help me meet the\nlearning targets.")
+  fully_present <- plot_data |> TeachingLab::agree_strongly_agree(question = "I was fully present \"minds-on\"\nduring these PL sessions.")
+  applied_learning <- plot_data |> TeachingLab::agree_strongly_agree(question = "I have applied or will apply\nwhat I have learned in this\ncourse to my practice.")
+  sense_community <- plot_data |> TeachingLab::agree_strongly_agree(question = "I felt a sense of community\nwith the other participants in\nthis course.")
+  satisfied_quality <- plot_data |> TeachingLab::agree_strongly_agree(question = "I am satisfied with the\noverall quality of this\ncourse.")
+  satisfied_facilitated <- plot_data |> TeachingLab::agree_strongly_agree(question = "I am satisfied with how the\ncourse was facilitated.")
+  relevant_course <- plot_data |> TeachingLab::agree_strongly_agree(question = "This course was relevant to my\ninstructional practices.")
+  supported_course <- plot_data |> TeachingLab::agree_strongly_agree(question = "This course has supported\nme in being responsive\nto students' backgrounds,\ncultures, and points of view.")
+  teachers_talk <- plot_data |> TeachingLab::agree_strongly_agree(question = "I talk to other teachers about\nthe things I learned in this\nPL.")
+} else {
+  good_time <- "There is no data to show the % that"
+  strategies_learned <- "There is no data to show the % that"
+  well_designed <- "There is no data to show the % that"
+  fully_present <- "There is no data to show the % that"
+  applied_learning <- "There is no data to show the % that"
+  sense_community <- "There is no data to show the % that"
+  satisfied_quality <- "There is no data to show the % that"
+  satisfied_facilitated <- "There is no data to show the % that"
+  relevant_course <- "There is no data to show the % that"
+  supported_course <- "There is no data to show the % that"
+  teachers_talk <- "There is no data to show the % that"
+}
+
+plot_data |>
+  ggplot(aes(x = Question, y = Percent, fill = Response)) +
+  geom_col(position = position_stack(reverse = T)) +
+  geom_text(aes(label = ifelse(Percent >= 5, paste0(round(Percent), "%"), "")),
+    position = position_stack(reverse = T, vjust = 0.5),
+    family = "Calibri Bold",
+    fontface = "bold",
+    size = 6.5
+  ) +
+  coord_flip() +
+  labs(x = "", y = "", title = "% Responses to Each Question") +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  scale_fill_manual(values = c(
+    "(5) Strongly agree" = "#04ABEB",
+    "(4) Agree" = "#0182B4", "(3) Neither agree nor disagree" = "#02587A",
+    "(2) Disagree" = "#032E3F", "(1) Strongly disagree" = "#040404"
+  )) +
+  TeachingLab::theme_tl() +
+  theme(legend.position = "bottom")
+```
+
+
+
+\subsection{Percent Agree and Strongly Agree}
+
+
+
+
+In summary, we see the following % agree or strongly agree with the above statements:
+
+
+- `r good_time` strongly agree or agree that this PL was a good use of their time.
+- `r strategies_learned` strongly agree or agree that the strategies they’ve learned in this course will improve their instruction.
+- `r well_designed` strongly agree or agree that the activities were well- designed to help them meet the learning targets.
+- `r fully_present` strongly agree or agree that they were fully present \"minds-on\" during these PL sessions.
+- `r applied_learning` strongly agree or agree that they have or will apply what they have learned in this course to their practice.
+- `r sense_community` strongly agree or agree that they felt a sense of community with the other participants in this course.
+- `r satisfied_quality` strongly agree or agree that they were satisfied with the overall quality of this course.
+- `r satisfied_facilitated` strongly agree or agree that they were satisfied with how the course was facilitated.
+- `r relevant_course` strongly agree or agree that the course was relevant to their instructional practices.
+- `r supported_course` strongly agree or agree that the course has supported them in being responsive to students' backgrounds, cultures, and points of view.
+- `r teachers_talk` strongly agree or agree that they talk to other teachers about the things I learned in this PL.
+
+
+\section{Qualitative End of Course Participant Feedback}
+
+Responses to the following questions are presented below:
+
+- Overall, what went well in this course?
+
+- What did you find useful in our professional learning?
+
+- Overall, what could have been better in this course?
+
+- What is the learning from this course that you are most excited about trying out?
+
+- Which activities best supported your learning in this course?
+
+- Feel free to leave us any additional comments, concerns, or questions.
+
+\subsection{Overall, what went well in this course?}
+
+```{r echo = F}
+if (sum(!is.na(final_course_survey_df$`Overall, what went well in this course?`)) >= 1) {
+  final_course_survey_df |>
+    select(`Overall, what went well in this course?`) |>
+    TeachingLab::quote_viz(
+      text_col = c(
+        "Overall, what went well in this course?"
+      ),
+      print = F,
+      width = 80
+    )
+} else {
+  no_data_plot
+}
+```
+
+```{r }
+# knitr::include_graphics(here::here("Images/2021-2022/Mathematica/img1.png"))
+```
+
+\subsection{Overall, what could have been better in this course?}
+
+```{r echo = F}
+if (sum(!is.na(final_course_survey_df$`Overall, what could have been better in this course?`)) >= 1) {
+  final_course_survey_df |>
+    select(`Overall, what could have been better in this course?`) |>
+    TeachingLab::quote_viz(
+      text_col = c(
+        "Overall, what could have been better in this course?"
+      ),
+      print = F,
+      width = 80
+    )
+} else {
+  no_data_plot
+}
+```
+
+```{r }
+# knitr::include_graphics(here::here("Images/2021-2022/Mathematica/img3.png"))
+```
+
+
+\subsection{What is the learning from this course that you are most excited about trying out?}
+
+```{r echo = F}
+if (sum(!is.na(final_course_survey_df$`What is the learning from this course that you are most excited about trying out?`)) >= 1) {
+  final_course_survey_df |>
+    select(`What is the learning from this course that you are most excited about trying out?`) |>
+    TeachingLab::quote_viz(
+      text_col = c(
+        "What is the learning from this course that you are most excited about trying out?"
+      ),
+      print = F,
+      width = 80
+    )
+} else {
+  no_data_plot
+}
+```
+
+```{r }
+# knitr::include_graphics(here::here("Images/2021-2022/Mathematica/img4.png"))
+```
+
+\subsection{Which activities best supported your learning in this course?}
+
+```{r echo = F}
+if (sum(!is.na(final_course_survey_df$`Which activities best supported your learning in this course?`)) >= 1) {
+  final_course_survey_df |>
+    select(`Which activities best supported your learning in this course?`) |>
+    TeachingLab::quote_viz(
+      text_col = c(
+        "Which activities best supported your learning in this course?"
+      ),
+      print = F,
+      width = 80
+    )
+} else {
+  no_data_plot
+}
+```
+
+
+\subsection{Feel free to leave us any additional comments, concerns, or questions.}
+
+```{r echo = F}
+if (sum(!is.na(final_course_survey_df$`Feel free to leave us any additional comments, concerns, or questions.`)) >= 1) {
+  final_course_survey_df |>
+    select(`Feel free to leave us any additional comments, concerns, or questions.`) |>
+    TeachingLab::quote_viz(
+      text_col = c(
+        "Feel free to leave us any additional comments, concerns, or questions."
+      ),
+      print = F,
+      width = 80
+    )
+} else {
+  no_data_plot
+}
+```
+
+
+\section{NPS}
+
+Finally, below is the average overall NPS for CKLA courses
+
+
+```{r}
+final_course_survey_df |>
+  mutate(nps = readr::parse_number(as.character(nps))) |>
+        mutate(nps = na_if(nps, "No Response")) |>
+        summarise(nps = calc_nps(suppressWarnings(as.numeric(nps)))) |>
+        mutate(
+          x = 0,
+          y = nps
+        ) |>
+  ggplot() +
+        geom_text(aes(x = 0, y = 0.5, label = "fake text"), color = "transparent") +
+        geom_text(aes(x = -0.5, y = 0.5, label = "fake text"), color = "transparent") +
+        with_outer_glow(
+          geom_text(aes(x = 0, y = 0, label = nps), size = 30),
+          colour = "#04abeb",
+          sigma = 5,
+          expand = 5
+        ) +
+        geom_text(aes(x = 0, y = -0.5, label = "fake text"), color = "transparent") +
+        geom_text(aes(x = 0.5, y = -0.5, label = "fake text"), color = "transparent") +
+        with_outer_glow(
+          geom_circle(aes(x0 = 0, y0 = 0, r = 1), size = 5),
+          colour = "#04abeb",
+          sigma = 5,
+          expand = 5
+        ) +
+        coord_fixed() +
+        theme_void()
+```
+

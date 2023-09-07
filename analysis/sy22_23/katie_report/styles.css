@@ -1,0 +1,160 @@
+/*@import url('https://fonts.googleapis.com/css2?family=Calibri&display=swap'); */
+
+body .main-container {
+  background-color: white;
+  max-width: 1600px!important;
+}
+
+/* Whole document: */
+* {
+  font-family: Calibri;
+  font-size: 12pt;
+}
+
+.myFooter {
+  font-size: 7pt;
+}
+
+.myFooter a {
+  color: 04abeb;
+}
+
+/* Headers */
+/*h1,h2,h3,h4,h5,h6{
+  font-size: 24pt;
+}*/
+
+#main .nav-pills > li.active > a,
+#main .nav-pills > li.active > a:hover,
+#main .nav-pills > li.active > a:focus {
+    background-color: #04ABEB;
+}
+
+#main .nav-pills > li > a:hover {
+    background-color: #04ABEB;
+    text-align: center;
+}
+
+h1, legend {
+    color: #04ABEB;
+    text-align: center;
+}
+
+#content h2 {
+    text-align: center;
+    color: #FF7B43;
+}
+
+#content h3 {
+    text-align: left;
+    color: #D17DF7;
+}
+
+h4 {
+    color: #04ABEB;
+    text-align: center;
+    font-size: 36px;
+}
+
+#nav-top .glyphicon {
+    color: #04ABEB;
+}
+
+#table-of-contents header {
+    color: #04ABEB;
+}
+
+#table-of-contents h2 {
+    background-color: #04ABEB;
+}
+
+#main a {
+    background-image: linear-gradient(180deg,#04abeb,#04abeb);
+    color: #04abeb;
+}
+
+a:hover {
+    color: #04abeb;
+}
+
+a:visited {
+    color: #04abeb;
+}
+
+#sidebar h2 {
+  background-color: #04ABEB;
+}
+
+/* The sidebar menu */
+.sidenav {
+  height: 100%; /* Full-height: remove this if you want "auto" height */
+  width: 400px; /* Set the width of the sidebar */
+  position: fixed; /* Fixed Sidebar (stay in place on scroll) */
+  z-index: 1; /* Stay on top */
+  top: 0; /* Stay at the top */
+  right: 0;
+  background-color: #FFFFFF; /* Black */
+  overflow-x: hidden; /* Disable horizontal scroll */
+  padding-top: 20px;
+  text-align: center;
+}
+
+#sidebar {
+  background: #000000;
+}
+
+/* The navigation menu links */
+.sidenav a {
+  padding: 6px 8px 6px 16px;
+  text-decoration: none;
+  font-size: 25px;
+  color: #818181;
+  display: block;
+}
+
+/* When you mouse over the navigation links, change their color */
+.sidenav a:hover {
+  color: #f1f1f1;
+}
+
+/* Style page content */
+.main {
+  margin-left: 160px; /* Same as the width of the sidebar */
+  padding: 0px 10px;
+}
+
+/* On smaller screens, where height is less than 450px, change the style of the sidebar (less padding and a smaller font size) */
+@media screen and (max-height: 450px) {
+  .sidenav {padding-top: 15px;}
+  .sidenav a {font-size: 18px;}
+}
+
+
+.showopt {
+  background-color: #04abeb;
+  color: #FFFFFF; 
+  width: 70px;
+  height: 30px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  float: left;
+  font-family: Calibri;
+  border-radius: 15px;
+}
+
+.showopt:hover {
+    background-color: #dfe4f2;
+    color: #004c93;
+}
+
+pre.plot {
+  background-color: white !important;
+  1px solid #ffffff !important;
+  border-radius: 20px;
+}
+
+
+
+
+
