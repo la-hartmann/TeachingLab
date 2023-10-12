@@ -21,7 +21,7 @@ get_participant_feedback <- function(update = FALSE, start_date = as.Date("2022-
 #' @param write FALSE by default, otherwise writes data to year and data directory
 #' @return Returns a tibble
 #' @export
-get_session_survey <- function(update = FALSE, year = "22_23", write = FALSE) {
+get_session_survey <- function(update = FALSE, year = "23_24", write = FALSE) {
   if (year == "23_24") {
     session_survey <- qualtRics::fetch_survey(
       surveyID = "SV_djt8w6zgigaNq0C",
@@ -72,7 +72,7 @@ get_session_survey <- function(update = FALSE, year = "22_23", write = FALSE) {
 #' @param write FALSE by default
 #' @return Returns a tibble
 #' @export
-get_course_survey <- function(update = FALSE, year = "22_23", write = FALSE) {
+get_course_survey <- function(update = FALSE, year = "23_24", write = FALSE) {
   if (year == "23_24") {
     course_survey <- qualtRics::fetch_survey(
       surveyID = "SV_djt8w6zgigaNq0C",
@@ -120,7 +120,7 @@ get_course_survey <- function(update = FALSE, year = "22_23", write = FALSE) {
 #' @param write FALSE by default
 #' @return Returns a tibble
 #' @export
-get_ongoing_coaching <- function(update = FALSE, year = "22_23", write = FALSE) {
+get_ongoing_coaching <- function(update = FALSE, year = "23_24", write = FALSE) {
   if (year == "23_24") {
     coaching_feedback_clean <- qualtRics::fetch_survey(
       surveyID = "SV_djt8w6zgigaNq0C",
@@ -163,7 +163,7 @@ get_ongoing_coaching <- function(update = FALSE, year = "22_23", write = FALSE) 
 #' @param write FALSE by default
 #' @return Returns a tibble
 #' @export
-get_end_coaching <- function(update = FALSE, year = "22_23", write = FALSE) {
+get_end_coaching <- function(update = FALSE, year = "23_24", write = FALSE) {
   if (year == "23_24") {
     end_coaching_survey_clean <- qualtRics::fetch_survey(
       surveyID = "SV_djt8w6zgigaNq0C",
@@ -206,8 +206,22 @@ get_end_coaching <- function(update = FALSE, year = "22_23", write = FALSE) {
 #' @param write FALSE by default
 #' @return Returns a tibble
 #' @export
-get_student_survey <- function(update = FALSE, year = "22_23", write = FALSE) {
-  if (year == "22_23") {
+get_student_survey <- function(update = FALSE, year = "23_24", write = FALSE) {
+  if (year == "23_24") {
+    
+    student_survey <- qualtRics::fetch_survey(
+      surveyID = "SV_9uze2faHuIf3vP8",
+      verbose = FALSE,
+      convert = FALSE,
+      include_display_order = FALSE,
+      start_date = as.Date("2023-07-01"),
+      force_request = update
+    ) |>
+      dplyr::filter(Finished == TRUE & RecordedDate >= as.Date("2023-07-01"))
+    
+    student_survey_coalesced <- student_survey
+    
+  } else if (year == "22_23" & update == TRUE) {
     student_survey <- qualtRics::fetch_survey(
       surveyID = "SV_9uze2faHuIf3vP8",
       verbose = FALSE,
@@ -215,7 +229,7 @@ get_student_survey <- function(update = FALSE, year = "22_23", write = FALSE) {
       include_display_order = FALSE,
       force_request = update
     ) |>
-      dplyr::filter(Finished == TRUE) |>
+      dplyr::filter(Finished == TRUE & RecordedDate <= as.Date("2023-07-01")) |>
       dplyr::mutate(
         eic = FALSE,
         site = as.character(site),
@@ -239,7 +253,7 @@ get_student_survey <- function(update = FALSE, year = "22_23", write = FALSE) {
       include_display_order = FALSE,
       force_request = update
     ) |>
-      dplyr::filter(Finished == TRUE) |>
+      dplyr::filter(Finished == TRUE & RecordedDate <= as.Date("2023-07-01")) |>
       dplyr::mutate(
         eic = TRUE,
         site = as.character(site),
@@ -257,6 +271,8 @@ get_student_survey <- function(update = FALSE, year = "22_23", write = FALSE) {
 
     student_survey_coalesced <- student_survey |>
       dplyr::full_join(eic_student_survey)
+  } else if (year == "22_23" & update == FALSE) {
+    student_survey_coalesced <- read.csv("data/sy22_23/student_survey.csv")
   } else if (year == "21_22" & update == FALSE) {
     student_survey_coalesced <- readr::read_rds("data/sy21_22/student_survey.rds")
   } else if (update == TRUE & year == "21_22") {
@@ -272,7 +288,7 @@ get_student_survey <- function(update = FALSE, year = "22_23", write = FALSE) {
 #' @param year "21_22" or "22_23"
 #' @return Returns a tibble
 #' @export
-get_student_work <- function(update = FALSE, year = "22_23") {
+get_student_work <- function(update = FALSE, year = "23_24") {
   if (year == "23_24") {
     student_work <- qualtRics::fetch_survey("SV_6nwa9Yb4OyXLji6",
                                             include_display_order = FALSE,
@@ -280,6 +296,7 @@ get_student_work <- function(update = FALSE, year = "22_23") {
                                             start_date = as.Date("2023-07-01"),
                                             force_request = update
     ) |>
+      dplyr::filter(Finished == TRUE & RecordedDate >= as.Date("2023-07-01")) |>
       suppressWarnings()
   } else if (year == "22_23") {
     student_work <- qualtRics::fetch_survey("SV_6nwa9Yb4OyXLji6",
@@ -302,7 +319,7 @@ get_student_work <- function(update = FALSE, year = "22_23") {
 #' @param write FALSE by default
 #' @return A tibble
 #' @export
-get_diagnostic_survey <- function(update = FALSE, year = "22_23", write = FALSE) {
+get_diagnostic_survey <- function(update = FALSE, year = "23_24", write = FALSE) {
   
   if (year == "23_24") {
     
@@ -313,6 +330,7 @@ get_diagnostic_survey <- function(update = FALSE, year = "22_23", write = FALSE)
       force_request = update,
       start_date = as.Date("2023-07-01")
     ) |>
+      dplyr::filter(Finished == TRUE) |>
       suppressWarnings()
     
   } else if (year == "22_23" & update == TRUE) {
@@ -396,16 +414,17 @@ get_diagnostic_survey <- function(update = FALSE, year = "22_23", write = FALSE)
 #' @param write FALSE by default
 #' @return Returns a tibble
 #' @export
-get_followup_educator <- function(update = FALSE, year = "22_23", write = FALSE) {
+get_followup_educator <- function(update = FALSE, year = "23_24", write = FALSE) {
   if (year == "23_24") {
     
-    diagnostic_final <- qualtRics::fetch_survey(
+    followup_educator_clean <- qualtRics::fetch_survey(
       surveyID = "SV_8vrKtPDtqQFbiBM",
       verbose = FALSE,
       include_display_order = FALSE,
       force_request = update,
       start_date = as.Date("2023-07-01")
     ) |>
+      dplyr::filter(Finished == TRUE) |>
       dplyr::mutate(email = tolower(email)) |>
       dplyr::group_by(email) |>
       dplyr::slice(2) |>
@@ -501,7 +520,7 @@ get_followup_educator <- function(update = FALSE, year = "22_23", write = FALSE)
 #' @param year "21_22" or "22_23"
 #' @return A tibble
 #' @export
-get_knowledge_assessments <- function(update = FALSE, year = "22_23") {
+get_knowledge_assessments <- function(update = FALSE, year = "23_24") {
   
   if (year == "23_24") {
     ### List of ids and knowledge assessments ###

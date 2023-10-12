@@ -2,9 +2,13 @@
 % Please edit documentation in R/scoring_functions.R
 \name{knowledge_assess_select_score}
 \alias{knowledge_assess_select_score}
-\title{Knowledge Assessments Scoring 2022-2023}
+\title{Knowledge Assessments Scoring}
 \usage{
-knowledge_assess_select_score(survey_id, survey_name)
+knowledge_assess_select_score(
+  survey_id,
+  survey_name,
+  start_date = as.Date("2023-07-01")
+)
 }
 \arguments{
 \item{survey_id}{Qualtrics survey id}

@@ -1,12 +1,5 @@
 library(qualtRics)
 
-## Secret: xtvFHOo3CAttQE53t1Cex9htXrK1pomJlljS0D345Hwi1SJR0QEeY3ApFAVOllNO
-## Client: dc1460025ed4e498e28e5bf65a52e0ac
-qualtrics_api_credentials(api_key = "r1vgrzHjb3AQrBQEKgLXd8khdF5R7FFjP5lp7bzT", 
-                          base_url = "teachinglab.co1.qualtrics.com",
-                          install = TRUE,
-                          overwrite = TRUE)
-
 surveys <- all_surveys()
 
 session_survey <- fetch_survey(surveyID = "SV_djt8w6zgigaNq0C", 

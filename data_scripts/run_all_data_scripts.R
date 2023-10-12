@@ -22,8 +22,9 @@ devtools::load_all()
 googlesheets4::gs4_auth()
 
 ## Run all scripts based on location ##
-purrr::walk(r_scripts_final[-c(2, 7, 3)], run_script)
+purrr::walk(r_scripts_final[-c(4)], run_script)
+### REMINDER TO WORK ON STUDENT WORK APP ###
 
-usethis::edit_file(r_scripts_final[3]) ### So it can be ran and checked at each point
+usethis::edit_file(r_scripts_final[4]) ### So it can be ran and checked at each point
 
 ############################################# End Script ######################################################

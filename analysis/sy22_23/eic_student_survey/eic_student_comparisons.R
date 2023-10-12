@@ -1,6 +1,7 @@
 library(qualtRics)
 library(TeachingLab)
 library(tidyverse)
+devtools::load_all()
 
 student_survey <- TeachingLab::get_student_survey(update = FALSE, year = "22_23")
 
@@ -20,11 +21,8 @@ eic_renamed_a1_poc <- eic_student_survey_selected |>
   select(contains("growth_mindsets_a1")) |>
   TeachingLab::relabel_qualtrics_df()
 
-
-devtools::load_all()
-
 TeachingLab::tl_likert(
-  data = eic_renamed_a1,
+  data = eic_renamed_a1_white,
   title = "How much do you agree or disagree with the statements below? (White)",
   string_remove = "How much do you agree or disagree with the statements below\\? - ",
   string_wrap = 25

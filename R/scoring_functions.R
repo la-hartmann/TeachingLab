@@ -626,100 +626,108 @@ knowledge_assess_select_score <- function(survey_id, survey_name, start_date = a
 #' @title Knowledge Assessments Question Scoring 2022-2023
 #' @param survey_id Qualtrics survey id
 #' @param survey_name Name of survey - should match Qualtrics name
+#' @param start_date, a date passed to fetch_survey
 #' @description function to grade and output each question per respondent in a knowledge assessments survey
 #' @return a dataframe of columns: prepost, site, know_assess, date, question, score, question2, answer, max_score
 #' @export
 
 ### Function for detailed scoring ###
-knowledge_assess_detailed_score <- function(survey_id, survey_name) {
+knowledge_assess_detailed_score <- function(survey_id, survey_name, start_date = as.Date("2022-07-01")) {
   
   ### Get Survey ###
-  selected_assessment <- qualtRics::fetch_survey(surveyID = survey_id, verbose = TRUE)
-  
-  ### Get max score of survey ###
-  ### Get max score of survey ###
-  if (survey_name == "Math: Bootcamp") {
-    max_overall_score <- 9
-  } else if (survey_name == "Math: RAISE") {
-    max_overall_score <- 11
-  } else if (survey_name == "ELA: Bootcamp - General") {
-    max_overall_score <- 8
-  } else if (survey_name == "ELA: Bootcamp - Foundational Skills") {
-    max_overall_score <- 7
-  } else if (survey_name == "ELA General: Cycle of Inquiry - Complex Text") {
-    max_overall_score <- 6
-  } else if (survey_name == "Math: Accelerating Learning") {
-    max_overall_score <- 6
-  } else if (survey_name == "Math: Cycle of Inquiry I - Eliciting Student Thinking") {
-    max_overall_score <- 6
-  } else if (survey_name == "School Leaders: Curriculum Adaptive Math|ELA (ILN)") {
-    max_overall_score <- 9
-  } else if (survey_name == "Math: Learning Across the Domains") {
-    max_overall_score <- 5
-  } else if (survey_name == "Language Standards|Conventions Knowledge_NYBlendedLit") {
-    max_overall_score <- 10
-  } else if (survey_name == "ELA Guidebooks: Cycle of Inquiry 2 - Writing & Language Skills") {
-    max_overall_score <- 6
-  } else if (survey_name == "Math: Cycle of Inquiry III - Facilitating Mathematical Discourse") {
-    max_overall_score <- 5
-  }
-  
-  ### Conditional renaming just in case ###
-  if(!"site" %in% colnames(selected_assessment)) {
-    selected_assessment <- selected_assessment |>
-      dplyr::rename(site = Q1)
-  }
+  selected_assessment <- qualtRics::fetch_survey(surveyID = survey_id, 
+                                                 verbose = FALSE, 
+                                                 include_display_order = FALSE,
+                                                 force_request = FALSE,
+                                                 start_date = start_date) |>
+    dplyr::filter(Finished == TRUE & RecordedDate >= start_date) |>
+    dplyr::select(!tidyselect::contains("ascend") & !tidyselect::contains("osceola")) |>
+    dplyr::select(-tidyselect::contains("DO_"))
   
   ### Get score names ahead of time except for SC0 which is the total score  ###
   score_columns <- selected_assessment |>
-    dplyr::select(contains("SC")) |>
-    dplyr::select(-SC0) |>
+    dplyr::select(tidyselect::contains("SC")) |>
+    # dplyr::select(-SC0) |>
     colnames()
   ### Get attr labels except for SC0 which is the total score ###
   score_names <- selected_assessment |>
-    dplyr::select(contains("SC")) |>
-    dplyr::select(-SC0) |>
+    dplyr::select(tidyselect::contains("SC")) |>
+    # dplyr::select(-SC0) |>
     purrr::map_chr( ~ attr(.x, "label"))
+  
+  if (survey_name == "Math: Bootcamp") {
+    score_names <- stringr::str_replace_all(score_names, "HQIM", "\\(HQIM\\)")
+  }
   
   ### Make a replacement vector ###
   score_replace_vector <- c(score_names) |>
     purrr::set_names(score_columns)
   
+  ### Get question names ahead of time except for SC0 which is the total score  ###
+  question_columns <- selected_assessment |>
+    dplyr::select(contains("Q") & !contains("QLTI")) |>
+    colnames()
+  ### Get attr labels except for SC0 which is the total score ###
+  question_names <- selected_assessment |>
+    dplyr::select(contains("Q") & !contains("QLTI")) |>
+    purrr::map_chr( ~ attr(.x, "label"))
+  
+  ### Make a replacement vector ###
+  question_replace_vector <- c(question_names) |>
+    purrr::set_names(question_columns)
+  
+  ### Scoring data ###
+  score_data <- selected_assessment |>
+    dplyr::mutate(id = tolower(email)) |>
+    dplyr::mutate(
+      n_response = dplyr::n(), # Get number of responses by person, sometimes there are more than 2 :/
+      maxdate = max(RecordedDate), # Get max date of creation for most recent response
+      prepost = dplyr::if_else(RecordedDate >= maxdate & n_response > 1, "post", "pre"),
+      prepost = factor(prepost, levels = c("pre", "post"))
+    ) |>
+    dplyr::ungroup() |>
+    dplyr::select(id, contains("SC"), prepost) |>
+    dplyr::rename_with( ~ stringr::str_replace_all(.x, score_replace_vector)) |>
+    tidyr::pivot_longer(!c(id, prepost), names_to = "question", values_to = "score") |>
+    dplyr::mutate(question = stringr::str_replace_all(question, c("\\[" = "\\(",
+                                                                  "\\]" = "\\)"))) #|> ### Since the scoring option does not take parentheses in qualtrics I have used brackets which I replace here for the later left join to work
+    # view()
+  
   ### Select correct columns ###
-  selected_assessment |>
+  know_data <- selected_assessment |>
     dplyr::filter(Finished == TRUE) |>
-    dplyr::mutate(id = paste0(tolower(initials), dob),
+    dplyr::mutate(id = tolower(email),
                   know_assess = survey_name) |>
     dplyr::group_by(id) |>
-    dplyr::mutate(n_response = dplyr::n(), # Get number of responses by person, sometimes there are more than 2 :/
-                  maxdate = max(RecordedDate), # Get max date of creation for most recent response
-                  matched = dplyr::if_else(n_response > 1 & maxdate == RecordedDate, "post", "pre")) |> # Define as post for matched if more than 1 response and date is max of date_created
-    dplyr::mutate(matched = factor(matched, levels = c("pre", "post"))) |> # Make matched a factor
-    dplyr::mutate(prepost = dplyr::if_else(RecordedDate >= maxdate & n_response > 1, "post", "pre")) |> # I forgot what this does
-    dplyr::mutate(prepost = factor(prepost, levels = c("pre", "post"))) |> # Make prepost a factor
+    dplyr::mutate(
+      n_response = dplyr::n(), # Get number of responses by person, sometimes there are more than 2 :/
+      maxdate = max(RecordedDate), # Get max date of creation for most recent response
+      prepost = dplyr::if_else(RecordedDate >= maxdate & n_response > 1, "post", "pre"),
+      prepost = factor(prepost, levels = c("pre", "post"))
+    ) |>
     dplyr::ungroup() |>
-    dplyr::select(contains("SC"), 
-                  matches("Q[[:digit:]]"), 
+    dplyr::select(id, 
                   prepost, 
                   site, 
                   know_assess, 
-                  date = RecordedDate) |>
-    dplyr::select(!contains("DO") & !SC0 & !contains("D9")) |>
-    tidyr::pivot_longer(cols = starts_with("SC"), names_to = "question", values_to = "score") |>
-    dplyr::mutate(dplyr::across(starts_with("Q", ignore.case = FALSE), ~ as.character(.x))) |>
-    tidyr::pivot_longer(cols = starts_with("Q", ignore.case = FALSE), names_to = "question2", values_to = "answer") |>
-    dplyr::mutate(question2 = stringr::str_remove_all(question2, "_[:digit:]")) |>
-    dplyr::group_by(question, prepost, site) |>
-    dplyr::mutate(max_score = max(score, na.rm = T)) |>
-    dplyr::ungroup() |>
-    dplyr::mutate(score = score/max_score,
-                  question = stringr::str_replace_all(question, score_replace_vector),
-                  # question = stringr::str_replace_all(question, c("SC0" = "Total")),
-                  question2 = as.character(question2)) |>
-    dplyr::ungroup() |>
-    tidyr::drop_na() |>
-    dplyr::group_by(question, question2, prepost, site) |>
-    dplyr::mutate(answer = paste0(answer, collapse = " ")) |>
-    dplyr::ungroup()
+                  date = RecordedDate,
+                  matches("Q[[:digit:]]")) |>
+    dplyr::mutate(dplyr::across(starts_with("Q", ignore.case = FALSE), ~ as.character(.x)),
+                  Q_Score = NA_character_) |> # Add score for join but with Q so it gets pivoted
+    tidyr::pivot_longer(cols = tidyselect::starts_with("Q", ignore.case = FALSE), names_to = "question", values_to = "answer") |>
+    dplyr::mutate(question = stringr::str_replace_all(question, question_replace_vector),
+                  question = stringr::str_replace_all(question, "Q_Score", "Score"), # Rename Score for join
+                  question2 = gsub("(Select all that apply\\.).*", "\\1", question)) |> # Remove all that apply part for join from score_data
+    dplyr::left_join(score_data, by = c("question2" = "question", "id", "prepost"), relationship = "many-to-many") |>
+    dplyr::select(-question2) |>
+    dplyr::rename(question1 = question) |>
+    dplyr::mutate(question2 = stringr::str_extract(question1, ".*?(?=\\. - )"), # Get first part for question 1
+                  question1 = stringr::str_remove_all(question1, ".*?\\. - ")) |> # Get second part for question 2
+    dplyr::filter(question1 != "What grade band do you teach primarily?") |>
+    dplyr::relocate(question2, .after = question1)
+  
+  ### Format here is id, prepost, site, know_assess, date, question, answer, score ###
+  know_data
+  
 }
 

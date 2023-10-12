@@ -4,12 +4,18 @@
 \alias{knowledge_assess_detailed_score}
 \title{Knowledge Assessments Question Scoring 2022-2023}
 \usage{
-knowledge_assess_detailed_score(survey_id, survey_name)
+knowledge_assess_detailed_score(
+  survey_id,
+  survey_name,
+  start_date = as.Date("2022-07-01")
+)
 }
 \arguments{
 \item{survey_id}{Qualtrics survey id}
 
 \item{survey_name}{Name of survey - should match Qualtrics name}
+
+\item{start_date, }{a date passed to fetch_survey}
 }
 \value{
 a dataframe of columns: prepost, site, know_assess, date, question, score, question2, answer, max_score

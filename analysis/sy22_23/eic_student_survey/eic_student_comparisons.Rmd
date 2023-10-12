@@ -32,9 +32,28 @@ opts_knit$set(width = 75)
 ## Rochester City School District
 
 ```{r}
-eic_student_survey_selected <- TeachingLab::get_student_survey() |>
-  filter(Finished == TRUE & eic == TRUE & site == "Rochester City School District") |>
+eic_student_survey_selected <- student_survey |>
+  filter(Finished == TRUE & eic == TRUE & site == "NY_Rochester City Schools") |>
   janitor::remove_empty("cols")
+
+eic_student_survey_selected |>
+  mutate(date = as.Date(format.Date(RecordedDate, "%Y-%m-%D"))) |>
+  group_by(date) |>
+  summarise(n = n()) |>
+  ggplot() +
+  geom_col(aes(x = date, y = n)) +
+  scale_x_date(date_breaks = "1 month", date_labels = "%Y-%m") +
+  labs(title = "Observations per day") +
+  theme_tl()
+ggsave(here::here("images/sy22_23/eic/timeline_rochester.png"),
+       bg = "white",
+       height = 10,
+       width = 10)
+
+eic_survey <- qualtRics::fetch_survey("SV_8f9l21n6ML58WFM")
+colmap <- qualtRics::extract_colmap(eic_survey) |>
+  filter(qname != "race")
+colmap_vector <- c(colmap$description) |> setNames(colmap$qname)
 
 eic_student_bar_chart <- function(data, col_select, agree_select, string_remove, title,
                                   legend_position = c(0.8, 0.25)) {
@@ -45,10 +64,12 @@ eic_student_bar_chart <- function(data, col_select, agree_select, string_remove,
                             race == "Black or African American" ~ "Black or African American",
                             ethnicity == "Yes" ~ "Latino/a",
                             T ~ NA),
-           race = structure(race, label = "race")) |>
-    drop_na(race) |>
+           # race = structure(race, label = "race"),
+           prepost = ifelse(RecordedDate <= as.Date("2023-04-01"), "pre", "post"),
+           race = paste0(race, " (", prepost, ")")) |>
+    filter(race != "NA (pre)" & race != "NA (post)") |>
     select(race, contains(col_select)) |>
-    TeachingLab::relabel_qualtrics_df() |>
+    rename_with( ~ str_replace_all(.x, colmap_vector)) |>
     group_by(race) |>
     summarise(across(everything(), ~ tl_select_percent(.x, agree_select)))
 
@@ -68,19 +89,24 @@ eic_student_bar_chart <- function(data, col_select, agree_select, string_remove,
                             ethnicity == "Yes" ~ "Latino/a",
                             T ~ NA)) |>
     drop_na(race) |>
+    mutate(race = paste0(race, " (", prepost, ")")) |>
     group_by(race) |>
     count(sort = T)
 
   subtitle <- if (length(agree_select) > 1) {
-    glue::glue('The following percentages show the % that selected "{agree_select[1]}" or "{agree_select[2]}",<br><b style = "color: #04abeb">White (n = {eic_a1_race_counts$n[eic_a1_race_counts == "White"]})</b>, <b style = "color: #0174A1">Latino/a (n = {eic_a1_race_counts$n[eic_a1_race_counts == "Latino/a"]})</b>, <b style = "color: #023C52">Black or African American (n = {eic_a1_race_counts$n[eic_a1_race_counts == "Black or African American"]})</b>')
+    glue::glue('The following percentages show the % that selected "{agree_select[1]}" or "{agree_select[2]}",<br><b style = "color: #FF7B43">White (pre n = {eic_a1_race_counts$n[eic_a1_race_counts$race == "White (Pre)"]})</b> and <b style = "color: #813F23">White (post n = {eic_a1_race_counts$n[eic_a1_race_counts$race == "White (Post)"]})</b>,<br><b style = "color: #43C6B9">Latino/a (pre n = {eic_a1_race_counts$n[eic_a1_race_counts$race == "Latino/a (Pre)"]})</b> and <b style = "color: #23655E">Latino/a (post n = {eic_a1_race_counts$n[eic_a1_race_counts$race == "Latino/a (Post)"]})</b>,<br><b style = "color: #00ACF0">Black or African American (pre n = {eic_a1_race_counts$n[eic_a1_race_counts$race == "Black or African American (Pre)"]})</b> and <b style = "color: #02587A">Black or African American (post n = {eic_a1_race_counts$n[eic_a1_race_counts$race == "Black or African American (Post)"]})</b>')
   } else {
-    glue::glue('The following percentages show the % that selected "{agree_select[1]}",<br><b style = "color: #04abeb">White (n = {eic_a1_race_counts$n[eic_a1_race_counts == "White"]})</b>, <b style = "color: #0174A1">Latino/a (n = {eic_a1_race_counts$n[eic_a1_race_counts == "Latino/a"]})</b>, <b style = "color: #00ACF0">Black or African American (n = {eic_a1_race_counts$n[eic_a1_race_counts == "Black or African American"]})</b>')
+    glue::glue('The following percentages show the % that selected "{agree_select[1]}",<br><b style = "color: #FF7B43">White (pre n = {eic_a1_race_counts$n[eic_a1_race_counts$race == "White (Pre)"]})</b> and <b style = "color: #813F23">White (post n = {eic_a1_race_counts$n[eic_a1_race_counts$race == "White (Post)"]})</b>,<br><b style = "color: #43C6B9">Latino/a (pre n = {eic_a1_race_counts$n[eic_a1_race_counts$race == "Latino/a (Pre)"]})</b> and <b style = "color: #23655E">Latino/a (pre n = {eic_a1_race_counts$n[eic_a1_race_counts$race == "Latino/a (Post)"]})</b>,<br><b style = "color: #00ACF0">Black or African American (pre n = {eic_a1_race_counts$n[eic_a1_race_counts$race == "Black or African American (Pre)"]})</b> and <b style = "color: #02587A">Black or African American (post n = {eic_a1_race_counts$n[eic_a1_race_counts$race == "Black or African American (Post)"]})</b>')
   }
 
-  ggplot(eic_renamed_a1, aes(x = question, y = percent, fill = race)) +
-    geom_col(position = position_dodge()) +
+  ggplot() +
+    geom_col(data = eic_renamed_a1, 
+             aes(x = question, y = percent, fill = race),
+             position = position_dodge()) +
     geom_text(
+      data = eic_renamed_a1,
       aes(
+        x = question, y = percent,
         label = paste0(round(percent), "%"),
         color = race
       ),
@@ -100,8 +126,12 @@ eic_student_bar_chart <- function(data, col_select, agree_select, string_remove,
       color = "none"
     ) +
     coord_flip() +
-    scale_fill_manual(values = tl_palette(color = "blue", n = 4)[2:4]) +
-    scale_color_manual(values = tl_palette(color = "blue", n = 4)[2:4]) +
+    scale_fill_manual(values = c(tl_palette(color = "blue", n = 3)[2:3],
+                                 tl_palette(color = "green", n = 3)[2:3],
+                                 tl_palette(color = "orange", n = 3)[2:3])) +
+    scale_color_manual(values = c(tl_palette(color = "blue", n = 3)[2:3],
+                                 tl_palette(color = "green", n = 3)[2:3],
+                                 tl_palette(color = "orange", n = 3)[2:3])) +
     theme_tl() +
     theme(
       legend.position = legend_position,
@@ -171,6 +201,7 @@ eic_student_bar_chart(
   data = eic_student_survey_selected,
   title = "How much do you agree or disagree with the statement below?",
   col_select = "self_efficacy_a4",
+  legend_position = c(0.85, 0.2),
   agree_select = c(
     "5 - Agree",
     "6 - Strongly agree"
@@ -252,6 +283,258 @@ ggsave(here::here("images/sy22_23/eic/race_comparison_a7_rochester.png"),
   width = 13
 )
 ```
+
+### Rochester from google sheet
+
+```{r}
+eic_sheet <- googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1Hh3mlQIbXuoIQOsPS1CmPg5sdycpBTAOhZ3guoHpDR0/edit#gid=1340312124")
+
+eic_sheet_renamed <- eic_sheet |>
+  filter(site == "NY_Rochester City Schools" & Matched == "Y") |>
+  # rename_with( ~ stringr::str_replace_all(.x, colmap_vector)) |>
+  view()
+
+eic_student_bar_chart2 <- function(data, col_select, agree_select, string_remove, title,
+                                  legend_position = c(0.8, 0.25)) {
+  
+  eic_overall <- data |>
+    mutate(race = paste0("Overall (", `Pre/Post`, ")")) |>
+    select(race, contains(col_select)) |>
+    dplyr::rename_with( ~ stringr::str_replace_all(.x, colmap_vector)) |>
+    group_by(race) |>
+    summarise(across(everything(), ~ tl_select_percent(.x, agree_select)))
+  ### Makes race column, selects relevant columns and gets percent 
+  ### that selected relevant levels of agreeness
+  eic_renamed_a1_race <- data |>
+    mutate(race = case_when(race == "White" ~ NA_character_,
+                            race == "Black or African American" ~ "Black or African American",
+                            `Are you Hispanic or Latino/a Ethnicity?` == "Yes" ~ "Latino/a",
+                            T ~ NA)) |>
+    tidyr::drop_na(race) |>
+    mutate(race = paste0(race, " (", `Pre/Post`, ")")) |>
+    select(race, contains(col_select)) |>
+    dplyr::rename_with( ~ stringr::str_replace_all(.x, colmap_vector)) |>
+    group_by(race) |>
+    summarise(across(everything(), ~ tl_select_percent(.x, agree_select))) |>
+    bind_rows(eic_overall)
+
+  ### Reformat dataframe and prep for ggplot2
+  eic_renamed_a1 <- eic_renamed_a1_race |>
+    pivot_longer(!race, names_to = "question", values_to = "percent") |>
+    mutate(
+      question = str_remove_all(question, string_remove),
+      question = str_wrap(question, 25),
+      percent = percent * 100
+    )
+
+  ### Get race counts
+  eic_a1_race_counts_overall <- data |>
+    mutate(race = paste0("Overall (", `Pre/Post`, ")")) |>
+    group_by(race) |>
+    count(sort = T)
+  
+  eic_a1_race_counts <- data |>
+    mutate(race = case_when(race == "White" ~ NA_character_,
+                            race == "Black or African American" ~ "Black or African American",
+                            `Are you Hispanic or Latino/a Ethnicity?` == "Yes" ~ "Latino/a",
+                            T ~ NA)) |>
+    drop_na(race) |>
+    mutate(race = paste0(race, " (", `Pre/Post`, ")")) |>
+    group_by(race) |>
+    count(sort = T) |>
+    bind_rows(eic_a1_race_counts_overall)
+
+  subtitle <- if (length(agree_select) > 1) {
+    glue::glue('The following percentages show the % that selected "{agree_select[1]}" or "{agree_select[2]}",<br><b style = "color: #FF7B43">Overall (pre n = {eic_a1_race_counts$n[eic_a1_race_counts$race == "Overall (Pre)"]})</b> and <b style = "color: #813F23">Overall (post n = {eic_a1_race_counts$n[eic_a1_race_counts$race == "Overall (Post)"]})</b>,<br><b style = "color: #43C6B9">Latino/a (pre n = {eic_a1_race_counts$n[eic_a1_race_counts$race == "Latino/a (Pre)"]})</b> and <b style = "color: #23655E">Latino/a (post n = {eic_a1_race_counts$n[eic_a1_race_counts$race == "Latino/a (Post)"]})</b>,<br><b style = "color: #00ACF0">Black or African American (pre n = {eic_a1_race_counts$n[eic_a1_race_counts$race == "Black or African American (Pre)"]})</b> and <b style = "color: #02587A">Black or African American (post n = {eic_a1_race_counts$n[eic_a1_race_counts$race == "Black or African American (Post)"]})</b>')
+  } else {
+    glue::glue('The following percentages show the % that selected "{agree_select[1]}",<br><b style = "color: #FF7B43">Overall (pre n = {eic_a1_race_counts$n[eic_a1_race_counts$race == "Overall (Pre)"]})</b> and <b style = "color: #813F23">Overall (post n = {eic_a1_race_counts$n[eic_a1_race_counts$race == "Overall (Post)"]})</b>,<br><b style = "color: #43C6B9">Latino/a (pre n = {eic_a1_race_counts$n[eic_a1_race_counts$race == "Latino/a (Pre)"]})</b> and <b style = "color: #23655E">Latino/a (pre n = {eic_a1_race_counts$n[eic_a1_race_counts$race == "Latino/a (Post)"]})</b>,<br><b style = "color: #00ACF0">Black or African American (pre n = {eic_a1_race_counts$n[eic_a1_race_counts$race == "Black or African American (Pre)"]})</b> and <b style = "color: #02587A">Black or African American (post n = {eic_a1_race_counts$n[eic_a1_race_counts$race == "Black or African American (Post)"]})</b>')
+  }
+
+  ggplot() +
+    geom_col(data = eic_renamed_a1, 
+             aes(x = question, y = percent, fill = race),
+             position = position_dodge()) +
+    geom_text(
+      data = eic_renamed_a1,
+      aes(
+        x = question, y = percent,
+        label = paste0(round(percent), "%"),
+        color = race
+      ),
+      position = position_dodge2(width = 1, preserve = "total"),
+      hjust = -0.5,
+      family = "Calibri"
+    ) +
+    labs(
+      x = "", y = "",
+      title = title,
+      subtitle = subtitle,
+      fill = "Race"
+    ) +
+    scale_y_continuous(labels = scales::percent_format(scale = 1), limits = c(0, 100)) +
+    guides(
+      fill = guide_legend(reverse = TRUE),
+      color = "none"
+    ) +
+    coord_flip() +
+    scale_fill_manual(values = c(tl_palette(color = "blue", n = 3)[2:3],
+                                 tl_palette(color = "green", n = 3)[2:3],
+                                 tl_palette(color = "orange", n = 3)[2:3])) +
+    scale_color_manual(values = c(tl_palette(color = "blue", n = 3)[2:3],
+                                 tl_palette(color = "green", n = 3)[2:3],
+                                 tl_palette(color = "orange", n = 3)[2:3])) +
+    theme_tl() +
+    theme(
+      legend.position = legend_position,
+      # legend.text = element_text(face = "bold"),
+      legend.title = element_text(face = "bold"),
+      plot.title = element_text(family = "Calibri Bold", face = "bold"),
+      plot.subtitle = ggtext::element_markdown(family = "Calibri"),
+      legend.key.size = unit(1.2, "cm"),
+      axis.text.y = element_text(size = 14)
+    )
+}
+
+eic_student_bar_chart2(
+  data = eic_sheet_renamed,
+  title = "How much do you agree or disagree with the statements below (Matched)",
+  col_select = "growth_mindsets_a1",
+  legend_position = c(0.82, 0.25),
+  agree_select = c(
+    "1 - Strongly Disagree",
+    "2 - Disagree"
+  ),
+  string_remove = "How much do you agree or disagree with the statements below\\? - "
+)
+
+ggsave(here::here("images/sy22_23/eic/race_comparison_a1_rochester_matched.png"),
+  bg = "white",
+  height = 10,
+  width = 13
+)
+
+eic_student_bar_chart2(
+  data = eic_sheet_renamed,
+  title = "For you personally, how true or not true is the statement below? (Matched)",
+  col_select = "growth_mindsets_a2",
+  agree_select = c(
+    "Extremely true",
+    "Very true"
+  ),
+  string_remove = "For you personally, how true or not true is the statement below\\? \\(Select one only\\)"
+)
+
+ggsave(here::here("images/sy22_23/eic/race_comparison_a2_rochester_matched.png"),
+  bg = "white",
+  height = 10,
+  width = 13
+)
+
+eic_student_bar_chart2(
+  data = eic_sheet_renamed,
+  title = "How much do you agree or disagree with the statement below? (Matched)",
+  col_select = "growth_mindsets_a3",
+  legend_position = c(0.88, 0.6),
+  agree_select = c(
+    "Agree",
+    "Strongly agree"
+  ),
+  string_remove = "How much do you agree or disagree with the statement below\\? \\(Select one only\\)"
+)
+
+ggsave(here::here("images/sy22_23/eic/race_comparison_a3_rochester_matched.png"),
+  bg = "white",
+  height = 10,
+  width = 13
+)
+
+eic_student_bar_chart2(
+  data = eic_sheet_renamed,
+  title = "How much do you agree or disagree with the statement below? (Matched)",
+  col_select = "self_efficacy_a4",
+  legend_position = c(0.85, 0.2),
+  agree_select = c(
+    "5 - Agree",
+    "6 - Strongly agree"
+  ),
+  string_remove = "How much do you agree or disagree with the statements below\\? - "
+)
+
+ggsave(here::here("images/sy22_23/eic/race_comparison_a4_rochester_matched.png"),
+  bg = "white",
+  height = 10,
+  width = 13
+)
+
+### Have to edit subtitle code to make this one work ###
+eic_student_bar_chart2(
+  data = eic_sheet_renamed,
+  title = "How much do you agree or disagree with the statements below? (Matched)",
+  col_select = "math_enjoyment_a5",
+  agree_select = c(
+    "1 - Agree a lot"
+  ),
+  string_remove = "How much do you agree or disagree with the statements below\\? - "
+)
+
+ggsave(here::here("images/sy22_23/eic/race_comparison_a5_rochester_matched.png"),
+  bg = "white",
+  height = 10,
+  width = 13
+)
+
+eic_student_bar_chart2(
+  data = eic_sheet_renamed,
+  title = "When reading the following statements, think about your current math class and decide\nhow well the statements describe you (Matched)",
+  col_select = c("mses_a6_2", "mses_a6_3", "mses_a6_4", "mses_a6_5", "mses_a6_6", "mses_a6_7"),
+  agree_select = c(
+    "5 - Very much like me",
+    "4 - Mostly like me"
+  ),
+  string_remove = "When reading the following statements, think about your current math class and decide how well the statements describe you\\. - "
+)
+
+ggsave(here::here("images/sy22_23/eic/race_comparison_a6_rochester_matched.png"),
+  bg = "white",
+  height = 12,
+  width = 15
+)
+
+eic_student_bar_chart2(
+  data = eic_sheet_renamed,
+  title = "When reading the following statements, think about your current math class and decide\nhow well the statements describe you (Matched)",
+  col_select = c("mses_a6_1", "mses_a6_8", "mses_a6_9"),
+  agree_select = c(
+    "5 - Very much like me",
+    "4 - Mostly like me"
+  ),
+  string_remove = "When reading the following statements, think about your current math class and decide how well the statements describe you\\. - "
+)
+
+ggsave(here::here("images/sy22_23/eic/race_comparison_a6_2_rochester_matched.png"),
+  bg = "white",
+  height = 12,
+  width = 15
+)
+
+eic_student_bar_chart2(
+  data = eic_sheet_renamed,
+  title = "How often does your math teacher do each of the following? (Matched)",
+  col_select = "math_a7",
+  agree_select = c(
+    "4 - Most or all of the time"
+  ),
+  string_remove = "How often does your math teacher do each of the following\\? - ",
+  legend_position = c(0.8, 0.75)
+)
+
+ggsave(here::here("images/sy22_23/eic/race_comparison_a7_rochester_matched.png"),
+  bg = "white",
+  height = 10,
+  width = 13
+)
+```
+
 
 ### NYC District 11
 

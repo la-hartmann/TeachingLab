@@ -5,7 +5,7 @@ library(qualtRics)
 library(stringr)
 
 ### Basically just a wrapper ###
-student_work <- TeachingLab::get_student_work(year = "22_23", update = TRUE) |>
+student_work <- TeachingLab::get_student_work(year = "23_24", update = TRUE) |>
   dplyr::filter(Finished == TRUE)
 
 student_work_sheet <- googlesheets4::read_sheet(ss = "15ixca0QKloZtYLcmj_9Uc20zdQ5FE6pSVj3EBamLoiI")
@@ -240,14 +240,14 @@ if (length(files_pull) >= 1) {
   
   ### List of all API Request URLs (includes additional file submissions since the google sheet it is pulling from already has submissions) ###
   url <- purrr::map2_chr(
-    response_files$ResponseId, response_files$File_Id,
+    response_files$ResponseId, stringr::str_remove_all(response_files$File_Id, "https\\:\\/\\/teachinglab\\.iad1\\.qualtrics\\.com\\/WRQualtricsSurveyEngine\\/File\\.php\\?F\\="),
     ~ glue::glue("https://iad1.qualtrics.com/API/v3/surveys/SV_6nwa9Yb4OyXLji6/responses/{.x}/uploaded-files/{.y}")
   )
   
   ### Download all submissions with file names as file ids ###
   needed_submissions <- purrr::walk2(
     url,
-    response_files$File_Id,
+    stringr::str_remove_all(response_files$File_Id, "https\\:\\/\\/teachinglab\\.iad1\\.qualtrics\\.com\\/WRQualtricsSurveyEngine\\/File\\.php\\?F\\="),
     ~ httr::GET(
       url = .x,
       httr::add_headers(`X-API-TOKEN` = "r1vgrzHjb3AQrBQEKgLXd8khdF5R7FFjP5lp7bzT"),

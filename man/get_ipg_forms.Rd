@@ -4,7 +4,7 @@
 \alias{get_ipg_forms}
 \title{IPG Data}
 \usage{
-get_ipg_forms(update = FALSE, year = "22_23", write = FALSE)
+get_ipg_forms(update = FALSE, year = "23_24", write = FALSE)
 }
 \arguments{
 \item{update}{FALSE}

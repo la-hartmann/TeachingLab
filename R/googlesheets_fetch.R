@@ -192,7 +192,7 @@ get_student_scores_mississippi2 <- function(update = FALSE) {
 #' @param year the year to get the site for
 #' @return Returns a tibble of sites
 #' @export
-get_student_work_grades <- function(year = "22_23") {
+get_student_work_grades <- function(year = "23_24") {
   
   if (year == "23_24") {
     googlesheets4::read_sheet("15ixca0QKloZtYLcmj_9Uc20zdQ5FE6pSVj3EBamLoiI",

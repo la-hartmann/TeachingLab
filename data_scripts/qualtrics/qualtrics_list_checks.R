@@ -2,6 +2,47 @@ library(googlesheets4)
 library(qualtRics)
 library(tidyverse)
 
+################################## Coaching log teacher names check ####################################
+
+reticulate::source_python(here::here("data_scripts/monday.com/get_all_teacher_names_coaching_log.py"))
+
+### Read in Monday JSON ###
+initial_df <- jsonlite::fromJSON(here::here("data/monday/fy24_teachers_coaching_log.json"))
+
+initial_df$data$boards$items_page$items[[1]]$column_values |>
+  unlist() -> teachers
+
+ipg_teacher_options <- metadata(surveyID = "SV_0BSnkV9TVXK1hjw", questions = "teacher_select")
+final_teacher_choices <- purrr::map_chr(1:length(ipg_teacher_options$questions$QID472$choices), ~ ipg_teacher_options$questions$QID472$choices[[.x]]$choiceText)
+
+### Difference between teachers and teacher choices
+if (length(setdiff(teachers, final_teacher_choices)) >= 1) {
+  
+  print("Teacher name difference needs to be checked in the IPG! Results written to clipboard")
+  
+  setdiff(teachers, final_teacher_choices) |>
+    sort() |>
+    clipr::write_clip()
+  
+}
+
+student_work_teacher_options <- metadata(surveyID = "SV_6nwa9Yb4OyXLji6", questions = "teacher_select")
+sw_final_teacher_choices <- purrr::map_chr(1:length(student_work_teacher_options$questions$QID29$choices), ~ student_work_teacher_options$questions$QID29$choices[[.x]]$choiceText)
+
+### Difference between teachers and teacher choices
+if (length(setdiff(teachers, sw_final_teacher_choices)) >= 1) {
+  
+  print("Teacher name difference needs to be checked in the student work survey! Results written to clipboard")
+  
+  setdiff(teachers, sw_final_teacher_choices) |>
+    sort() |>
+    clipr::write_clip()
+  
+}
+
+################################## End of coaching log teacher names check ####################################
+
+
 ######################################### Site Checking #########################################
 
 site_list <- read_sheet(
@@ -111,6 +152,13 @@ facilitator_choices <- tibble(
   recode = as.numeric(purrr::map(1:length(facilitator_meta$questions$QID1316652654$choices), ~ facilitator_meta$questions$QID1316652654$choices[[.x]]$recode)),
 )
 
+facilitator_meta_2 <- metadata(surveyID = "SV_djt8w6zgigaNq0C", questions = "coach_2")
+
+facilitator_choices_2 <- tibble(
+  choices = purrr::map_chr(1:length(facilitator_meta_2$questions$QID109$choices), ~ facilitator_meta_2$questions$QID109$choices[[.x]]$choiceText),
+  recode = as.numeric(purrr::map(1:length(facilitator_meta_2$questions$QID109$choices), ~ facilitator_meta_2$questions$QID109$choices[[.x]]$recode)),
+)
+
 ### Run python script to get monday json ###
 reticulate::source_python(here::here("data_scripts/monday.com/monday_facilitators.py"))
 
@@ -131,23 +179,47 @@ first_column <- initial_df$data$boards$items |>
 final_df <- second_df |>
   dplyr::select(title, contains("text")) |>
   tidyr::pivot_longer(!title) |>
-  tidyr::pivot_wider(names_from = "title", values_from = "value") |>
+  tidyr::pivot_wider(names_from = "title", values_from = "value", values_fn = list) |>
   dplyr::select(-name) |>
   dplyr::bind_cols(first_column) |>
-  dplyr::relocate(Facilitator, .before = 1)
+  dplyr::relocate(Facilitator, .before = 1) |>
+  mutate(across(where(is.list), ~ na_if(as.character(.x), "NANA")))
 
 ### Grab Facilitator Monday Board ###
-fac_board <- final_df |>
-  filter(`Facilitator Onboarding` == "Done" | `Coach Onboarding` == "Done" | `Coach/Facilitator` == "FTE") |>
-  mutate(Facilitator = str_remove_all(Facilitator, " \\(Reardon\\)")) ### Remove the (Reardon) since Katherine Ryan is listed
+fac_board <- final_df
 
 setdiff(fac_board$Facilitator, facilitator_choices$choices) -> facilitator_check
 
 if (length(facilitator_check) > 0) {
-  print(paste0("The following facilitators need to be added to the reference survey: ", facilitator_check))
+  print(paste0("The following facilitators need to be added to the reference survey: ", sort(facilitator_check)))
+}
+
+setdiff(fac_board$Facilitator, facilitator_choices_2$choices) -> facilitator_check_2
+
+if (length(facilitator_check_2) > 0) {
+  print(paste0("The following facilitators need to be added to the participant feedback survey: ", sort(facilitator_check_2[facilitator_check_2 != "Lauren Delfavero"])))
 }
 
 ### Need to replace coach_2 with facilitator list as well ###
+
+### Check for coaches in IPG ###
+coaches_ipg_meta <- metadata(surveyID = "SV_0BSnkV9TVXK1hjw", questions = "coach")
+
+coach_ipg_choices <- tibble(
+  choices = purrr::map_chr(1:length(coaches_ipg_meta$questions$QID469$choices), ~ coaches_ipg_meta$questions$QID469$choices[[.x]]$choiceText),
+  recode = as.numeric(purrr::map(1:length(coaches_ipg_meta$questions$QID469$choices), ~ coaches_ipg_meta$questions$QID469$choices[[.x]]$recode)),
+)
+
+ipg_coaches <- fac_board |>
+  dplyr::filter(`Coach Onboarding` %in% c("Full Time", "Done", "In Progress") | `Coach/Facilitator` == "FTE") |> ### All full time employees and people who have started coach onboarding or further
+  pull(Facilitator)
+
+ipg_coach_check <- setdiff(ipg_coaches, coach_ipg_choices$choices)
+
+if (length(ipg_coach_check) > 0) {
+  print(paste0("The following coaches need to be added to the IPG (and are written to the keyboard): ", sort(ipg_coach_check)))
+  clipr::write_clip(sort(ipg_coach_check))
+}
 
 ###################################### End of Facilitator/Coach Checking #########################################
 

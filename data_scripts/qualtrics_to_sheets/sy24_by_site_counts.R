@@ -1,4 +1,5 @@
 library(googlesheets4)
+library(janitor)
 library(tidyverse)
 library(TeachingLab)
 
@@ -64,8 +65,10 @@ knowledge_assessment_n <- function(survey_id, survey_name, site = "site") {
   print(paste0("Getting... ", survey_name))
   ### Get Survey ###
   know_assess <- qualtRics::fetch_survey(surveyID = survey_id, 
-                                         verbose = TRUE, 
-                                         include_display_order = FALSE) |>
+                                         verbose = FALSE,
+                                         force_request = FALSE,
+                                         include_display_order = FALSE,
+                                         start_date = as.Date("2023-07-01")) |>
     dplyr::filter(RecordedDate >= as.Date("2023-07-01")) |>
     suppressWarnings()
   
@@ -135,24 +138,29 @@ participant_feedback <- qualtRics::fetch_survey(
   surveyID = "SV_djt8w6zgigaNq0C",
   verbose = TRUE,
   include_display_order = FALSE,
-  force_request = FALSE
+  force_request = FALSE,
+  start_date = as.Date("2023-07-01")
 ) |>
   dplyr::filter(Finished == TRUE & RecordedDate >= as.Date("2023-07-01"))
 ### End of Session Survey Count ###
 session_survey_count <- participant_feedback |>
-  end_session_count(site)
+  end_session_count(site) |>
+  dplyr::ungroup()
 
 ### End of course Survey Count ###
 course_survey_count <- participant_feedback |>
-  end_course_count(site)
+  end_course_count(site) |>
+  dplyr::ungroup()
 
 ### End of ongoing Survey Count ###
 ongoing_coaching_survey_count <- participant_feedback |>
-  ongoing_coach_count(site)
+  ongoing_coach_count(site) |>
+  dplyr::ungroup()
 
 ### End of end_coach Survey Count ###
 end_coach_survey_count <- participant_feedback |>
-  end_coaching_count(site)
+  end_coaching_count(site) |>
+  dplyr::ungroup()
 
 ### Educator Survey Count ###
 
@@ -160,9 +168,10 @@ followup_count <- qualtRics::fetch_survey(
   surveyID = "SV_8vrKtPDtqQFbiBM",
   verbose = FALSE,
   include_display_order = FALSE,
-  force_request = FALSE
+  force_request = FALSE, 
+  start_date = as.Date("2023-07-01")
 ) |>
-  dplyr::filter(RecordedDate >= as.Date("2023-07-01") & Finished == TRUE) |>
+  dplyr::filter(Finished == TRUE & RecordedDate >= as.Date("2023-07-01")) |>
   dplyr::mutate(email = tolower(email)) |>
   dplyr::group_by(email) |>
   dplyr::mutate(n = dplyr::n(),
@@ -172,21 +181,41 @@ followup_count <- qualtRics::fetch_survey(
   diagnostic_count(site) |>
   dplyr::rename(`Follow up (post)` = n)
 
-educator_count <- qualtRics::fetch_survey(
-  surveyID = "SV_8vrKtPDtqQFbiBM",
+nm_diagnostic <- qualtRics::fetch_survey(
+  surveyID = "SV_3a2OM4f9j85EuyO",
   verbose = FALSE,
   include_display_order = FALSE,
-  force_request = FALSE
+  force_request = FALSE,
+  start_date = as.Date("2023-07-01")
 ) |>
-  dplyr::filter(RecordedDate >= as.Date("2023-07-01") & Finished == TRUE) |>
+  dplyr::filter(Finished == TRUE & RecordedDate >= as.Date("2023-07-01")) |>
   dplyr::group_by(email) |>
   dplyr::mutate(n = dplyr::n(),
                 max_date = ifelse(RecordedDate == max(RecordedDate), TRUE, FALSE)) |>
   dplyr::ungroup() |>
   dplyr::filter(n == 1 | (n == 2 & max_date == FALSE)) |>
+  dplyr::summarise(n = n()) |>
+  dplyr::mutate(site = "NM_NM PED") |>
+  dplyr::rename(`Diagnostic (pre)` = n)
+
+educator_count <- qualtRics::fetch_survey(
+  surveyID = "SV_8vrKtPDtqQFbiBM",
+  verbose = FALSE,
+  include_display_order = FALSE,
+  force_request = FALSE,
+  start_date = as.Date("2023-07-01")
+) |>
+  dplyr::filter(Finished == TRUE & RecordedDate >= as.Date("2023-07-01")) |>
+  dplyr::group_by(email) |>
+  dplyr::mutate(n = dplyr::n(),
+                max_date = ifelse(RecordedDate == max(RecordedDate), TRUE, FALSE)) |>
+  dplyr::ungroup() |>
+  dplyr::filter(n == 1 | (n == 2 & max_date == FALSE) | is.na(email)) |> # This filters for either only one email occurrence or that there is 2 and one isn't the larger date
   diagnostic_count(site) |>
   dplyr::rename(`Diagnostic (pre)` = n) |>
-  dplyr::left_join(followup_count)
+  dplyr::left_join(followup_count) |>
+  dplyr::full_join(nm_diagnostic) |>
+  dplyr::ungroup()
 
 ### IPG Forms Count ###
 
@@ -197,9 +226,8 @@ classroom_obs_count <- qualtRics::fetch_survey(
   force_request = FALSE
 ) |>
   dplyr::filter(RecordedDate >= as.Date("2023-07-01") & Finished == TRUE) |>
-  dplyr::group_by(site, service_tl_only) |>
-  dplyr::count(sort = T) |>
-  pivot_wider(names_from = service_tl_only, values_from = n)
+  dplyr::summarise(n = dplyr::n(), .by = site) |>
+  dplyr::rename(`Classroom Observations` = n)
 
 ### Student Survey Counts ###
 
@@ -240,9 +268,10 @@ final_student_survey_count <- student_survey |>
 student_work_count <- qualtRics::fetch_survey("SV_6nwa9Yb4OyXLji6",
                                         include_display_order = FALSE,
                                         verbose = FALSE,
-                                        force_request = FALSE
+                                        force_request = FALSE,
+                                        start_date = as.Date("2023-07-01")
 ) |>
-  dplyr::filter(RecordedDate >= as.Date("2023-07-01") & Finished == TRUE) |>
+  dplyr::filter(Finished == TRUE & RecordedDate >= as.Date("2023-07-01")) |>
   suppressWarnings() |>
   dplyr::group_by(site) |>
   dplyr::count(sort = T) |>
@@ -255,7 +284,8 @@ student_work_count <- qualtRics::fetch_survey("SV_6nwa9Yb4OyXLji6",
 knowledge_assessment_ids <- tibble::tibble(
   id = c(
     "SV_37uHoiF60EUKATQ",
-    "SV_9YsBPlM5jZ30Dbg",
+    "SV_eLksATH1PWbrJEq",
+    "SV_01k3VTm9Ptd0NFA",
     "SV_d5nw8tm0NF56kU6",
     "SV_esouu9cYMOBSsGG",
     "SV_0cxz1wVSJm3YOvc",
@@ -291,7 +321,8 @@ knowledge_assessment_ids <- tibble::tibble(
   ),
   name = c(
     "Math: Bootcamp",
-    "Math: RAISE",
+    "Math: Cycle of Inquiry - Instructional Routines",
+    "ELA General Cycle of Inquiry - Understanding the Key Actions of the IPG",
     "ELA: Bootcamp - General",
     "ELA: Bootcamp - Foundational Skills",
     "ELA Guidebooks: Cycle of Inquiry 2 - Writing & Language Skills",
@@ -339,7 +370,8 @@ knowledge_assessments_count <- purrr::map2_dfr(
 main_sheet <- read_sheet("1hIAg3aNVXwSJGi14QaOblVFbPwwTgpAvj88TeGKD8zA",
                          sheet = "Overall Sites",
                          range = "A:A") |>
-  rename(site = Site)
+  rename(site = Site) |>
+  dplyr::filter(site != "Total")
 
 sites_count_df <- main_sheet |>
   dplyr::left_join(session_survey_count, by = "site") |>
@@ -351,8 +383,9 @@ sites_count_df <- main_sheet |>
   dplyr::left_join(final_student_survey_count, by = "site") |>
   dplyr::left_join(student_work_count, by = "site") |>
   dplyr::left_join(knowledge_assessments_count, by = "site") |>
-  dplyr::rename(Site = site)
-
+  dplyr::rename(Site = site) |>
+  janitor::adorn_totals()
+  
 col_range <- paste0("A1:", LETTERS[ncol(sites_count_df)], nrow(sites_count_df) + 1)
 
 range_write(sites_count_df,
@@ -389,9 +422,10 @@ dropdown_count <- function(dropdown, dropdown2) {
     surveyID = "SV_djt8w6zgigaNq0C",
     verbose = FALSE,
     include_display_order = FALSE,
-    force_request = FALSE
+    force_request = FALSE,
+    start_date = as.Date("2023-07-01")
   ) |>
-    dplyr::filter(Finished == TRUE & RecordedDate >= as.Date("2023-07-01")) |>
+    dplyr::filter(Finished == TRUE) |>
     dplyr::mutate(!!dropdown2 := as.character(!!dropdown2))
   ### End of Session Survey Count ###
   session_survey_count <- participant_feedback |>
@@ -442,9 +476,10 @@ dropdown_count <- function(dropdown, dropdown2) {
     surveyID = "SV_8vrKtPDtqQFbiBM",
     verbose = FALSE,
     include_display_order = FALSE,
-    force_request = FALSE
+    force_request = FALSE,
+    start_date = as.Date("2023-07-01")
   ) |>
-    dplyr::filter(RecordedDate >= as.Date("2023-07-01") & Finished == TRUE) |>
+    dplyr::filter(Finished == TRUE) |>
     dplyr::mutate(email = tolower(email)) |>
     dplyr::group_by(email) |>
     dplyr::mutate(n = dplyr::n(),
@@ -461,10 +496,11 @@ dropdown_count <- function(dropdown, dropdown2) {
     surveyID = "SV_8vrKtPDtqQFbiBM",
     verbose = FALSE,
     include_display_order = FALSE,
-    force_request = FALSE
+    force_request = FALSE, 
+    start_date = as.Date("2023-07-01")
   ) |>
     dplyr::mutate(!!dropdown2 := as.character(!!dropdown2)) |>
-    dplyr::filter(RecordedDate >= as.Date("2023-07-01") & Finished == TRUE) |>
+    dplyr::filter(Finished == TRUE) |>
     dplyr::group_by(!!dropdown2) |>
     dplyr::count() |>
     dplyr::ungroup() |>
@@ -479,32 +515,35 @@ dropdown_count <- function(dropdown, dropdown2) {
     surveyID = "SV_0BSnkV9TVXK1hjw",
     verbose = FALSE,
     include_display_order = FALSE,
-    force_request = FALSE
+    force_request = FALSE,
+    start_date = as.Date("2023-07-01")
   ) |>
     dplyr::mutate(!!dropdown2 := as.character(!!dropdown2)) |>
-    dplyr::filter(RecordedDate >= as.Date("2023-07-01") & Finished == TRUE) |>
-    dplyr::group_by(!!dropdown2, service_tl_only) |>
+    dplyr::filter(Finished == TRUE) |>
+    dplyr::group_by(!!dropdown2) |>
     dplyr::count(sort = T) |>
-    tidyr::pivot_wider(names_from = service_tl_only, values_from = n) |>
-    dplyr::rename(site = dropdown2) |>
+    dplyr::rename(site = dropdown2, `Classroom Observations` = n) |>
     dplyr::filter(!is.na(site)) |>
     ny_manual_entry_adjust(dropdown = dropdown)
   
   ### Student Work Counts ###
   
-  # student_work_count <- qualtRics::fetch_survey("SV_6nwa9Yb4OyXLji6",
-  #                                               include_display_order = FALSE,
-  #                                               verbose = FALSE,
-  #                                               force_request = FALSE
-  # ) |>
-  #   dplyr::filter(RecordedDate >= as.Date("2023-07-01")) |>
-  #   suppressWarnings() |>
-  #   dplyr::group_by(!!dropdown2) |>
-  #   dplyr::count(sort = T) |>
-  #   dplyr::ungroup() |>
-  #   dplyr::rename(`Student Work (pre)` = n) |>
-  #   dplyr::mutate(`Student Work (post)` = 0) |>
-  #   dplyr::rename(site = dropdown2)
+  student_work_count <- qualtRics::fetch_survey("SV_6nwa9Yb4OyXLji6",
+                                                include_display_order = FALSE,
+                                                verbose = FALSE,
+                                                force_request = FALSE,
+                                                start_date = as.Date("2023-07-01")
+  ) |>
+    dplyr::filter(Finished == TRUE) |>
+    suppressWarnings() |>
+    dplyr::mutate(site = as.character(!!dropdown2)) |>
+    dplyr::group_by(site) |>
+    dplyr::count(sort = T) |>
+    dplyr::ungroup() |>
+    tidyr::drop_na(site) |>
+    dplyr::rename(`Student Work (pre)` = n) |>
+    dplyr::mutate(`Student Work (post)` = 0)
+
   
   knowledge_assessments_count <- purrr::map2_dfr(
     knowledge_assessment_ids$id, knowledge_assessment_ids$name,
@@ -520,7 +559,9 @@ dropdown_count <- function(dropdown, dropdown2) {
   main_sheet <- read_sheet("1hIAg3aNVXwSJGi14QaOblVFbPwwTgpAvj88TeGKD8zA",
                            sheet = dropdown,
                            range = "A:A") |>
-    dplyr::rename(site = Site)
+    dplyr::rename(site = Site) |>
+    dplyr::filter(site != "Total") |>
+    dplyr::mutate(site = as.character(site))
   
   ### Conditional for if there is no data ###
   if ((nrow(session_survey_count) + nrow(course_survey_count) + nrow(ongoing_coaching_survey_count) + nrow(end_coach_survey_count) +
@@ -537,7 +578,7 @@ dropdown_count <- function(dropdown, dropdown2) {
       dplyr::full_join(educator_count, by = "site") |>
       dplyr::full_join(classroom_obs_count, by = "site") |>
       # dplyr::left_join(final_student_survey_count, by = "site") |>
-      # dplyr::left_join(student_work_count, by = "site") |>
+      dplyr::full_join(student_work_count, by = "site") |>
       dplyr::full_join(knowledge_assessments_count, by = "site") |>
       janitor::remove_empty("cols") |>
       dplyr::rename(Site = site) |>
@@ -545,7 +586,9 @@ dropdown_count <- function(dropdown, dropdown2) {
       dplyr::group_by(other) |>
       dplyr::arrange(Site, .by_group = TRUE) |>
       dplyr::ungroup() |>
-      dplyr::select(-other)
+      dplyr::select(-other) |>
+      janitor::adorn_totals()
+    
   }
   
   range_clear(ss = "1hIAg3aNVXwSJGi14QaOblVFbPwwTgpAvj88TeGKD8zA",
@@ -564,21 +607,42 @@ dropdown_count <- function(dropdown, dropdown2) {
   
 }
 
-dropdown_count(dropdown = "NY_D6", dropdown2 = "district6")
-dropdown_count(dropdown = "NY_D9", dropdown2 = "district9")
-dropdown_count(dropdown = "NY_D11", dropdown2 = "district11")
-dropdown_count(dropdown = "NY_D12", dropdown2 = "district12")
-dropdown_count(dropdown = "NY_D16", dropdown2 = "district16")
-dropdown_count(dropdown = "NY_D75", dropdown2 = "district75")
-dropdown_count(dropdown = "NY_Rochester City Schools", dropdown2 = "rochester")
-dropdown_count(dropdown = "NY_Ascend Charter Schools", dropdown2 = "ny_ascend")
-dropdown_count(dropdown = "IL_CPS Network 4", dropdown2 = "network4")
-dropdown_count(dropdown = "IL_CPS Network 7", dropdown2 = "network7")
-dropdown_count(dropdown = "IL_CPS Network 12", dropdown2 = "network12")
-dropdown_count(dropdown = "MA_DESE", dropdown2 = "ma_dese")
+Sys.sleep(5)
 dropdown_count(dropdown = "AR_Blytheville School District", dropdown2 = "ar_blytheville")
+Sys.sleep(5)
 dropdown_count(dropdown = "AR_Friendship Aspire Academy", dropdown2 = "ar_friendship")
+Sys.sleep(5)
 dropdown_count(dropdown = "AR_Hope Public Schools", dropdown2 = "ar_hope")
+Sys.sleep(5)
 dropdown_count(dropdown = "AR_Osceola School District", dropdown2 = "ar_osceola")
+Sys.sleep(5)
 dropdown_count(dropdown = "LA_Pointe Coupee", dropdown2 = "la_pointe_coupee")
+Sys.sleep(5)
+dropdown_count(dropdown = "IL_CPS Network 4", dropdown2 = "network4")
+Sys.sleep(5)
+dropdown_count(dropdown = "IL_CPS Network 7", dropdown2 = "network7")
+Sys.sleep(5)
+dropdown_count(dropdown = "IL_CPS Network 12", dropdown2 = "network12")
+Sys.sleep(5)
+dropdown_count(dropdown = "MA_DESE", dropdown2 = "ma_dese")
+Sys.sleep(5)
+dropdown_count(dropdown = "NY_D6", dropdown2 = "district6")
+Sys.sleep(5)
+dropdown_count(dropdown = "NY_D9", dropdown2 = "district9")
+Sys.sleep(5)
+dropdown_count(dropdown = "NY_D11", dropdown2 = "district11")
+Sys.sleep(5)
+dropdown_count(dropdown = "NY_D12", dropdown2 = "district12")
+Sys.sleep(5)
+dropdown_count(dropdown = "NY_D16", dropdown2 = "district16")
+Sys.sleep(5)
+dropdown_count(dropdown = "NY_D75", dropdown2 = "district75")
+Sys.sleep(5)
+dropdown_count(dropdown = "NY_Ascend Charter Schools", dropdown2 = "ny_ascend")
+Sys.sleep(5)
+dropdown_count(dropdown = "NY_Rochester City Schools", dropdown2 = "rochester")
+Sys.sleep(5)
+dropdown_count(dropdown = "NY_Transfer High Schools", dropdown2 = "ny_transfer")
+Sys.sleep(5)
+dropdown_count(dropdown = "NY_CUNY/UA", dropdown2 = "ny_cuny")
 
