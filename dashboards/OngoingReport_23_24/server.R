@@ -64,7 +64,8 @@ server <- function(input, output) {
   })
   
   knowledge_assessments_filtered <- reactive({
-    tibble::tibble() # For now
+    knowledge_assessments |>
+      tlShiny::neg_cond_filter(if_not_this = "All Sites", filter_this = input$siteSelect, dat_filter = site)
   })
   
   ipg_forms_filtered <- reactive({
@@ -87,7 +88,7 @@ server <- function(input, output) {
   final_sec_intro <- reactive({
     counts <- list()
     
-    counts$intro <- paste0("Teaching Lab collects a variety of data to understand the impact of its PL for educators and students. Please see this <a href = 'https://docs.google.com/document/d/19yDyFCx1KeSPHlD9SLvLfG76FRGdfChL1hnCo_dV1zQ/edit'>resource</a> for a visual overview of our evaluation framework.<br>Additionally, the <a href = 'https://docs.google.com/document/d/19yDyFCx1KeSPHlD9SLvLfG76FRGdfChL1hnCo_dV1zQ/edit'>narrative</a> of our evaluation plan provides more details.<br><br>To date (", Sys.Date() |> format("%b %d, %Y"), "), Teaching Lab has collected the following data during SY22-23:")
+    counts$intro <- paste0("Teaching Lab collects a variety of data to understand the impact of its PL for educators and students. Please see this <a href = 'https://docs.google.com/document/d/19yDyFCx1KeSPHlD9SLvLfG76FRGdfChL1hnCo_dV1zQ/edit'>resource</a> for a visual overview of our evaluation framework.<br>Additionally, the <a href = 'https://docs.google.com/document/d/19yDyFCx1KeSPHlD9SLvLfG76FRGdfChL1hnCo_dV1zQ/edit'>narrative</a> of our evaluation plan provides more details.<br><br>To date (", Sys.Date() |> format("%b %d, %Y"), "), Teaching Lab has collected the following data during SY23-24:")
     
     if (nrow(session_survey_filtered()) >= 1) {
       sec2_intro <- "Participant Perceptions"
@@ -111,7 +112,7 @@ server <- function(input, output) {
     }
     if (nrow(knowledge_assessments_filtered()) >= 1) {
       sec3_intro <- "Participant Knowledge"
-      counts$p5 <- paste0("• ", nrow(knowledge_assessments_filtered() |> dplyr::filter(pre == "pre") |> dplyr::distinct(id)), " complete responses to the first Knowledge or Self-Reported Practices Assessments and ", post_know() |> dplyr::filter(pre == "post") |> dplyr::distinct(id), " to the second Knowledge or Self-Reported Practices Assessments;")
+      counts$p5 <- paste0("• ", nrow(knowledge_assessments_filtered() |> dplyr::filter(prepost == "pre") |> dplyr::distinct(id)), " complete responses to the first Knowledge or Self-Reported Practices Assessments and ", knowledge_assessments_filtered() |> dplyr::filter(prepost == "post") |> dplyr::distinct(id) |> length(), " to the second Knowledge or Self-Reported Practices Assessments;")
     } else {
       sec3_intro <- NA
     }
@@ -165,7 +166,6 @@ server <- function(input, output) {
   
   output$counts <- renderUI({
     # counts <- final_sec_intro()[grep('p', names(final_sec_intro()))]
-    print(final_sec_intro()$counts)
     final_counts <- final_sec_intro()$counts
     test <- purrr::map_chr(1:length(final_counts), ~ final_counts[[.x]])
     HTML(paste(test, collapse = "<br></br>"))
@@ -348,7 +348,7 @@ server <- function(input, output) {
           plot.subtitle = element_markdown()
         )
       
-      print(grades_plot)
+      grades_plot
     } else {
       TeachingLab:::no_data_plot
     }
@@ -462,4 +462,45 @@ server <- function(input, output) {
   
   
   ########################################## End Section 2 #################################################################
+  
+  ########################################## Section 3 #################################################################
+  
+  output$knowledge_assess_summary <- renderPlot({
+    
+    knowledge_assessments_filtered() |>
+      dplyr::filter(question1 == "Score") |>
+      dplyr::mutate(percent = 100 * score / max_score) |>
+      dplyr::group_by(prepost, know_assess) |>
+      dplyr::summarise(percent = round(mean(percent, na.rm = T), 2),
+                       n = dplyr::n()) |>
+      dplyr::ungroup() |>
+      dplyr::mutate(
+        prepost = ifelse(prepost == "pre",
+                         "Before",
+                         "After"
+        ),
+        prepost = factor(prepost, levels = c("Before", "After")),
+        know_assess = paste0(know_assess, " % Correct")
+      ) |>
+      ggplot(aes(x = prepost, y = percent, fill = prepost)) +
+      geom_col() +
+      geom_text(aes(label = paste0(percent, "% (n = ", n, ")"), color = prepost), vjust = -0.45, fontface = "bold", size = 11) +
+      facet_wrap(~know_assess, labeller = label_wrap_gen(width = 50)) +
+      labs(title = NULL) +
+      scale_y_continuous(labels = scales::percent_format(scale = 1), limits = c(0, 100)) +
+      scale_fill_manual(values = c("#040404", "#04abeb")) +
+      scale_color_manual(values = c("#040404", "#04abeb")) +
+      theme_tl() +
+      theme(
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(size = 15),
+        axis.text.y = element_text(size = 20),
+        strip.text = element_text(hjust = 0.5, face = "bold", size = 30)
+      )
+    
+    
+  })
+  
+  ########################################## End Section 3 #################################################################
 }

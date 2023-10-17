@@ -43,9 +43,9 @@ partner_file_remove <- function(partner, content_area = NULL, d27 = NULL, d11 = 
 #' @title No Data Plot
 #' @description A plot that says no data available
 #' @export
-no_data_plot <- ggplot(tibble(text = "No data available for this set of filters\ncheck what you have set!", x = 0, y = 0)) +
-  geom_text(aes(label = text, x, y), fontface = "bold", family = "Calibri Bold", size = 10) +
-  theme_void()
+no_data_plot <- ggplot2::ggplot(data.frame(text = "No data available for this set of filters\ncheck what you have set!", x = 0, y = 0)) +
+  ggplot2::geom_text(ggplot2::aes(label = text, x, y), fontface = "bold", family = "Calibri Bold", size = 10) +
+  ggplot2::theme_void()
 
 #' @title End of session feedback graph dependent on race and content area
 #' @description Returns a barchart for selections in the relevant questions of the end of coaching survey
@@ -78,10 +78,10 @@ session_feedback_graph <- function(data, race_filter = "All Races", content_area
   second_fac <- session_survey_3 |>
     dplyr::select(
       `They demonstrated deep knowledge of the content they facilitated` = coach_ongoing_feed_2_1,
-      `They facilitated the content clearly` = coach_ongoing_feed_2_2,
-      `They effectively built a safe learning community` = coach_ongoing_feed_2_3,
-      `They were fully prepared for the session` = coach_ongoing_feed_2_4,
-      `They responded to the group’s needs` = coach_ongoing_feed_2_5
+      `Their facilitation or coaching is clear` = coach_ongoing_feed_2_2,
+      `They effectively built a safe learning environment` = coach_ongoing_feed_2_3,
+      `They seemed fully prepared for the session` = coach_ongoing_feed_2_4,
+      `They made adjustments based on participant needs` = coach_ongoing_feed_2_5
     )
 
 
@@ -89,10 +89,10 @@ session_feedback_graph <- function(data, race_filter = "All Races", content_area
   plot_agree <- session_survey_3 |>
     dplyr::select(
       `They demonstrated deep knowledge of the content they facilitated` = coach_ongoing_feed_1,
-      `They facilitated the content clearly` = coach_ongoing_feed_2,
-      `They effectively built a safe learning community` = coach_ongoing_feed_3,
-      `They were fully prepared for the session` = coach_ongoing_feed_4,
-      `They responded to the group’s needs` = coach_ongoing_feed_5
+      `Their facilitation or coaching is clear` = coach_ongoing_feed_2,
+      `They effectively built a safe learning environment` = coach_ongoing_feed_3,
+      `They seemed fully prepared for the session` = coach_ongoing_feed_4,
+      `They made adjustments based on participant needs` = coach_ongoing_feed_5
     ) |>
     dplyr::bind_rows(second_fac) |>
     tidyr::pivot_longer(tidyr::everything(), names_to = "Question", values_to = "Response") |>
@@ -129,7 +129,11 @@ session_feedback_graph <- function(data, race_filter = "All Races", content_area
     p <- plot_agree |>
       dplyr::group_by(Question, Response) |>
       dplyr::summarise(Percent = weighted.mean(Percent, n)) |>
-      dplyr::mutate(Question = factor(Question)) |>
+      dplyr::mutate(Question = factor(Question, levels = c("They demonstrated deep knowledge of the content\nthey facilitated",
+                                                           "Their facilitation or coaching is clear",
+                                                           "They seemed fully prepared for the session",
+                                                           "They effectively built a safe learning environment",
+                                                           "They made adjustments based on participant needs"))) |>
       ggplot2::ggplot(ggplot2::aes(x = Question, y = Percent, fill = factor(Response))) +
       ggplot2::geom_col(color = NA, width = 0.95, position = ggplot2::position_stack(reverse = TRUE)) +
       ggplot2::geom_text(
@@ -159,6 +163,7 @@ session_feedback_graph <- function(data, race_filter = "All Races", content_area
         color = "none"
       ) +
       ggplot2::scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+      ggplot2::scale_x_discrete(limits = rev) +
       tlShiny::theme_tl(legend = TRUE) +
       ggplot2::theme(
         axis.text.y = ggplot2::element_text(size = 18),
@@ -291,7 +296,19 @@ course_feedback_graph <- function(data, race_filter = "All", content_area_filter
     p <- plot_agree |>
       dplyr::group_by(Question, Response) |>
       dplyr::summarise(Percent = weighted.mean(Percent, n)) |>
-      dplyr::mutate(Question = factor(Question)) |>
+      dplyr::mutate(Question = factor(Question, levels = c("I looked forward to attending this PL",
+                                                           "I was fully present/\"minds-on\" during these PL sessions",
+                                                           "The activities were well-designed to help me meet the\nlearning targets",
+                                                           "I am satisfied with how the sessions were facilitated",
+                                                           "This PL was a good use of my time",
+                                                           "I talk to other teachers about the things I learned in this\nPL",
+                                                           "I felt a sense of community with the other participants in\nthis course",
+                                                           "The PL was relevant to my instructional practices",
+                                                           "The strategies I’ve learned will improve my instruction",
+                                                           "The strategies I’ve learned will improve my coaching or\nsupervision of teachers",
+                                                           "I have applied or will apply what I have learned to my\npractice",
+                                                           "The PL has supported me in being responsive to students'\nbackgrounds, cultures, and points of view.",
+                                                           "I am satisfied with the overall quality of this PL"))) |>
       ggplot2::ggplot(ggplot2::aes(x = Question, y = Percent, fill = factor(Response))) +
       ggplot2::geom_col(color = NA, width = 0.95, position = ggplot2::position_stack(reverse = TRUE)) +
       ggplot2::geom_text(
@@ -321,6 +338,7 @@ course_feedback_graph <- function(data, race_filter = "All", content_area_filter
         color = "none"
       ) +
       ggplot2::scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+      ggplot2::scale_x_discrete(limits = rev) +
       tlShiny::theme_tl(legend = TRUE) +
       ggplot2::theme(
         axis.text.y = ggplot2::element_text(size = 18),
@@ -441,14 +459,19 @@ ongoing_coaching_feedback_graph <- function(data, race_filter = "All", content_a
     #   TeachingLab::agree_strongly_agree(question = "They demonstrated deep<br>knowledge of the content they<br>coach")
     # coach_clear_coaching_agree <- coaching_plot_agree |>
     #   TeachingLab::agree_strongly_agree(question = "Their coaching is clear")
+    
 
     p <- coaching_plot_agree |>
       dplyr::mutate(
         Percent = round(100 * n / sum(n), 2),
-        Question = factor(Question)
+        Question = factor(Question, levels = c("They demonstrated deep knowledge of the content they coach",
+                                               "Their coaching is clear",
+                                               "They seem fully prepared for the coaching sessions",
+                                               "They effectively build a safe learning environment",
+                                               "They make necessary adjustments based on my needs"))
       ) |>
       ggplot2::ggplot(ggplot2::aes(
-        x = forcats::fct_reorder(Question, Percent, .desc = T),
+        x = Question,
         y = Percent,
         color = Response,
         fill = Response
@@ -490,6 +513,7 @@ ongoing_coaching_feedback_graph <- function(data, race_filter = "All", content_a
         labels = scales::label_percent(scale = 1),
         expand = c(0.14, 0)
       ) +
+      ggplot2::scale_x_discrete(limits = rev) +
       ggplot2::coord_flip() +
       tlShiny::theme_tl(legend = TRUE) +
       ggplot2::theme(
@@ -623,10 +647,22 @@ end_coaching_feedback_graph <- function(data, race_filter = "All", content_area_
     p <- coaching_plot_agree |>
       dplyr::mutate(
         Percent = round(100 * n / sum(n), 2),
-        Question = factor(Question)
+        Question = factor(Question, levels = c("I looked forward to attending this PL",
+                                               "I was fully present/\"minds-on\" during these PL sessions",
+                                               "The activities were well-designed to help me meet the\nlearning targets",
+                                               "I am satisfied with how the sessions were facilitated",
+                                               "This PL was a good use of my time",
+                                               "I talk to other teachers about the things I learned in this\nPL",
+                                               "I felt a sense of community with the other participants in\nthis course",
+                                               "The PL was relevant to my instructional practices",
+                                               "The strategies I’ve learned will improve my instruction",
+                                               "The strategies I’ve learned will improve my coaching or\nsupervision of teachers",
+                                               "I have applied or will apply what I have learned to my\npractice",
+                                               "The PL has supported me in being responsive to students'\nbackgrounds, cultures, and points of view.",
+                                               "I am satisfied with the overall quality of this PL"))
       ) |>
       ggplot2::ggplot(ggplot2::aes(
-        x = fct_reorder(Question, Percent, .desc = T),
+        x = Question,
         y = Percent,
         color = Response,
         fill = Response
@@ -668,6 +704,7 @@ end_coaching_feedback_graph <- function(data, race_filter = "All", content_area_
         labels = scales::label_percent(scale = 1),
         expand = c(0.14, 0)
       ) +
+      ggplot2::scale_x_discrete(limits = rev) +
       ggplot2::coord_flip() +
       tlShiny::theme_tl(legend = TRUE) +
       ggplot2::theme(

@@ -79,6 +79,21 @@ ul.nav-pills {
   font-size: large;
 }
 
+#course_summary_sentences {
+  text-align: left;
+  font-size: large;
+}
+
+#ongoing_coach_summary_sentences {
+  text-align: left;
+  font-size: large;
+}
+
+#end_coach_summary_sentences {
+  text-align: left;
+  font-size: large;
+}
+
 .nav-link {
   font-size: large!important;
 }

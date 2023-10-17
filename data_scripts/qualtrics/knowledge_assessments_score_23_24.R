@@ -162,6 +162,7 @@ knowledge_assessments_detailed_scored <- purrr::map2_dfr(
 
 ### Format here is id, prepost, site, know_assess, date, question, answer, score ###
 readr::write_rds(knowledge_assessments_detailed_scored, here::here("dashboards/course_assessments/data/knowledge_assessments.rds"))
+readr::write_rds(knowledge_assessments_detailed_scored, here::here("dashboards/OngoingReport_23_24/data/knowledge_assessments.rds"))
 
 know_assess_answers <- read_sheet("1rbzcBgQ3hHG7v-HC-jQMknjSgMkvG74wDKACiOfza2M") |>
   dplyr::filter(Correct == TRUE) |>
