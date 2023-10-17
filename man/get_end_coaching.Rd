@@ -4,7 +4,7 @@
 \alias{get_end_coaching}
 \title{Ongoing Coaching Feedback Survey Data}
 \usage{
-get_end_coaching(update = FALSE, year = "22_23", write = FALSE)
+get_end_coaching(update = FALSE, year = "23_24", write = FALSE)
 }
 \arguments{
 \item{update}{FALSE, whether or not to pull the updated version}

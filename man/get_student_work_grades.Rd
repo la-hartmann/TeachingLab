@@ -4,7 +4,7 @@
 \alias{get_student_work_grades}
 \title{Ongoing list of partner sites}
 \usage{
-get_student_work_grades(year = "22_23")
+get_student_work_grades(year = "23_24")
 }
 \arguments{
 \item{year}{the year to get the site for}

@@ -4,7 +4,7 @@
 \alias{get_student_survey}
 \title{Student Survey Data}
 \usage{
-get_student_survey(update = FALSE, year = "22_23", write = FALSE)
+get_student_survey(update = FALSE, year = "23_24", write = FALSE)
 }
 \arguments{
 \item{update}{FALSE whether or not to update the data}

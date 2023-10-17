@@ -84,12 +84,16 @@ overall_ipg_write <- ipg_forms_selected |>
 
 Sys.sleep(15)
 
-range_write(data = overall_ipg_write,
+already_written <- read_sheet("1mRZThJuslwVGXyWNY2Z-gAgh0FZKaJM1LIHRwhRvMg8",
+                              "All data")
+
+sheet_append(data = overall_ipg_write |> filter(`Recorded Date` > max(already_written$`Recorded Date`)),
             ss = "1mRZThJuslwVGXyWNY2Z-gAgh0FZKaJM1LIHRwhRvMg8",
-            sheet = "All data",
-            col_names = TRUE,
-            reformat = FALSE,
-            range = cell_limits(c(1, 1), c(nrow(overall_ipg_write) + 1, ncol(overall_ipg_write))))
+            sheet = "All data"#,
+            # col_names = TRUE,
+            # reformat = FALSE,
+            # range = cell_limits(c(1, 1), c(nrow(overall_ipg_write) + 1, ncol(overall_ipg_write)))
+            )
 
 # get_new_data_to_write <- function(data, sheet) {
 #   
@@ -101,6 +105,7 @@ range_write(data = overall_ipg_write,
 # }
 
 ipg_split_data <- ipg_forms_selected |>
+  dplyr::filter(RecordedDate > max(already_written$`Recorded Date`)) |>
   dplyr::rename(`Please write in your name. (coach)` = coach_other,
                 `Please write in your name. (not coach)` = rater_name,
                 `Learning Goal (WI):` = wi_learning_goal,
@@ -165,7 +170,7 @@ ipg_split_names[which(str_detect(ipg_split_names, "K-12: ELA"))] <- "K-12: ELA/L
 map2(
   ipg_split_data,
   ipg_split_names,
-  ~ write_sheet("1mRZThJuslwVGXyWNY2Z-gAgh0FZKaJM1LIHRwhRvMg8",
+  ~ sheet_append("1mRZThJuslwVGXyWNY2Z-gAgh0FZKaJM1LIHRwhRvMg8",
                 sheet = .y,
                 data = .x
   )

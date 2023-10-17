@@ -4,7 +4,7 @@
 \alias{get_course_survey}
 \title{End of Course Dashboard Data}
 \usage{
-get_course_survey(update = FALSE, year = "22_23", write = FALSE)
+get_course_survey(update = FALSE, year = "23_24", write = FALSE)
 }
 \arguments{
 \item{update}{FALSE, optional to update end of course data or not}

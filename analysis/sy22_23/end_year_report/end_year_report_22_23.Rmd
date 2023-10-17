@@ -694,7 +694,7 @@ inline_sections <- na.omit(c(sec1_intro,
 final_sec_intro <- glue::glue_collapse(inline_sections, ", ", last = " and ")
 ```
 
-Below we have compiled the results in various sections:
+In this report we have compiled the results in various sections below:
 `r final_sec_intro`.
 
 ```{r section-1, fig.dim = c(6.5, 4.5), fig.align = 'center', results = 'asis'}

@@ -4,9 +4,15 @@
 \alias{session_feedback_graph}
 \title{End of session feedback graph dependent on race and content area}
 \usage{
-session_feedback_graph(race_filter = "All Races", content_area_filter = "All")
+session_feedback_graph(
+  data,
+  race_filter = "All Races",
+  content_area_filter = "All"
+)
 }
 \arguments{
+\item{data}{the data to use}
+
 \item{race_filter}{the filter to apply to the race column, one of "All", "White", "Black or African American", "Asian", "Hispanic/Latino", "More than one race", or "Other"}
 
 \item{content_area_filter}{the content area to filter for, one otf "All", "ELA", "Math", or "Other"}

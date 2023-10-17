@@ -603,18 +603,10 @@ get_knowledge_assessments <- function(update = FALSE, year = "23_24") {
     
     knowledge_assessments_for_scoring <- knowledge_assessment_ids |>
       dplyr::filter(name %in% c(
-        "ELA: Bootcamp - General",
         "Math: Bootcamp",
         "Math: Cycle of Inquiry I - Eliciting Student Thinking",
-        "ELA: Bootcamp - Foundational Skills",
-        "ELA General: Cycle of Inquiry - Complex Text",
-        "Math: Learning Across the Domains",
-        "Math: RAISE",
-        "Math: Accelerating Learning",
-        "School Leaders: Curriculum Adaptive Math/ELA (ILN)",
-        "Language Standards/Conventions Knowledge_NYBlendedLit",
-        "ELA Guidebooks: Cycle of Inquiry 2 - Writing & Language Skills",
-        "Math: Cycle of Inquiry III - Facilitating Mathematical Discourse"
+        "ELA General Cycle of Inquiry - Understanding the Key Actions of the IPG",
+        "Math: Cycle of Inquiry - Instructional Routines"
       )) |>
       ### This line is for the knowledge assessments dashboard, it can't handle the / ###
       dplyr::mutate(name = stringr::str_replace_all(name, "\\/", "|"))

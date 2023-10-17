@@ -4,7 +4,7 @@
 \alias{get_followup_educator}
 \title{Follow Up Educator Survey Data}
 \usage{
-get_followup_educator(update = FALSE, year = "22_23", write = FALSE)
+get_followup_educator(update = FALSE, year = "23_24", write = FALSE)
 }
 \arguments{
 \item{update}{FALSE, whether or not to pull the updated version}

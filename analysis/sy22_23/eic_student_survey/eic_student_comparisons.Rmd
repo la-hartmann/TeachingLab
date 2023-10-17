@@ -287,6 +287,11 @@ ggsave(here::here("images/sy22_23/eic/race_comparison_a7_rochester.png"),
 ### Rochester from google sheet
 
 ```{r}
+eic_survey <- qualtRics::fetch_survey("SV_8f9l21n6ML58WFM")
+colmap <- qualtRics::extract_colmap(eic_survey) |>
+  filter(qname != "race")
+colmap_vector <- c(colmap$description) |> setNames(colmap$qname)
+
 eic_sheet <- googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1Hh3mlQIbXuoIQOsPS1CmPg5sdycpBTAOhZ3guoHpDR0/edit#gid=1340312124")
 
 eic_sheet_renamed <- eic_sheet |>
@@ -501,7 +506,7 @@ ggsave(here::here("images/sy22_23/eic/race_comparison_a6_rochester_matched.png")
 )
 
 eic_student_bar_chart2(
-  data = eic_sheet_renamed,
+  data = eic_sheet_renamed |> select(-mses_a6_10, -mses_a6_11, -mses_a6_12, -mses_a6_13),
   title = "When reading the following statements, think about your current math class and decide\nhow well the statements describe you (Matched)",
   col_select = c("mses_a6_1", "mses_a6_8", "mses_a6_9"),
   agree_select = c(
@@ -532,6 +537,81 @@ ggsave(here::here("images/sy22_23/eic/race_comparison_a7_rochester_matched.png")
   bg = "white",
   height = 10,
   width = 13
+)
+
+eic_student_bar_chart2(
+  data = eic_sheet_renamed |> select(-mses_a6_10, -mses_a6_11, -mses_a6_12, -mses_a6_13),
+  title = "When reading the following statements, think about your current math class and decide\nhow well the statements describe you (Matched)",
+  col_select = c("mses_a6_1", "mses_a6_2", "mses_a6_3", "mses_a6_4", "mses_a6_5"),
+  legend_position = c(0.8, 0.6),
+  agree_select = c(
+    "5 - Very much like me",
+    "4 - Mostly like me"
+  ),
+  string_remove = "When reading the following statements, think about your current math class and decide how well the statements describe you\\. - "
+)
+
+ggsave(here::here("images/sy22_23/eic/race_comparison_mses_1_rochester_matched.png"),
+  bg = "white",
+  height = 12,
+  width = 15
+)
+
+eic_student_bar_chart2(
+  data = eic_sheet_renamed |> select(-mses_a6_10, -mses_a6_11, -mses_a6_12, -mses_a6_13),
+  title = "When reading the following statements, think about your current math class and decide\nhow well the statements describe you (Matched)",
+  col_select = c("mses_a6_6", "mses_a6_7", "mses_a6_8"),
+  legend_position = c(0.8, 0.3),
+  agree_select = c(
+    "5 - Very much like me",
+    "4 - Mostly like me"
+  ),
+  string_remove = "When reading the following statements, think about your current math class and decide how well the statements describe you\\. - "
+)
+
+ggsave(here::here("images/sy22_23/eic/race_comparison_mses_2_rochester_matched.png"),
+  bg = "white",
+  height = 12,
+  width = 15
+)
+
+colmap_vector <- c(colmap$description) |> setNames(colmap$qname)
+colmap_vector <- colmap_vector[-41]
+eic_student_bar_chart2(
+  data = eic_sheet_renamed |> select(-c("mses_a6_1", "mses_a6_2", "mses_a6_3", "mses_a6_4", "mses_a6_5", "mses_a6_6", "mses_a6_7", "mses_a6_8",
+                                        "mses_a6_12", "mses_a6_13")),
+  title = "When reading the following statements, think about your current math class and decide\nhow well the statements describe you (Matched)",
+  col_select = c("mses_a6_9", "mses_a6_10", "mses_a6_11"),
+  legend_position = c(0.8, 0.3),
+  agree_select = c(
+    "5 - Very much like me",
+    "4 - Mostly like me"
+  ),
+  string_remove = "When reading the following statements, think about your current math class and decide how well the statements describe you\\. - "
+)
+
+ggsave(here::here("images/sy22_23/eic/race_comparison_mses_3_rochester_matched.png"),
+  bg = "white",
+  height = 12,
+  width = 15
+)
+
+eic_student_bar_chart2(
+  data = eic_sheet_renamed,
+  title = "When reading the following statements, think about your current math class and decide\nhow well the statements describe you (Matched)",
+  col_select = c("mses_a6_12", "mses_a6_13"),
+  legend_position = c(0.8, 0.3),
+  agree_select = c(
+    "5 - Very much like me",
+    "4 - Mostly like me"
+  ),
+  string_remove = "When reading the following statements, think about your current math class and decide how well the statements describe you\\. - "
+)
+
+ggsave(here::here("images/sy22_23/eic/race_comparison_mses_4_rochester_matched.png"),
+  bg = "white",
+  height = 12,
+  width = 15
 )
 ```
 

@@ -652,196 +652,201 @@ dashboard_ipg_plot_ts <- function(data, name, wrap = 60, sizing = 1,
 #' @export
 gt_percent_n <- function(df, column, custom_title, no_title = T, base_font = 10,
                          heading_font = 14, custom_column_name = "", viz_type = "gt") {
-  column <- rlang::sym(column)
-
-  if (viz_type == "gt") {
-    df |>
-      dplyr::group_by(!!column) |>
-      dplyr::count(sort = T) |>
-      tidyr::drop_na(!!column) |>
-      dplyr::ungroup() |>
-      dplyr::mutate(Percent = round(100 * n / sum(n), 2)) |>
-      dplyr::rename({{ custom_column_name }} := {{ column }}) |>
-      gt::gt() |>
-      gt::cols_label({{ custom_column_name }} := gt::html(custom_column_name)) %>%
-      {
-        if (no_title == F) gt::tab_header(title = gt::md(glue::glue("*{custom_title}*"))) else .
-      } %>%
-      gt::data_color(
-        columns = n,
-        colors = scales::col_numeric(
-          palette = TeachingLab::tl_palette(color = "blue", n = 10),
-          domain = NULL
+  
+  if (nrow(df) >= 1) {
+    column <- rlang::sym(column)
+    
+    if (viz_type == "gt") {
+      df |>
+        dplyr::group_by(!!column) |>
+        dplyr::count(sort = T) |>
+        tidyr::drop_na(!!column) |>
+        dplyr::ungroup() |>
+        dplyr::mutate(Percent = round(100 * n / sum(n), 2)) |>
+        dplyr::rename({{ custom_column_name }} := {{ column }}) |>
+        gt::gt() |>
+        gt::cols_label({{ custom_column_name }} := gt::html(custom_column_name)) %>%
+        {
+          if (no_title == F) gt::tab_header(title = gt::md(glue::glue("*{custom_title}*"))) else .
+        } %>%
+        gt::data_color(
+          columns = n,
+          colors = scales::col_numeric(
+            palette = TeachingLab::tl_palette(color = "blue", n = 10),
+            domain = NULL
+          )
+        ) |>
+        gt::fmt_percent(
+          columns = Percent,
+          decimals = 2,
+          scale_values = F
+        ) |>
+        gt::grand_summary_rows(
+          columns = c(n),
+          fns = list(
+            Total = ~ sum(.)
+          ),
+          formatter = gt::fmt_number,
+          decimals = 0
+        ) |>
+        gt::grand_summary_rows(
+          columns = c(Percent),
+          fns = list(
+            Total = ~ sum(.)
+          ),
+          formatter = gt::fmt_percent,
+          scale_values = F,
+          decimals = 0
+        ) %>%
+        TeachingLab::gt_theme_tl(base_font = base_font, heading_font = heading_font)
+    } else if (viz_type == "pie") {
+      ggplot_data <- df |>
+        dplyr::group_by(!!column) |>
+        dplyr::count(sort = T) |>
+        tidyr::drop_na(!!column) |>
+        dplyr::ungroup() |>
+        dplyr::mutate(!!(column) := stringr::str_wrap(!!rlang::sym(column), width = 10),
+                      Percent = round(100 * n / sum(n), 2)
+        ) |>
+        dplyr::rename({{ custom_column_name }} := {{ column }}) |>
+        dplyr::mutate(
+          prop = 100 * (Percent / sum(Percent)),
+          ypos = cumsum(prop) - 0.5 * prop,
+          {{ custom_column_name }} := forcats::fct_reorder(!!rlang::ensym(custom_column_name), Percent)
         )
-      ) |>
-      gt::fmt_percent(
-        columns = Percent,
-        decimals = 2,
-        scale_values = F
-      ) |>
-      gt::grand_summary_rows(
-        columns = c(n),
-        fns = list(
-          Total = ~ sum(.)
-        ),
-        formatter = gt::fmt_number,
-        decimals = 0
-      ) |>
-      gt::grand_summary_rows(
-        columns = c(Percent),
-        fns = list(
-          Total = ~ sum(.)
-        ),
-        formatter = gt::fmt_percent,
-        scale_values = F,
-        decimals = 0
-      ) %>%
-      TeachingLab::gt_theme_tl(base_font = base_font, heading_font = heading_font)
-  } else if (viz_type == "pie") {
-    ggplot_data <- df |>
-      dplyr::group_by(!!column) |>
-      dplyr::count(sort = T) |>
-      tidyr::drop_na(!!column) |>
-      dplyr::ungroup() |>
-      dplyr::mutate(!!(column) := stringr::str_wrap(!!rlang::sym(column), width = 10),
-        Percent = round(100 * n / sum(n), 2)
-      ) |>
-      dplyr::rename({{ custom_column_name }} := {{ column }}) |>
-      dplyr::mutate(
-        prop = 100 * (Percent / sum(Percent)),
-        ypos = cumsum(prop) - 0.5 * prop,
-        {{ custom_column_name }} := forcats::fct_reorder(!!rlang::ensym(custom_column_name), Percent)
-      )
-    ggplot_data |>
-      ggplot2::ggplot(ggplot2::aes(
-        x = "", y = Percent,
-        fill = !!rlang::ensym(custom_column_name)
-      )) +
-      ggplot2::geom_col(key_glyph = draw_key_point) +
-      ggplot2::geom_text(
-        ggplot2::aes(
-          label = paste0(Percent, "%"),
-          y = ypos
-        ),
-        family = "Calibri",
-        fontface = "bold",
-        color = ifelse(min(ggplot_data$Percent) == ggplot_data$Percent | ggplot_data$Percent < 10,
-          "white",
-          "black"
-        ),
-        size = ifelse(min(ggplot_data$Percent) == ggplot_data$Percent | ggplot_data$Percent < 10,
-          4,
-          6
-        ),
-        vjust = ifelse(min(ggplot_data$Percent) == ggplot_data$Percent, -1.5, 0.5)
-      ) +
-      ggplot2::coord_polar("y", start = 0) +
-      ggplot2::labs(title = paste0(custom_column_name, " (n = ", format(sum(ggplot_data$n, na.rm = T), big.mark = ","), ")")) +
-      ggplot2::scale_fill_manual(values = TeachingLab::tl_palette(
-        color = "blue",
-        n = length(unique(ggplot_data[[custom_column_name]]))
-      )) +
-      ggplot2::theme_void(base_family = "Calibri") +
-      ggplot2::theme(
-        legend.position = "bottom",
-        legend.title = ggplot2::element_blank(),
-        plot.title = ggplot2::element_text(hjust = 0.5, face = "bold")
-      ) +
-      ggplot2::guides(fill = ggplot2::guide_legend(override.aes = list(shape = 21, size = 10), reverse = T))
-  } else if (viz_type == "waffle") {
-    ggplot_data <- df |>
-      dplyr::group_by(!!column) |>
-      dplyr::count(sort = T) |>
-      tidyr::drop_na(!!column) |>
-      dplyr::ungroup() |>
-      dplyr::mutate(Percent = round(100 * n / sum(n), 2)) |>
-      dplyr::rename({{ custom_column_name }} := {{ column }}) |>
-      dplyr::mutate(
-        prop = 100 * (Percent / sum(Percent)),
-        ypos = cumsum(prop) - 0.75 * prop,
-        {{ custom_column_name }} := forcats::fct_reorder(!!rlang::ensym(custom_column_name), Percent)
-      )
-
-    subtitle <- ggplot_data |>
-      dplyr::select({{ custom_column_name }}, Percent, n) |>
-      dplyr::arrange(dplyr::desc(Percent)) |>
-      dplyr::mutate(color = rev(TeachingLab::tl_palette(n = length(n), color = "blue"))) |>
-      dplyr::summarise(text = stringr::str_c("<b style='color:", color, "'>", !!rlang::ensym(custom_column_name), ": ", Percent, "%</b>", collapse = "<br>")) |>
-      dplyr::pull(text)
-
-    ggplot_data |>
-      ggplot2::ggplot(ggplot2::aes(
-        fill = !!rlang::ensym(custom_column_name),
-        values = n
-      )) +
-      ### ISSUE: some kind of weird error here internal to the library itself I think ###
-      waffle::geom_waffle(
-        n_rows = 10,
-        size = 1, colour = "white",
-        make_proportional = TRUE,
-        na.rm = TRUE,
-        radius = grid::unit(2, "pt"),
-        height = 0.9,
-        width = 0.9
-      ) +
-      ggplot2::labs(
-        title = paste0(custom_column_name, " (n = ", format(sum(ggplot_data$n, na.rm = TRUE), big.mark = ","), ")"),
-        subtitle = subtitle
-      ) +
-      ggplot2::scale_fill_manual(values = TeachingLab::tl_palette(
-        color = "blue",
-        n = length(unique(ggplot_data[[custom_column_name]]))
-      )) +
-      ggplot2::theme_void(base_family = "Calibri") +
-      ggplot2::theme(
-        legend.position = "none",
-        plot.title = ggplot2::element_text(hjust = 0.5, face = "bold"),
-        plot.subtitle = ggtext::element_markdown(
-          hjust = 0.5, face = "italic",
-          lineheight = 1.15
+      ggplot_data |>
+        ggplot2::ggplot(ggplot2::aes(
+          x = "", y = Percent,
+          fill = !!rlang::ensym(custom_column_name)
+        )) +
+        ggplot2::geom_col(key_glyph = draw_key_point) +
+        ggplot2::geom_text(
+          ggplot2::aes(
+            label = paste0(Percent, "%"),
+            y = ypos
+          ),
+          family = "Calibri",
+          fontface = "bold",
+          color = ifelse(min(ggplot_data$Percent) == ggplot_data$Percent | ggplot_data$Percent < 10,
+                         "white",
+                         "black"
+          ),
+          size = ifelse(min(ggplot_data$Percent) == ggplot_data$Percent | ggplot_data$Percent < 10,
+                        4,
+                        6
+          ),
+          vjust = ifelse(min(ggplot_data$Percent) == ggplot_data$Percent, -1.5, 0.5)
+        ) +
+        ggplot2::coord_polar("y", start = 0) +
+        ggplot2::labs(title = paste0(custom_column_name, " (n = ", format(sum(ggplot_data$n, na.rm = T), big.mark = ","), ")")) +
+        ggplot2::scale_fill_manual(values = TeachingLab::tl_palette(
+          color = "blue",
+          n = length(unique(ggplot_data[[custom_column_name]]))
+        )) +
+        ggplot2::theme_void(base_family = "Calibri") +
+        ggplot2::theme(
+          legend.position = "bottom",
+          legend.title = ggplot2::element_blank(),
+          plot.title = ggplot2::element_text(hjust = 0.5, face = "bold")
+        ) +
+        ggplot2::guides(fill = ggplot2::guide_legend(override.aes = list(shape = 21, size = 10), reverse = T))
+    } else if (viz_type == "waffle") {
+      ggplot_data <- df |>
+        dplyr::group_by(!!column) |>
+        dplyr::count(sort = T) |>
+        tidyr::drop_na(!!column) |>
+        dplyr::ungroup() |>
+        dplyr::mutate(Percent = round(100 * n / sum(n), 2)) |>
+        dplyr::rename({{ custom_column_name }} := {{ column }}) |>
+        dplyr::mutate(
+          prop = 100 * (Percent / sum(Percent)),
+          ypos = cumsum(prop) - 0.75 * prop,
+          {{ custom_column_name }} := forcats::fct_reorder(!!rlang::ensym(custom_column_name), Percent)
         )
-      )
-  } else if (viz_type == "treemap") {
-    ggplot_data <- df |>
-      dplyr::group_by(!!column) |>
-      dplyr::count(sort = T) |>
-      tidyr::drop_na(!!column) |>
-      dplyr::ungroup() |>
-      dplyr::mutate(Percent = round(100 * n / sum(n), 2)) |>
-      dplyr::rename({{ custom_column_name }} := {{ column }}) |>
-      dplyr::mutate(
-        prop = 100 * (Percent / sum(Percent)),
-        ypos = cumsum(prop) - 0.5 * prop,
-        {{ custom_column_name }} := forcats::fct_reorder(!!rlang::ensym(custom_column_name), Percent)
-      )
-    ggplot_data |>
-      ggplot2::ggplot(ggplot2::aes(
-        area = Percent,
-        fill = !!rlang::ensym(custom_column_name)
-      )) +
-      treemapify::geom_treemap(key_glyph = draw_key_point) +
-      treemapify::geom_treemap_text(ggplot2::aes(label = paste0(!!rlang::ensym(custom_column_name), ": ", Percent, "%")),
-        family = "Calibri",
-        fontface = "bold",
-        # grow = T,
-        reflow = T,
-        color = ifelse(min(ggplot_data$Percent) == ggplot_data$Percent | ggplot_data$Percent < 10,
-          "white",
-          "black"
-        ),
-        place = "center"
-      ) +
-      ggplot2::labs(title = paste0(custom_column_name, " (n = ", format(sum(ggplot_data$n, na.rm = T), big.mark = ","), ")\n")) +
-      ggplot2::scale_fill_manual(values = TeachingLab::tl_palette(
-        color = "blue",
-        n = length(unique(ggplot_data[[custom_column_name]]))
-      )) +
-      ggplot2::theme_void(base_family = "Calibri") +
-      ggplot2::theme(
-        legend.position = "none",
-        legend.title = ggplot2::element_blank(),
-        plot.title = ggplot2::element_text(hjust = 0.5, face = "bold")
-      )
+      
+      subtitle <- ggplot_data |>
+        dplyr::select({{ custom_column_name }}, Percent, n) |>
+        dplyr::arrange(dplyr::desc(Percent)) |>
+        dplyr::mutate(color = rev(TeachingLab::tl_palette(n = length(n), color = "blue"))) |>
+        dplyr::summarise(text = stringr::str_c("<b style='color:", color, "'>", !!rlang::ensym(custom_column_name), ": ", Percent, "%</b>", collapse = "<br>")) |>
+        dplyr::pull(text)
+      
+      ggplot_data |>
+        ggplot2::ggplot(ggplot2::aes(
+          fill = !!rlang::ensym(custom_column_name),
+          values = n
+        )) +
+        ### ISSUE: some kind of weird error here internal to the library itself I think ###
+        waffle::geom_waffle(
+          n_rows = 10,
+          size = 1, colour = "white",
+          make_proportional = TRUE,
+          na.rm = TRUE,
+          radius = grid::unit(2, "pt"),
+          height = 0.9,
+          width = 0.9
+        ) +
+        ggplot2::labs(
+          title = paste0(custom_column_name, " (n = ", format(sum(ggplot_data$n, na.rm = TRUE), big.mark = ","), ")"),
+          subtitle = subtitle
+        ) +
+        ggplot2::scale_fill_manual(values = TeachingLab::tl_palette(
+          color = "blue",
+          n = length(unique(ggplot_data[[custom_column_name]]))
+        )) +
+        ggplot2::theme_void(base_family = "Calibri") +
+        ggplot2::theme(
+          legend.position = "none",
+          plot.title = ggplot2::element_text(hjust = 0.5, face = "bold"),
+          plot.subtitle = ggtext::element_markdown(
+            hjust = 0.5, face = "italic",
+            lineheight = 1.15
+          )
+        )
+    } else if (viz_type == "treemap") {
+      ggplot_data <- df |>
+        dplyr::group_by(!!column) |>
+        dplyr::count(sort = T) |>
+        tidyr::drop_na(!!column) |>
+        dplyr::ungroup() |>
+        dplyr::mutate(Percent = round(100 * n / sum(n), 2)) |>
+        dplyr::rename({{ custom_column_name }} := {{ column }}) |>
+        dplyr::mutate(
+          prop = 100 * (Percent / sum(Percent)),
+          ypos = cumsum(prop) - 0.5 * prop,
+          {{ custom_column_name }} := forcats::fct_reorder(!!rlang::ensym(custom_column_name), Percent)
+        )
+      ggplot_data |>
+        ggplot2::ggplot(ggplot2::aes(
+          area = Percent,
+          fill = !!rlang::ensym(custom_column_name)
+        )) +
+        treemapify::geom_treemap(key_glyph = draw_key_point) +
+        treemapify::geom_treemap_text(ggplot2::aes(label = paste0(!!rlang::ensym(custom_column_name), ": ", Percent, "%")),
+                                      family = "Calibri",
+                                      fontface = "bold",
+                                      # grow = T,
+                                      reflow = T,
+                                      color = ifelse(min(ggplot_data$Percent) == ggplot_data$Percent | ggplot_data$Percent < 10,
+                                                     "white",
+                                                     "black"
+                                      ),
+                                      place = "center"
+        ) +
+        ggplot2::labs(title = paste0(custom_column_name, " (n = ", format(sum(ggplot_data$n, na.rm = T), big.mark = ","), ")\n")) +
+        ggplot2::scale_fill_manual(values = TeachingLab::tl_palette(
+          color = "blue",
+          n = length(unique(ggplot_data[[custom_column_name]]))
+        )) +
+        ggplot2::theme_void(base_family = "Calibri") +
+        ggplot2::theme(
+          legend.position = "none",
+          legend.title = ggplot2::element_blank(),
+          plot.title = ggplot2::element_text(hjust = 0.5, face = "bold")
+        )
+    }
+  } else {
+    TeachingLab:::no_data_plot
   }
 }
 

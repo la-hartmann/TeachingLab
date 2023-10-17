@@ -4,7 +4,7 @@
 \alias{get_student_work}
 \title{Student Work Data}
 \usage{
-get_student_work(update = FALSE, year = "22_23")
+get_student_work(update = FALSE, year = "23_24")
 }
 \arguments{
 \item{update}{FALSE, whether or not to pull the updated version}
