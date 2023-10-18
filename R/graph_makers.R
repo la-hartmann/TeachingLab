@@ -1363,17 +1363,43 @@ student_bar_chart <- function(data,
   ### that selected relevant levels of agreeness
   student_data_summarised <- data |>
     dplyr::select(tidyselect::contains(col_select), prepost) |>
-    TeachingLab::relabel_qualtrics_df() |>
     dplyr::group_by(prepost) |>
     dplyr::summarise(dplyr::across(dplyr::everything(), ~ TeachingLab::tl_select_percent(.x, agree_select))) |>
     tidyr::drop_na(prepost) |>
-    (\(.) dplyr::mutate(., Overall = rowMeans(select(., starts_with("Please")))))()
+    (\(.) dplyr::mutate(., Overall = rowMeans(select(., -prepost))))()
 
   ### Reformat dataframe and prep for ggplot2
   student_data_percent <- student_data_summarised |>
     tidyr::pivot_longer(!prepost, names_to = "question", values_to = "percent") |>
     tidyr::drop_na(percent) |>
     dplyr::mutate(
+      question = stringr::str_replace_all(question, c("crse_1" = "My teacher explains what we are learning in different ways",
+                                                      "crse_2" = "My teacher wants students from different cultures to respect one another",
+                                                      "crse_3" = "My teacher uses what I already know to help me understand new ideas",
+                                                      "crse_4" = "My teacher uses examples from my culture when teaching",
+                                                      "crse_5" = "My teacher asks about ways that students’ cultures may be different from others",
+                                                      "crse_6" = "My teacher helps students learn about other students and their cultures",
+                                                      "crse_7" = "My teacher asks about students’ home life",
+                                                      "crse_8" = "My teacher treats all students like they are important members of the classroom",
+                                                      "teacher_student_rel_1" = "My teacher makes me feel that he/she really cares about me",
+                                                      "teacher_student_rel_2" = "I like the way my teacher treats me when I need help",
+                                                      "teacher_student_rel_3" = "My teacher seems to know if something is bothering me",
+                                                      "self_efficacy_1" = "I can do almost all the work in this class if I don’t give up",
+                                                      "self_efficacy_2" = "Even when work is hard, I know I can learn it",
+                                                      "self_efficacy_3" = "I'm certain I can master the skills taught in this class",
+                                                      "self_efficacy_4" = "When doing work for this class, I focus on learning, not the time work takes",
+                                                      "self_efficacy_5" = "I have been able to figure out the most difficult work in this class",
+                                                      "happiness_belonging_1" = "This class is a happy place for me to be",
+                                                      "happiness_belonging_2" = "In this class, I feel like I belong",
+                                                      "happiness_belonging_3" = "Being in this class makes me feel sad or angry",
+                                                      "happiness_belonging_4" = "The things we have done in class this year are interesting",
+                                                      "happiness_belonging_5" = "Because of this teacher, I am learning to love this subject",
+                                                      "happiness_belonging_6" = "I enjoy this subject this year",
+                                                      "being_challenged_1" = "My teacher makes sure that I try to do my best",
+                                                      "being_challenged_2" = "In this class, we learn a lot almost every day",
+                                                      "being_challenged_3" = "In this class, we learn to correct our mistakes",
+                                                      "being_challenged_4" = "In this class, my teacher accepts nothing less than our full effort",
+                                                      "being_challenged_5" = "My teacher wants us to use our thinking skills, not just memorize things")),
       question = stringr::str_remove_all(question, string_remove),
       question = stringr::str_wrap(question, 25),
       percent = percent * 100
@@ -1397,7 +1423,7 @@ student_bar_chart <- function(data,
     ) +
     ggplot2::labs(
       x = "", y = "",
-      title = glue::glue("{title} (n = {n_size_1}) & <span style = 'color:#04abeb;'>(n = {n_size_2})</span>"),
+      title = glue::glue("{title} <span style = 'color:#04abeb;'>(pre n = {n_size_1})</span> & (post n = {n_size_2})"),
       subtitle = subtitle,
       fill = "Race"
     ) +
@@ -1411,17 +1437,17 @@ student_bar_chart <- function(data,
     TeachingLab::theme_tl(legend = F) +
     ggplot2::theme(
       plot.title = ggtext::element_markdown(family = "Calibri Bold", face = "bold"),
-      plot.subtitle = ggtext::element_markdown(family = "Calibri", hjust = 1),
+      plot.subtitle = ggtext::element_markdown(family = "Calibri", hjust = 0.25),
       legend.key.size = grid::unit(1.2, "cm"),
-      axis.text.y = ggplot2::element_text(size = 14)
+      axis.text.y = ggplot2::element_text(size = 17)
     )
   
-  cat("#### ", race_filter, "\n")
-  cat("\n")
+  # cat("#### ", race_filter, "\n")
+  # cat("\n")
   
   print(p)
   
-  cat("\n\n")
+  # cat("\n\n")
   
 }
 

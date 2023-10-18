@@ -32,7 +32,7 @@ get_current_partner_sites <- function(update = FALSE, year = "22_23") {
 #' @title IPG Data
 #' @description Gets data from IPG forms
 #' @param update FALSE
-#' @param year "21_22" or "22_23"
+#' @param year "21_22", "22_23", or "23_24", default is current year
 #' @param write FALSE by default
 #' @return Returns a tibble
 #' @export

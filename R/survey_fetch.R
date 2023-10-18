@@ -17,7 +17,7 @@ get_participant_feedback <- function(update = FALSE, start_date = as.Date("2022-
 #' @title End of Session Dashboard Data
 #' @description Gets dashboard data by reading it in from data folder
 #' @param update FALSE, whether or not to update
-#' @param year "21_22" or "22_23"
+#' @param year "21_22", "22_23", or "23_24", default is current year
 #' @param write FALSE by default, otherwise writes data to year and data directory
 #' @return Returns a tibble
 #' @export
@@ -68,7 +68,7 @@ get_session_survey <- function(update = FALSE, year = "23_24", write = FALSE) {
 #' @title End of Course Dashboard Data
 #' @description Gets dashboard data by reading it in from data folder
 #' @param update FALSE, optional to update end of course data or not
-#' @param year "21_22" or "22_23"
+#' @param year "21_22", "22_23", or "23_24", default is current year
 #' @param write FALSE by default
 #' @return Returns a tibble
 #' @export
@@ -116,7 +116,7 @@ get_course_survey <- function(update = FALSE, year = "23_24", write = FALSE) {
 #' @title Coaching Participant Feedback Data
 #' @description Gets data from Coaching Participant Feedback
 #' @param update FALSE, whether or not to pull the updated version
-#' @param year "21_22" or "22_23"
+#' @param year "21_22", "22_23", or "23_24", default is current year
 #' @param write FALSE by default
 #' @return Returns a tibble
 #' @export
@@ -159,7 +159,7 @@ get_ongoing_coaching <- function(update = FALSE, year = "23_24", write = FALSE) 
 #' @title Ongoing Coaching Feedback Survey Data
 #' @description Gets data from the Ongoing Coaching Feedback Survey
 #' @param update FALSE, whether or not to pull the updated version
-#' @param year "21_22" or "22_23"
+#' @param year "21_22", "22_23", or "23_24", default is current year
 #' @param write FALSE by default
 #' @return Returns a tibble
 #' @export
@@ -202,7 +202,7 @@ get_end_coaching <- function(update = FALSE, year = "23_24", write = FALSE) {
 #' @title Student Survey Data
 #' @description Gets data from Student Survey
 #' @param update FALSE whether or not to update the data
-#' @param year "21_22" or "22_23"
+#' @param year "21_22", "22_23", or "23_24", default is current year
 #' @param write FALSE by default
 #' @return Returns a tibble
 #' @export
@@ -285,7 +285,7 @@ get_student_survey <- function(update = FALSE, year = "23_24", write = FALSE) {
 #' @title Student Work Data
 #' @description Gets metadata about student work files
 #' @param update FALSE, whether or not to pull the updated version
-#' @param year "21_22" or "22_23"
+#' @param year "21_22", "22_23", or "23_24", default is current year
 #' @return Returns a tibble
 #' @export
 get_student_work <- function(update = FALSE, year = "23_24") {
@@ -315,7 +315,7 @@ get_student_work <- function(update = FALSE, year = "23_24") {
 #' @title Diagnostic Survey Update
 #' @description Get the diagnostic survey
 #' @param update FALSE, optional updating
-#' @param year "21_22" or "22_23"
+#' @param year "21_22", "22_23", or "23_24", default is current year
 #' @param write FALSE by default
 #' @return A tibble
 #' @export
@@ -410,7 +410,7 @@ get_diagnostic_survey <- function(update = FALSE, year = "23_24", write = FALSE)
 #' @title Follow Up Educator Survey Data
 #' @description Gets data from the Follow Up Educator Survey
 #' @param update FALSE, whether or not to pull the updated version
-#' @param year "21_22" or "22_23"
+#' @param year "21_22", "22_23", or "23_24", default is current year
 #' @param write FALSE by default
 #' @return Returns a tibble
 #' @export
@@ -517,7 +517,7 @@ get_followup_educator <- function(update = FALSE, year = "23_24", write = FALSE)
 #' @title Knowledge Assessments Update
 #' @description Get the knowledge assessments survey
 #' @param update FALSE, optional updating
-#' @param year "21_22" or "22_23"
+#' @param year "21_22", "22_23", or "23_24", default is current year
 #' @return A tibble
 #' @export
 get_knowledge_assessments <- function(update = FALSE, year = "23_24") {

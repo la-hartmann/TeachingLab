@@ -125,10 +125,40 @@ final_log_df <- full_log_df |>
     `NY Signature` = ifelse(tolower(Email) %in% nyc_signature, TRUE, FALSE)
   )
 
-sheet_range <- paste0("A2:", LETTERS[ncol(final_log_df)], nrow(final_log_df) + 1)
+get_response_rate <- function(data) {
+  data |>
+    summarise(`Please select today's date.` = paste0("Last updated: ", Sys.Date()),
+            `Coach name` = "",
+            Coachee = "",
+            Email = "",
+            Role = "",
+            `When is coaching expected to start with this coachee (approximately if no date has been set yet)?` = "",
+            `What is the expected frequency of coaching?` = "",
+            `What grade(s) does your coaching focus on with this teacher or coach?` = "",
+            `Content Area` = "",
+            `Site/Partner` = "",
+            Subsite = "",
+            across(c(`Diagnostic Educator Survey`,
+                     `Baseline IPG observation`,
+                     `Baseline Student Work`,
+                     `Baseline Student Survey`,
+                     `Ongoing coaching participant feedback survey`,
+                     `End of coaching cycle participant feedback survey`,
+                     `Chicago Signature`,
+                     `NY Signature`), ~ paste0(round(100 * sum(.x)/length(.x), 2), "% Response Rate")))
+}
+
+summary_row <- final_log_df |>
+  get_response_rate()
+
+final_log_df_with_summary <- final_log_df |>
+  mutate(across(everything(), as.character)) |>
+  add_row(summary_row)
+
+sheet_range <- paste0("A2:", LETTERS[ncol(final_log_df_with_summary)], nrow(final_log_df_with_summary) + 1)
 
 range_write(
-  data = final_log_df,
+  data = final_log_df_with_summary,
   ss = "13d5l1k_oTiEKmnKIAFzoBMFWsr1f__JWkFpLmDesacw",
   sheet = "Tracker",
   col_names = FALSE,
@@ -137,12 +167,18 @@ range_write(
 )
 
 split_final_log <- split(final_log_df, final_log_df$`Site/Partner`) |>
+  purrr::imap( ~ .x |> mutate(across(everything(), as.character)) |> add_row(get_response_rate(.x))) |>
   purrr::imap( ~ if(!str_detect(.y, "D9|D11")) { .x |> dplyr::select(-`NY Signature`) } else { .x } ) |>
   purrr::imap( ~ if(!str_detect(.y, "CPS")) { .x |> dplyr::select(-`Chicago Signature`) } else { .x } )
 
 split_final_log$NY_D11 <- split_final_log$NY_D11 |>
-  dplyr::mutate(`D11 Instructional Walkthrough Tool` = ifelse(Coachee %in% ipg_d11_names, TRUE, FALSE)) |>
-  dplyr::relocate(`D11 Instructional Walkthrough Tool`, .after = `Baseline IPG observation`)
+  dplyr::mutate(`D11 Instructional Walkthrough Tool` = case_when(Coachee %in% ipg_d11_names ~ "TRUE",
+                                                                 Coachee == "" ~ "",
+                                                                 TRUE ~ "FALSE")) |>
+  dplyr::relocate(`D11 Instructional Walkthrough Tool`, .after = `Baseline IPG observation`) |>
+  dplyr::mutate(`D11 Instructional Walkthrough Tool` = ifelse(`D11 Instructional Walkthrough Tool` == "",
+                                                              paste0(round(100 * sum(`D11 Instructional Walkthrough Tool` == "TRUE")/length(`D11 Instructional Walkthrough Tool`) - 1, 2), "% Response Rate"),
+                                                              `D11 Instructional Walkthrough Tool`))
 
 get_sheet_range <- function(df) {
   paste0("A2:", LETTERS[ncol(df)], nrow(df) + 1)

@@ -77,18 +77,49 @@ ui <- tagList(
           choices = sites_list,
           width = "100%"
         ),
-        selectInput(
-          inputId = "raceSelect",
-          label = "Please select a race",
-          selected = "All Races",
-          choices = c(
-            "All Races",
-            "Asian",
-            "Black or African American",
-            "I prefer to self describe",
-            "Native American or Indian",
-            "Prefer not to say",
-            "White"
+        conditionalPanel(
+          condition = "input.inTabset != 'Section 3: Participant Knowledge/Self-Reported Practices Assessments' && input.inTabset != 'Section 7: Student Outcomes' && input.inTabset != 'Section 8: Partnership Opportunities Moving Forward' && input.inTabset != 'Section 6: Teachers’ Instructional Practices'",
+          selectInput(
+            inputId = "raceSelect",
+            label = "Please select a race",
+            selected = "All Races",
+            choices = c(
+              "All Races",
+              "Asian",
+              "Black or African American",
+              "I prefer to self describe",
+              "Native American or Indian",
+              "Prefer not to say",
+              "White"
+            )
+          )
+        ),
+        conditionalPanel(
+          condition = "input.inTabset != 'Section 3: Participant Knowledge/Self-Reported Practices Assessments' && input.inTabset != 'Section 8: Partnership Opportunities Moving Forward'",
+          selectInput(
+            inputId = "contentAreaSelect",
+            label = "Please select a content area",
+            selected = "All Content Areas",
+            choices = c(
+              "All Content Areas",
+              "Math",
+              "ELA",
+              "Other"
+            )
+          )
+        ),
+        conditionalPanel(
+          condition = "input.inTabset == 'Section 6: Teachers’ Instructional Practices'",
+          selectInput(
+            inputId = "ipgFormsSelect",
+            label = "Please select a rubric",
+            selected = "All Rubrics",
+            choices = c(
+              "All Rubrics",
+              "K-12: ELA/Literacy IPG" = "K-12: ELA/Literacy IPG (please use this tool for K-2 observations that are not focused on foundational skills)",
+              "K-12: Mathematics IPG",
+              "Foundational Skills Observational Tool - FSOT"
+            )
           )
         ),
         tags$div(
@@ -167,8 +198,8 @@ ui <- tagList(
           plotOutput("tl_pl_plot"),
           tags$h3("Roles", style = "color:#FF7B43;font-weight:bold;"),
           tags$br(),
-          splitLayout(plotOutput("roles_plot_1", width = "95%"), 
-                      plotOutput("roles_plot_2", width = "95%"),
+          splitLayout(plotOutput("roles_plot_1", width = "95%"),
+            plotOutput("roles_plot_2", width = "95%"),
             cellWidths = c("50%", "50%")
           )
         ),
@@ -188,17 +219,89 @@ ui <- tagList(
           tags$h3("Section 2d: End of Coaching Feedback", style = "color:#FF7B43;font-weight:bold;"),
           tags$br(),
           plotOutput("end_coach_plot_1", height = "700px"),
-          htmlOutput("end_coach_summary_sentences")
+          htmlOutput("end_coach_summary_sentences"),
+          tags$h3("Section 2e: Contact Lead Feedback", style = "color:#FF7B43;font-weight:bold;"),
+          tags$br(),
+          plotOutput("contact_lead_plot_1", height = "700px"),
         ),
-        tabPanel("Section 3: Participant Knowledge/Self-Reported Practices Assessments",
-                 tags$h3("Results", style = "color:#FF7B43;font-weight:bold;"),
-                 tags$br(),
-                 plotOutput("knowledge_assess_summary", height = "1000px")),
-        tabPanel("Section 4: Teachers’ Mindsets & School Environment"),
-        tabPanel("Section 5: School Leaders’ Mindsets & Observational Practices Participants"),
-        tabPanel("Section 6: Teachers’ Instructional Practices"),
-        tabPanel("Section 7: Student Outcomes"),
-        tabPanel("Section 8: Partnership Opportunities Moving Forward")
+        tabPanel(
+          "Section 3: Participant Knowledge/Self-Reported Practices Assessments",
+          tags$h3("Results", style = "color:#FF7B43;font-weight:bold;"),
+          tags$br(),
+          plotOutput("knowledge_assess_summary", height = "1000px")
+        ),
+        tabPanel(
+          "Section 4: Teachers’ Mindsets & School Environment",
+          tags$h3("Section 4a: Teacher - Mindsets", style = "color:#FF7B43;font-weight:bold;"),
+          tags$h4("Overall", style = "color:#D17DF7;font-weight:bold;"),
+          gt::gt_output("mindsets_table_1"),
+          tags$h4("Recognition of Race & Culture", style = "color:#D17DF7;font-weight:bold;"),
+          gt::gt_output("mindsets_table_2"),
+          tags$h4("High Expectations", style = "color:#D17DF7;font-weight:bold;"),
+          gt::gt_output("mindsets_table_3"),
+          tags$h4("Growth Mindsets", style = "color:#D17DF7;font-weight:bold;"),
+          gt::gt_output("mindsets_table_4"),
+          tags$h3("Section 4b: Teachers - Perceptions and Use of Curricula", style = "color:#FF7B43;font-weight:bold;"),
+          plotOutput("mindsets_plot_1"),
+          plotOutput("mindsets_plot_2"),
+          plotOutput("mindsets_plot_3", height = "600px"),
+          tags$h3("Section 4c: Educators’ Perceptions of School Culture and Climate", style = "color:#FF7B43;font-weight:bold;"),
+          tags$h4("Teachers’ Perceptions of School Leaders and CBPL", style = "color:#D17DF7;font-weight:bold;"),
+          plotOutput("mindsets_plot_4", height = "700px"),
+          tags$h4("Teachers’ Perceptions of School Environment", style = "color:#D17DF7;font-weight:bold;"),
+          plotOutput("mindsets_plot_5")
+        ),
+        tabPanel(
+          "Section 5: School Leaders’ Mindsets & Observational Practices Participants",
+          tags$h3("Section 5a: School Leaders - Mindsets", style = "color:#FF7B43;font-weight:bold;"),
+          tags$h4("Overall", style = "color:#D17DF7;font-weight:bold;"),
+          gt::gt_output("leaders_mindsets_table_1"),
+          tags$h4("Recognition of Race & Culture", style = "color:#D17DF7;font-weight:bold;"),
+          gt::gt_output("leaders_mindsets_table_2"),
+          tags$h4("High Expectations", style = "color:#D17DF7;font-weight:bold;"),
+          gt::gt_output("leaders_mindsets_table_3"),
+          tags$h4("Growth Mindsets", style = "color:#D17DF7;font-weight:bold;"),
+          gt::gt_output("leaders_mindsets_table_4"),
+          tags$h3("Section 5b: School Leaders - Observational Practices", style = "color:#FF7B43;font-weight:bold;"),
+          plotOutput("leaders_mindsets_plot_1", height = "500px")
+        ),
+        tabPanel(
+          "Section 6: Teachers’ Instructional Practices",
+          tags$h3("Section 6a: Teachers’ CRSE Self-Reported Practices Participants", style = "color:#FF7B43;font-weight:bold;"),
+          plotOutput("crse_plot_1", height = "800px"),
+          tags$h3("Section 6b: Direct-to-Teacher Coaching Observations", style = "color:#FF7B43;font-weight:bold;"),
+          plotOutput("direct_to_ts_pos_plot", height = "800px"),
+          tags$h3("Section 6c: Instructional Walkthroughs/ Observations and Debriefs", style = "color:#FF7B43;font-weight:bold;"),
+          plotOutput("instructional_walkthroughs_plot_1")
+        ),
+        tabPanel(
+          "Section 7: Student Outcomes",
+          tags$h3("Section 7a: Student Learning Experiences - Teaching Lab Survey", style = "color:#FF7B43;font-weight:bold;"),
+          tags$h4("CRSE", style = "color:#D17DF7;font-weight:bold;"),
+          plotOutput("student_crse_1", height = "850px"),
+          tags$h4("Teacher-Student Relationships", style = "color:#D17DF7;font-weight:bold;"),
+          plotOutput("student_crse_2", height = "450px"),
+          tags$h4("Self Efficacy", style = "color:#D17DF7;font-weight:bold;"),
+          plotOutput("student_crse_3", height = "1000px"),
+          tags$h4("Happiness and Belonging", style = "color:#D17DF7;font-weight:bold;"),
+          plotOutput("student_crse_4", height = "800px"),
+          tags$h4("Being Challenged", style = "color:#D17DF7;font-weight:bold;"),
+          plotOutput("student_crse_5", height = "675px"),
+          tags$h3("Section 7b: % On Grade Level", style = "color:#FF7B43;font-weight:bold;"),
+          plotOutput("student_work_plot_1", height = "500px"),
+          tags$h3("Section 7c: Student Performance on Grade-Level Tasks", style = "color:#FF7B43;font-weight:bold;"),
+          plotOutput("student_work_plot_2", height = "550px"),
+          plotOutput("student_work_plot_3", height = "500px")
+        ),
+        tabPanel(
+          "Section 8: Partnership Opportunities Moving Forward",
+          tags$h4("Summer PL", style = "color:#D17DF7;font-weight:bold;"),
+          plotOutput("summer_pl_plot"),
+          tags$h4("What activities would you want your teachers and educators to invest their time and effort in future professional learning experiences?", style = "color:#D17DF7;font-weight:bold;"),
+          plotOutput("future_prof_learning_plot"),
+          tags$h4("Would you prefer for future professional learning support to be virtual, in-person, or hybrid?", style = "color:#D17DF7;font-weight:bold;"),
+          plotOutput("future_prof_learn_loc_plot")
+        )
       )
     )
   )

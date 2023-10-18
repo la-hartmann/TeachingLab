@@ -449,7 +449,7 @@ score_one_question_mindsets <- function(data, question, coding, na_remove = F, l
 grade_ipg <- function(x, type = "character") {
   x <- x[!is.na(x)]
   x <- x[!is.null(x)]
-  x <- x[!str_detect(x, "Not Observed|Not observed|NULL|NA")]
+  x <- x[!stringr::str_detect(x, "Not Observed|Not observed|NULL|NA")]
   # purrr::keep( ~ !is.null(.x)) %>%
   # purrr::keep( ~ !str_detect(.x, "Not Observed"))
 

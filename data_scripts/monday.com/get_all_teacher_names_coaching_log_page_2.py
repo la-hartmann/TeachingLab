@@ -6,10 +6,10 @@ apiUrl = "https://api.monday.com/v2"
 headers = {"Authorization" : apiKey,
            'API-Version' : '2023-10'}
 
-query2 = '{ boards(ids: 4987315255) { items_page (limit: 500, query_params: {rules: [{column_id: "short_text_2", compare_value: [""], operator:contains_text}]}) { cursor items { column_values (ids: ["short_text_2"]) { text } } } } }'
-data = {'query' : query2}
+query3 = 'query { next_items_page( limit: 500 cursor: "' + r.cursor_obj + '" ) { cursor items { column_values(ids: ["short_text_2"]) { text } } } }'
+data = {'query' : query3}
 
 req = requests.post(url=apiUrl, json=data, headers=headers) # make request
 
-with open('data/Monday/fy24_teachers_coaching_log.json', 'w') as f:
+with open('data/Monday/fy24_teachers_coaching_log_page_2.json', 'w') as f:
     json.dump(req.json(), f, indent=4, sort_keys=True)

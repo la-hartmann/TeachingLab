@@ -1,8 +1,10 @@
 # Educator Survey #
 educator_survey <- read.csv("data/educator_survey.csv") |>
-  data_setup()
+  data_setup() |>
+  dplyr::mutate(prepost = "Pre")
 followup_educator <- read.csv("data/followup_educator.csv") |>
-  data_setup()
+  data_setup() |>
+  dplyr::mutate(prepost = "Post")
 
 # Participant Feedback #
 session_survey <- read.csv("data/session_survey.csv") |>
@@ -19,6 +21,16 @@ ipg_forms <- read.csv("data/ipg_forms.csv")
 
 # Knowledge Assessments #
 knowledge_assessments <- readRDS("data/knowledge_assessments.rds")
+
+# Student Survey #
+# ISSUE: No data yet
+student_survey <- read.csv("data/student_survey.csv") |>
+  dplyr::mutate(race = ifelse(ethnicity == "Yes", "Hispanic/Latino", race),
+                prepost = "Pre")
+
+# Student Work #
+# ISSUE: No data yet
+student_work <- tibble::tibble()
 
 sites_list <- c("All Sites", sort(unique(c(unique(session_survey$site), unique(course_survey$site), 
                        unique(ongoing_coaching$site), unique(end_coaching$site),

@@ -12,6 +12,19 @@ initial_df <- jsonlite::fromJSON(here::here("data/monday/fy24_teachers_coaching_
 initial_df$data$boards$items_page$items[[1]]$column_values |>
   unlist() -> teachers
 
+paginate_cursor <- initial_df$data$boards$items_page$cursor |>
+  as.character()
+
+cursor_obj <- r_to_py(paginate_cursor)
+reticulate::source_python(here::here("data_scripts/monday.com/get_all_teacher_names_coaching_log_page_2.py"))
+
+second_df <- jsonlite::fromJSON(here::here("data/monday/fy24_teachers_coaching_log_page_2.json"))
+
+second_df$data$next_items_page$items$column_values |>
+  unlist() -> teachers2
+
+teachers <- c(teachers, teachers2)
+
 ipg_teacher_options <- metadata(surveyID = "SV_0BSnkV9TVXK1hjw", questions = "teacher_select")
 final_teacher_choices <- purrr::map_chr(1:length(ipg_teacher_options$questions$QID472$choices), ~ ipg_teacher_options$questions$QID472$choices[[.x]]$choiceText)
 

@@ -164,6 +164,41 @@ knowledge_assessments_detailed_scored <- purrr::map2_dfr(
 readr::write_rds(knowledge_assessments_detailed_scored, here::here("dashboards/course_assessments/data/knowledge_assessments.rds"))
 readr::write_rds(knowledge_assessments_detailed_scored, here::here("dashboards/OngoingReport_23_24/data/knowledge_assessments.rds"))
 
+### Survey data write ###
+educator_survey <- TeachingLab::get_diagnostic_survey()
+educator_survey |>
+  write.csv("dashboards/OngoingReport_23_24/data/educator_survey.csv")
+
+followup_educator <- TeachingLab::get_followup_educator()
+followup_educator |>
+  write.csv("dashboards/OngoingReport_23_24/data/followup_educator.csv")
+
+ipg_forms <- TeachingLab::get_ipg_forms()
+ipg_forms |>
+  write.csv("dashboards/OngoingReport_23_24/data/ipg_forms.csv")
+
+session_survey <- TeachingLab::get_session_survey()
+session_survey |>
+  write.csv("dashboards/OngoingReport_23_24/data/session_survey.csv")
+
+ongoing_coaching <- TeachingLab::get_ongoing_coaching()
+ongoing_coaching |>
+  write.csv("dashboards/OngoingReport_23_24/data/ongoing_coaching.csv")
+
+course_survey <- TeachingLab::get_course_survey()
+course_survey |>
+  write.csv("dashboards/OngoingReport_23_24/data/course_survey.csv")
+
+end_coaching <- TeachingLab::get_end_coaching()
+end_coaching |>
+  write.csv("dashboards/OngoingReport_23_24/data/end_coaching.csv")
+
+student_survey <- TeachingLab::get_student_survey()
+
+student_survey |>
+  write.csv("dashboards/OngoingReport_23_24/data/student_survey.csv")
+###
+
 know_assess_answers <- read_sheet("1rbzcBgQ3hHG7v-HC-jQMknjSgMkvG74wDKACiOfza2M") |>
   dplyr::filter(Correct == TRUE) |>
   dplyr::pull(Answer) |>
