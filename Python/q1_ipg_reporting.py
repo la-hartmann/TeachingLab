@@ -58,7 +58,9 @@ for i in range(len(df)):
         nsize=0
   # otherwise, run the pos indicator and question counter
     else:
-        score = 0
+       #initialize score = 0, add 1 for each pos indicator
+        score = 0  
+       # initialize question n size = # of non empty rubric categories, subtract 1 if 'not observed'/'N/A'
         nsize = df.nancheck.iloc[i]
         if df.ipg_rubric.iloc[i] == 'K-12: Mathematics IPG':
             if "Yes" in df.k12_m_ca1a.iloc[i]:
@@ -143,7 +145,9 @@ for i in range(len(df)):
         nsize=0
   # otherwise, run the pos indicator and question counter
     else:
+       #initialize score = 0, add 1 for each pos indicator
         score = 0  
+       # initialize question n size = # of non empty rubric categories, subtract 1 if 'not observed'/'N/A'
         nsize = df.nancheck.iloc[i]
         if df.ipg_rubric.iloc[i] == 'K-12: ELA/Literacy IPG (please use this tool for K-2 observations that are not focused on foundational skills)':
             if "Yes" in df.k12_ela_ca1a.iloc[i]:
@@ -245,7 +249,9 @@ for i in range(len(df)):
         nsize=0
   # otherwise, run the pos indicator and question counter
     else:
-        score = 0 
+       #initialize score = 0, add 1 for each pos indicator
+        score = 0  
+       # initialize question n size = # of non empty rubric categories, subtract 1 if 'not observed'/'N/A'
         nsize = df.nancheck.iloc[i]
         if df.ipg_rubric.iloc[i] == 'Foundational Skills Observational Tool - FSOT':
             if "3" in df.fsot_ac1.iloc[i]:
