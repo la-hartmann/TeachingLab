@@ -274,7 +274,7 @@ for i in range(len(df)):
                 score += 1
             if "4" in df.fsot_td1.iloc[i]:
                 score += 1
-            if "observed" in df.fsot_td1.iloc[i]:
+            if "observe" in df.fsot_td1.iloc[i]:
                 nsize -= 1
             if "applicable" in df.fsot_td1.iloc[i]:
                 nsize -= 1
