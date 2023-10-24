@@ -93,7 +93,7 @@ def grade_col(df):
     return df
 
 ### Classroom Observations ###
-def grade_col(df):
+def ipg_grade_col(df):
     
     ## FOR GRADE REPORTING -- IF SPAN ACROSS GRADE LEVELS, REPORT HIGHEST GRADE LEVEL
     ### GRADE BANDS: K-2, 3-5, 6-8, 9-12, OTHER, UNSPECIFIED
