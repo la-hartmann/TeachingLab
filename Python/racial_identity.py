@@ -1,4 +1,4 @@
-def race_col:
+def race_col(df):
 #get the count of the number or races a single row has, assign to count variable
     count=[]
     check = df[['race_1','race_2','race_3', 'race_4','race_5','race_6']]
