@@ -18,7 +18,7 @@ df = df.drop(columns=['index'])
 ### Grade Banding ###
 #use the IPG grade band function
 
-df = grade_col(df)
+df = ipg_grade_col(df)
 
 
 ### Check for NaNs ###
