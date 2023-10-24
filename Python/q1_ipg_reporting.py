@@ -59,7 +59,7 @@ for i in range(len(df)):
   # otherwise, run the pos indicator and question counter
     else:
         score = 0
-        nsize = 12 
+        nsize = df.nancheck.iloc[i]
         if df.ipg_rubric.iloc[i] == 'K-12: Mathematics IPG':
             if "Yes" in df.k12_m_ca1a.iloc[i]:
                 score += 1
@@ -144,7 +144,7 @@ for i in range(len(df)):
   # otherwise, run the pos indicator and question counter
     else:
         score = 0  
-        nsize = 13
+        nsize = df.nancheck.iloc[i]
         if df.ipg_rubric.iloc[i] == 'K-12: ELA/Literacy IPG (please use this tool for K-2 observations that are not focused on foundational skills)':
             if "Yes" in df.k12_ela_ca1a.iloc[i]:
                 score += 1
@@ -246,7 +246,7 @@ for i in range(len(df)):
   # otherwise, run the pos indicator and question counter
     else:
         score = 0 
-        nsize = 12
+        nsize = df.nancheck.iloc[i]
         if df.ipg_rubric.iloc[i] == 'Foundational Skills Observational Tool - FSOT':
             if "3" in df.fsot_ac1.iloc[i]:
                 score += 1
