@@ -1,4 +1,16 @@
-### insert code to call and clean ed survey 
+## retrieve and clean data ##
+#reference the survey codes to be used in get_survey
+survey_codes()
+#use get_survey() to create df
+df = get_survey('SV_8vrKtPDtqQFbiBM')
+#use clean()to return a cleaned version of the df: drop import id, subset >=7/1/2023, include only Finished responses, reset index
+df = pd.DataFrame(clean(df))
+#call race_col() to create new column for summative race based on DA guidelines
+df = race_col(df)
+# call grade_col() to create new column for summative grade level 
+df = grade_col(df)
+
+
 
 def grade_dist(df):
     return [df.grade.value_counts().sum(),df.grade.value_counts(),round(df.grade.value_counts()*100/len(df),2)]
