@@ -367,7 +367,30 @@ nsize = [sum(x) for x in zip(*list2)]
 df['pos_ind']=pos_ind
 df['nsize']=nsize
 
-### Disaggreating % Positive Indicators For Dataset ###
+### To Calculate Average by Individual ###
+ppi = []
+for i in range(len(df)):
+       #if all null, not included in the calculation
+    if df.nancheck.iloc[i]==0:
+        percent = None
+    else:
+        percent = df.pos_ind.iloc[i]/df.nsize.iloc[i]
+    ppi.append(percent)
+df['ppi']=ppi
+
+# overall average 
+df.ppi.mean()
+### Disaggregating the Calculation ###
+# grade band
+df.ppi.groupby(df.grade).mean()
+# content area
+df.ppi.groupby(df.content_area).mean()
+
+
+########################################################################
+### Disaggreating % Positive Indicators For Across Entire Dataset ###
+
+#this method was NOT used for Q1 reporting
 # grade band
 (df['pos_ind'].groupby(df.grade).sum())*100/(df['nsize'].groupby(df.grade).sum())
 # content area
