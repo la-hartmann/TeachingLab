@@ -31,9 +31,9 @@ he = ['mindsets_ts_1_4','mindsets_ts_1_5','mindsets_ts_1_6','mindsets_ts_1_7','m
 gm = ['mindsets_ts_1_16','mindsets_ts_1_19','mindsets_ts_1_20',
      'non_ts_mindsets_12','non_ts_mindsets_13','non_ts_mindsets_14']
 
-reverse = ['mindsets_ts_1_1','mindsets_ts_1_22','mindsets_ts_1_23','mindsets_ts_1_4','mindsets_ts_1_5',
+reverse = ['mindsets_ts_1_1','mindsets_ts_1_21','mindsets_ts_1_22','mindsets_ts_1_23','mindsets_ts_1_4','mindsets_ts_1_5',
            'mindsets_ts_1_6','mindsets_ts_1_13','mindsets_ts_1_16','mindsets_ts_1_19','mindsets_ts_1_20',
-          'non_ts_mindsets_1','non_ts_mindsets_3','non_ts_mindsets_4','non_ts_mindsets_7',
+          'non_ts_mindsets_1','non_ts_mindsets_2','non_ts_mindsets_3','non_ts_mindsets_4','non_ts_mindsets_7',
           'non_ts_mindsets_8','non_ts_mindsets_9','non_ts_mindsets_11','non_ts_mindsets_12',
           'non_ts_mindsets_13','non_ts_mindsets_14']
 
