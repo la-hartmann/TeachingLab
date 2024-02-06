@@ -1,14 +1,9 @@
 # Pull IPG survey
-df = get_survey('SV_0BSnkV9TVXK1hjw')
-# clean import id, subset >= 7/1/2023, include only Finished responses, reset index
-df = clean(df)
+df = clean(get_survey('SV_0BSnkV9TVXK1hjw'),'07-01-2023','09-30-2023')
 
 ### Q1 Data Cleaning ###
-
 # subset to only use FSOT, K12 math, K12 ela
 df = pd.DataFrame(df[(df.ipg_rubric=='K-12: Mathematics IPG')|(df.ipg_rubric=='K-12: ELA/Literacy IPG (please use this tool for K-2 observations that are not focused on foundational skills)')|(df.ipg_rubric=='Foundational Skills Observational Tool - FSOT')])
-# subset to include < 10/1/2023
-df = pd.DataFrame(df[(df['EndDate']<'10-01-2023')])
 # subset to exclude 'ongoing' service observations
 df = pd.DataFrame(df[df.direct_to_ts_obs != 'Ongoing'])
 
