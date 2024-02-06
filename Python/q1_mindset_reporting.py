@@ -1,14 +1,5 @@
-# Pull ed survey
-df = get_survey('SV_8vrKtPDtqQFbiBM')
-# clean import id, subset >= 7/1/2023, include only Finished responses, reset index
-df = clean(df)
-
-### Q1 Data Cleaning ###
-
-# subset to include < 10/1/2023
-df = pd.DataFrame(df[(df['EndDate']<'10-01-2023')])
-df = df.reset_index()
-df = df.drop(columns=['index'])
+# Pull ed survey and clean based on Finished surveys and set dates
+df = clean(get_survey('SV_8vrKtPDtqQFbiBM'),'07-01-2023','09-30-2023')
 
 ### Grade Banding ###
 df = grade_col(df)
