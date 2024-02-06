@@ -15,14 +15,14 @@ def get_survey(qcode):
     df = r.get_survey_responses(survey= qcode, useLabels=True)
     return df
 
-def clean(data):
+def clean(data, start, end):
     #drop the import label and question rows
     data.drop(index=data.index[:2], inplace=True)
     #change the data type to date instead of string 
-    data['EndDate']=pd.to_datetime(data['EndDate'])
-    #subset the data to only include Finished surveys completed after July 1st (new school year)
-    df = pd.DataFrame(data[(data['EndDate']>='07-01-2023')])
-    df = pd.DataFrame(df[df['Finished']==True])
+    data['RecordedDate']=pd.to_datetime(data['RecordedDate'])
+    #subset the data to only include Finished surveys completed after start and before end date
+    df = pd.DataFrame(data[(data.RecrodedDate >= start)&(data.RecordedDate <= end)])
+    df = pd.DataFrame(df[(df['Finished']==True)|(df['Finished']=='True')])
     df = df.reset_index()
     df = df.drop(columns=['index'])
     return df
