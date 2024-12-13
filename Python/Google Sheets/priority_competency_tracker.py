@@ -3,6 +3,7 @@ import oauth2client
 import pandas as pd
 from datetime import date
 from datetime import datetime
+import datetime
 import requests
 import numpy as np
 
@@ -310,8 +311,9 @@ def check_comps():
        'Project Competency Rated', 'Competency 4', 'Competency 4 Rated',
        'Competency 5', 'Competency 5 Rated']]
     results_df = results_df.sort_values(by=['Needs New Baseline','Coach'])
+    update_time = datetime.datetime.now() + datetime.timedelta(hours=1)
     update_row = pd.DataFrame({
-        "Coach": ["Last updated: " + datetime.now().strftime("%m-%d-%Y %H:%M:%S")],
+        "Coach": ["Last updated: " + update_time.strftime("%m-%d-%Y %I:%M %p")+" ET"],
         "TL Competencies": [""],
         "Project Competency": [""],
         "Project Competency Rated": [""],
