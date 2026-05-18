@@ -333,8 +333,8 @@ def check_comps():
 def main():
     
     #Set up writing to sheet    
-    json_keyfile = "/Users/laurenhartmann/sheetscode/api_key.json"
-    spreadsheet_write = "12G2pywmRV6GqQSQIczy3lMU3059vXkiotrU9fpJXVRI"
+    json_keyfile = json_keyfile_path
+    spreadsheet_write = SPREADSHEET_ID
     worksheet_write = "Baseline Data Check"
 
     # Authenticate and open the sheets to read and write
