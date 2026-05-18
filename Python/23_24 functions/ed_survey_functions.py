@@ -7,7 +7,7 @@ def get_survey(qcode):
     from QualtricsAPI.Setup import Credentials
     from QualtricsAPI.Survey import Responses
     #Credentials from Teaching Lab Research account
-    Credentials().qualtrics_api_credentials(token='kPvIQdFYT3zUVJJr2DVHXTRFXnvhlgVuwu3S6A3G',data_center='teachinglab.iad1')
+    Credentials().qualtrics_api_credentials(token=TOKEN,data_center=DATACENTER)
 
     #Create an instance
     r = Responses()
