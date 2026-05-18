@@ -64,13 +64,13 @@ def get_priorities():
   #def get_priorities():
     url = "https://api.monday.com/v2"
     headers = {
-        "Authorization": "eyJhbGciOiJIUzI1NiJ9.eyJ0aWQiOjQyMTEwNTU0MCwiYWFpIjoxMSwidWlkIjo0MTMwMTQxOSwiaWFkIjoiMjAyNC0xMC0wOFQxOTo0OToyOS42MzRaIiwicGVyIjoibWU6d3JpdGUiLCJhY3RpZCI6ODg4NDgxOSwicmduIjoidXNlMSJ9.NXQ2Nyin-Fmg8Kz21PvnzsjJGVOMwXPf78DSGZ392J4",
+        "Authorization":MONDAY_AUTH,
         "Content-Type": "application/json"
     }
 
     # GraphQL query to pull coach names and email
     query = """{
-      boards(ids: 2208860812) {
+      boards(ids: BOARD_ID) {
       name
       id
       description
@@ -114,7 +114,7 @@ def get_priorities():
     ### Pulling Competencies#######
     # GraphQL query to pull email and competencies
     query = """{
-      boards(ids: 7514637454) {
+      boards(ids: BOARD2_ID) {
       name
       id
       description
